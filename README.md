@@ -52,6 +52,7 @@ This project demonstrates production-level Android development practices includi
 | Networking | Retrofit | 3.0.0 |
 | Serialization | Gson | via Retrofit |
 | Image Loading | Coil 3 | 3.0.4 |
+| Persistence | DataStore Preferences | 1.1.7 |
 | Async | Coroutines + Flow | via Lifecycle |
 | Browser | Chrome Custom Tabs | 1.8.0 |
 | Testing | JUnit 4, MockK, Turbine | Various |
@@ -83,6 +84,8 @@ app/src/main/java/com/recipesforsoftware/mvvm/
 │   ├── theme/
 │   │   ├── Color.kt                # Material 3 color tokens
 │   │   ├── Theme.kt                # Dynamic color + dark theme
+│   │   ├── ThemePreference.kt      # DataStore-backed dark mode preference
+│   │   ├── ThemeViewModel.kt       # ViewModel for theme state management
 │   │   └── Type.kt                 # Typography scale
 │   └── topheadline/
 │       ├── TopHeadlineActivity.kt   # @AndroidEntryPoint Activity
@@ -95,7 +98,7 @@ app/src/main/java/com/recipesforsoftware/mvvm/
 
 - **Single-Activity Architecture**
 - **Material Design 3** with Dynamic Color support (Android 12+)
-- **Dark Theme** with automatic system preference detection
+- **Dark Theme** with DataStore persistence and system preference detection
 - **Edge-to-Edge** layout with immersive status bar
 - **Pull-to-Refresh** pattern via top app bar action
 - **Custom Chrome Tabs** for in-app article reading
@@ -109,9 +112,12 @@ The project includes a comprehensive test suite:
 ### Unit Tests
 - **TopHeadlineViewModelTest** - ViewModel state management, loading/success/error flows
 - **TopHeadlineRepositoryTest** - Repository network calls, error handling, data mapping
+- **ThemeViewModelTest** - Theme ViewModel toggle/set logic, DataStore interaction
 
 ### Instrumented Tests
 - **AppInstrumentedTest** - App context and package verification
+- **ThemePreferenceInstrumentedTest** - DataStore read/write cycle, preference isolation
+- **TopHeadlineScreenTest** - Compose UI tests for TopHeadlineScreen (top bar, menu, dark mode toggle, refresh, loading/error/success states)
 
 ### Test Stack
 | Library | Purpose |
@@ -121,6 +127,7 @@ The project includes a comprehensive test suite:
 | Turbine | Flow testing utilities |
 | kotlinx-coroutines-test | Coroutine testing support |
 | Robolectric | Android framework simulation |
+| Compose UI Test | Compose component testing |
 
 ### Running Tests
 
@@ -131,8 +138,14 @@ The project includes a comprehensive test suite:
 # Single test class
 ./gradlew :app:testDebugUnitTest --tests "com.recipesforsoftware.mvvm.TopHeadlineViewModelTest"
 
-# All tests
+# All unit tests
 ./gradlew test
+
+# Instrumented tests (requires connected device or emulator)
+./gradlew connectedDebugAndroidTest
+
+# Single instrumented test class
+./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.recipesforsoftware.mvvm.TopHeadlineScreenTest
 ```
 
 ## Build Configuration

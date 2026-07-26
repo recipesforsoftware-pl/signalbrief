@@ -108,6 +108,9 @@ dependencies {
     // Browser
     implementation(libs.browser)
 
+    // DataStore Preferences
+    implementation(libs.datastore.preferences)
+
     // Unit Testing
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

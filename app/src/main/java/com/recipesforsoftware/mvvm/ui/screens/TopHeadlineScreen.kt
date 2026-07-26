@@ -18,9 +18,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -28,6 +33,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -54,7 +61,9 @@ import com.recipesforsoftware.mvvm.ui.theme.NewsAppTheme
 @Composable
 fun TopHeadlineScreen(
     uiState: UiState<List<Article>>,
+    isDarkMode: Boolean,
     onRefresh: () -> Unit,
+    onToggleDarkMode: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -62,6 +71,7 @@ fun TopHeadlineScreen(
     val isScrolled by remember {
         derivedStateOf { listState.firstVisibleItemScrollOffset > 0 }
     }
+    var menuExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -88,6 +98,52 @@ fun TopHeadlineScreen(
                             imageVector = Icons.Rounded.Refresh,
                             contentDescription = "Refresh"
                         )
+                    }
+                    Box {
+                        IconButton(onClick = { menuExpanded = true }) {
+                            Icon(
+                                imageVector = Icons.Rounded.MoreVert,
+                                contentDescription = "Menu"
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Dark Mode") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = if (isDarkMode) Icons.Rounded.DarkMode else Icons.Rounded.LightMode,
+                                        contentDescription = null
+                                    )
+                                },
+                                trailingIcon = {
+                                    Switch(
+                                        checked = isDarkMode,
+                                        onCheckedChange = {
+                                            onToggleDarkMode()
+                                            menuExpanded = false
+                                        },
+                                        thumbContent = {
+                                            Icon(
+                                                imageVector = if (isDarkMode) Icons.Rounded.DarkMode else Icons.Rounded.LightMode,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(SwitchDefaults.IconSize)
+                                            )
+                                        },
+                                        colors = SwitchDefaults.colors(
+                                            checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                            checkedThumbColor = MaterialTheme.colorScheme.onPrimary
+                                        )
+                                    )
+                                },
+                                onClick = {
+                                    onToggleDarkMode()
+                                    menuExpanded = false
+                                }
+                            )
+                        }
                     }
                 },
                 scrollBehavior = scrollBehavior,
@@ -253,7 +309,9 @@ private fun TopHeadlineScreenPreview() {
                     )
                 )
             ),
-            onRefresh = {}
+            isDarkMode = false,
+            onRefresh = {},
+            onToggleDarkMode = {}
         )
     }
 }

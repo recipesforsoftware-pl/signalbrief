@@ -10,6 +10,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import com.recipesforsoftware.mvvm.ui.screens.TopHeadlineScreen
 import com.recipesforsoftware.mvvm.ui.theme.NewsAppTheme
+import com.recipesforsoftware.mvvm.ui.theme.ThemeViewModel
 
 @AndroidEntryPoint
 class TopHeadlineActivity : ComponentActivity() {
@@ -19,13 +20,18 @@ class TopHeadlineActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            NewsAppTheme {
+            val themeViewModel: ThemeViewModel = hiltViewModel()
+            val isDarkMode by themeViewModel.isDarkMode.collectAsState()
+
+            NewsAppTheme(isDarkMode = isDarkMode) {
                 val viewModel: TopHeadlineViewModel = hiltViewModel()
                 val uiState by viewModel.uiState.collectAsState()
 
                 TopHeadlineScreen(
                     uiState = uiState,
-                    onRefresh = viewModel::fetchTopHeadlines
+                    isDarkMode = isDarkMode,
+                    onRefresh = viewModel::fetchTopHeadlines,
+                    onToggleDarkMode = themeViewModel::toggleDarkMode
                 )
             }
         }
