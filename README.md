@@ -1,215 +1,205 @@
-# News MVVM - Jetpack Compose Architecture Sample
+# SignalBrief
 
-A modern Android application built with **Jetpack Compose**, **Hilt**, **MVVM architecture**, and **Material Design 3**. Fetches top news headlines from the NewsAPI and presents them in a beautiful, responsive Compose UI.
+SignalBrief is a production-oriented Android news reader. It is being developed
+incrementally: this repository currently contains a verified **Android-only**
+baseline. The product direction — a Kotlin Multiplatform application for Android
+and iOS with offline-first reading, saved articles, search, topic monitoring, and
+a Daily Brief — is defined in the [implementation roadmap](IMPLEMENTATION_ROADMAP.md)
+and is **future work**, not yet implemented.
 
-This project demonstrates production-level Android development practices including clean architecture, dependency injection, reactive UI, proper error handling, and comprehensive testing.
+## Current status
+
+- **Platform:** Android only. There is no iOS target and no shared Kotlin
+  Multiplatform module yet.
+- **Scope:** a single-module Gradle application (`:app`) that renders a "Top
+  Headlines" feed from NewsAPI in one Compose screen with light and dark theme
+  support.
+- **Not yet implemented:** Kotlin Multiplatform, Compose Multiplatform, iOS,
+  offline-first storage, navigation, search, saved articles, topic monitoring,
+  the Daily Brief, payments, synchronization, and a production backend. See the
+  roadmap for the planned work.
+
+## Implemented features
+
+- Fetches and displays US top headlines from NewsAPI.
+- Loading state, error state with retry, and success list rendering.
+- Refresh action in the top app bar.
+- Article cards open the original article in Chrome Custom Tabs.
+- Material 3 theme with dynamic color support (Android 12+) and a persisted
+  dark-mode toggle backed by DataStore.
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────┐
-│                      UI Layer                       │
-│  ┌─────────────┐  ┌──────────────┐  ┌───────────┐  │
-│  │   Compose   │  │   ViewModel  │  │  UiState  │  │
-│  │   Screens   │◄─┤   (Hilt)    │◄─┤  (sealed) │  │
-│  └─────────────┘  └──────┬───────┘  └───────────┘  │
-├───────────────────────────┼─────────────────────────┤
-│                    Data Layer                        │
-│  ┌──────────────┐  ┌──────┴───────┐  ┌───────────┐  │
-│  │   Repository │──┤    Network   │──┤  Retrofit  │  │
-│  │   (Hilt)    │  │   Service    │  │  + Gson    │  │
-│  └──────────────┘  └──────────────┘  └───────────┘  │
-├─────────────────────────────────────────────────────┤
-│                Dependency Injection                  │
-│  ┌──────────────────────────────────────────────┐   │
-│  │              Hilt (Dagger)                   │   │
-│  │   @HiltAndroidApp · @AndroidEntryPoint       │   │
-│  │   @HiltViewModel · @Inject · @Singleton      │   │
-│  └──────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────┘
-```
-
-### Design Decisions
-
-| Pattern | Implementation | Rationale |
-|---------|---------------|-----------|
-| **Architecture** | MVVM (Model-View-ViewModel) | Clean separation of concerns; ViewModel survives configuration changes |
-| **UI** | Jetpack Compose + Material 3 | Declarative UI, less boilerplate, modern Android standard |
-| **DI** | Hilt (Dagger) | Compile-time DI, Android lifecycle-aware, industry standard |
-| **Networking** | Retrofit + Gson | Type-safe HTTP client with automatic JSON serialization |
-| **Image Loading** | Coil 3 (Compose) | Kotlin-first, coroutine-native, Compose-optimized |
-| **State Management** | StateFlow + sealed UiState | Type-safe state representation, coroutine-friendly |
-| **Error Handling** | Kotlin Result | Idiomatic error propagation without exceptions leaking to UI |
-
-## Tech Stack
-
-| Category | Library | Version |
-|----------|---------|---------|
-| Language | Kotlin | 2.3.21 |
-| UI | Jetpack Compose (BOM) | 2026.04.01 |
-| Material | Material 3 | via Compose BOM |
-| DI | Hilt (Dagger) | 2.60.1 |
-| Networking | Retrofit | 3.0.0 |
-| Serialization | Gson | via Retrofit |
-| Image Loading | Coil 3 | 3.0.4 |
-| Persistence | DataStore Preferences | 1.1.7 |
-| Async | Coroutines + Flow | via Lifecycle |
-| Browser | Chrome Custom Tabs | 1.8.0 |
-| Testing | JUnit 4, MockK, Turbine | Various |
-
-## Project Structure
+MVVM with a single-activity Compose UI:
 
 ```
-app/src/main/java/com/recipesforsoftware/mvvm/
-├── NewsApplication.kt              # @HiltAndroidApp Application class
-├── data/
-│   ├── api/
-│   │   └── NetworkService.kt       # Retrofit API interface
-│   ├── model/
-│   │   ├── Article.kt              # Article data class (nullable fields)
-│   │   ├── Source.kt               # Source data class
-│   │   └── TopHeadlinesResponse.kt # API response wrapper
-│   └── repository/
-│       └── TopHeadlineRepository.kt # Data access with Result wrapping
-├── di/
-│   ├── NetworkModule.kt            # Hilt module for network dependencies
-│   └── qualifiers.kt               # @BaseUrl qualifier
-├── ui/
-│   ├── base/
-│   │   └── UiState.kt             # Sealed interface for UI states
-│   ├── components/
-│   │   └── ArticleCard.kt          # Reusable article card composable
-│   ├── screens/
-│   │   └── TopHeadlineScreen.kt    # Main screen composable
-│   ├── theme/
-│   │   ├── Color.kt                # Material 3 color tokens
-│   │   ├── Theme.kt                # Dynamic color + dark theme
-│   │   ├── ThemePreference.kt      # DataStore-backed dark mode preference
-│   │   ├── ThemeViewModel.kt       # ViewModel for theme state management
-│   │   └── Type.kt                 # Typography scale
-│   └── topheadline/
-│       ├── TopHeadlineActivity.kt   # @AndroidEntryPoint Activity
-│       └── TopHeadlineViewModel.kt  # @HiltViewModel with StateFlow
-└── utils/
-    └── AppConstant.kt              # Constants
+UI (Compose)  ->  TopHeadlineViewModel (StateFlow + sealed UiState)  ->  TopHeadlineRepository  ->  Retrofit (NewsAPI)
+                                                                                                      |
+                                                       ThemeViewModel <-> ThemePreference (DataStore)
 ```
 
-## Key Features
+- One launcher activity (`TopHeadlineActivity`).
+- `TopHeadlineViewModel` exposes a `StateFlow<UiState>` with sealed
+  `Loading` / `Success` / `Error` states.
+- `TopHeadlineRepository` wraps Retrofit calls in `kotlin.Result`.
+- Gson DTOs are used directly by the UI; there is no separate domain layer yet.
+- Hilt provides the application graph and ViewModels.
+- A `ThemePreference` (DataStore) plus `ThemeViewModel` persist and expose the
+  dark-mode setting.
 
-- **Single-Activity Architecture**
-- **Material Design 3** with Dynamic Color support (Android 12+)
-- **Dark Theme** with DataStore persistence and system preference detection
-- **Edge-to-Edge** layout with immersive status bar
-- **Pull-to-Refresh** pattern via top app bar action
-- **Custom Chrome Tabs** for in-app article reading
-- **Responsive Layout** adapting to different screen sizes
-- **Smooth Image Loading** with Coil 3 and crossfade animations
+This is the current, honest state of the code. The target architecture (shared
+domain, data, and presentation layers for Android and iOS) is described in the
+[implementation roadmap](IMPLEMENTATION_ROADMAP.md).
 
-## Testing
+## Technology stack
 
-The project includes a comprehensive test suite:
+| Category | Technology |
+|---|---|
+| Language | Kotlin |
+| UI | Jetpack Compose, Material 3 |
+| Architecture | MVVM with StateFlow |
+| Dependency injection | Dagger/Hilt |
+| Networking | Retrofit + Gson |
+| Image loading | Coil 3 |
+| Persistence | DataStore Preferences |
+| Async | Coroutines + Flow |
+| Browser | Chrome Custom Tabs |
+| Build | Gradle wrapper, AGP |
+| Unit testing | JUnit 4, MockK, Turbine, kotlinx-coroutines-test, Robolectric |
+| UI testing | Compose UI test, Espresso |
 
-### Unit Tests
-- **TopHeadlineViewModelTest** - ViewModel state management, loading/success/error flows
-- **TopHeadlineRepositoryTest** - Repository network calls, error handling, data mapping
-- **ThemeViewModelTest** - Theme ViewModel toggle/set logic, DataStore interaction
+## Project structure
 
-### Instrumented Tests
-- **AppInstrumentedTest** - App context and package verification
-- **ThemePreferenceInstrumentedTest** - DataStore read/write cycle, preference isolation
-- **TopHeadlineScreenTest** - Compose UI tests for TopHeadlineScreen (top bar, menu, dark mode toggle, refresh, loading/error/success states)
-
-### Test Stack
-| Library | Purpose |
-|---------|---------|
-| JUnit 4 | Test framework |
-| MockK | Kotlin-native mocking |
-| Turbine | Flow testing utilities |
-| kotlinx-coroutines-test | Coroutine testing support |
-| Robolectric | Android framework simulation |
-| Compose UI Test | Compose component testing |
-
-### Running Tests
-
-```bash
-# Unit tests (fast, no device needed)
-./gradlew :app:testDebugUnitTest
-
-# Single test class
-./gradlew :app:testDebugUnitTest --tests "com.recipesforsoftware.mvvm.TopHeadlineViewModelTest"
-
-# All unit tests
-./gradlew test
-
-# Instrumented tests (requires connected device or emulator)
-./gradlew connectedDebugAndroidTest
-
-# Single instrumented test class
-./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.recipesforsoftware.mvvm.TopHeadlineScreenTest
 ```
-
-## Build Configuration
-
-### Build Variants
-The project supports debug and release build types:
-
-```bash
-# Debug build
-./gradlew assembleDebug
-
-# Release build (minified with ProGuard)
-./gradlew assembleRelease
-
-# Install debug on connected device
-./gradlew installDebug
+app/
+├── build.gradle.kts
+└── src/
+    ├── main/java/com/recipesforsoftware/mvvm/
+    │   ├── NewsApplication.kt            # @HiltAndroidApp
+    │   ├── data/
+    │   │   ├── api/NetworkService.kt     # Retrofit API interface
+    │   │   ├── model/                    # Gson DTOs
+    │   │   └── repository/TopHeadlineRepository.kt
+    │   ├── di/                           # Hilt network module and qualifiers
+    │   ├── ui/
+    │   │   ├── base/UiState.kt
+    │   │   ├── components/ArticleCard.kt
+    │   │   ├── screens/TopHeadlineScreen.kt
+    │   │   ├── theme/                    # Color, Theme, Type, ThemePreference, ThemeViewModel
+    │   │   └── topheadline/              # TopHeadlineActivity, TopHeadlineViewModel
+    │   └── utils/AppConstant.kt
+    ├── test/                             # JVM unit tests
+    └── androidTest/                      # Instrumented (device) tests
+├── gradle/libs.versions.toml             # Version catalog
+└── settings.gradle.kts                   # Root project name: SignalBrief
 ```
-
-### ProGuard / R8
-Release builds include code shrinking and obfuscation:
-- Retrofit service interfaces preserved
-- Gson model classes preserved
-- Hilt generated code protected
-- Line numbers kept for crash reports
-
-## Requirements
-
-- **Minimum SDK**: 24 (Android 7.0)
-- **Target SDK**: 35 (Android 15)
-- **Compile SDK**: 37
-- **JDK**: 17
 
 ## Setup
 
 1. Clone the repository:
    ```bash
-    git clone https://github.com/recipesforsoftware/news-mvvm-compose.git
+   git clone https://github.com/recipesforsoftware-pl/signalbrief.git
    ```
+2. Open the project in Android Studio (or build from the command line).
+3. Get a NewsAPI developer key from [NewsAPI.org](https://newsapi.org/register).
+4. Store the key in the local, ignored `local.properties` file (see below).
 
-2. Open in Android Studio Ladybug or later.
+### API key handling and security limitations
 
-3. Get an API key from [NewsAPI.org](https://newsapi.org/register).
+The current development mode reads a user-supplied NewsAPI key from the
+**ignored** `local.properties` file:
 
-4. Add your API key to `local.properties` (already in `.gitignore`):
-   ```
-   NEWS_API_KEY=your_api_key_here
-   ```
+```properties
+NEWS_API_KEY=your_news_api_key
+```
 
-5. Build and run:
-   ```bash
-   ./gradlew installDebug
-   ```
+Notes:
 
-## Dependencies
+- `local.properties` must **never be committed**. It is listed in `.gitignore`.
+- The key is embedded into `BuildConfig` at build time and sent in the
+  `X-Api-Key` header. A client-side key is extractable from the APK, so this
+  setup is intended for **local development only**, never as a secure production
+  credential.
+- You are responsible for complying with the selected data provider's licensing
+  and usage terms (for example NewsAPI's developer-tier restrictions and rate
+  limits).
 
-| Dependency | License |
-|------------|---------|
-| Jetpack Compose | Apache 2.0 |
-| Hilt (Dagger) | Apache 2.0 |
-| Retrofit | Apache 2.0 |
-| Coil 3 | Apache 2.0 |
-| Material 3 | Apache 2.0 |
+### Development mode (currently available)
 
-### License
+The only currently available mode is the local development mode described above:
+the user provides their own NewsAPI key and runs the app locally. No real key is
+included in this repository or required by CI.
+
+### Production-connected mode (planned, not implemented)
+
+A future production-connected mode is planned around an **authorized production
+data provider** and, where required, a **backend proxy** so that credentials are
+never embedded in the client. This mode is **not implemented in this baseline**,
+and no deterministic demo fixtures exist yet. Deterministic demo data is planned
+as later work so the app can run and be tested without a third-party key.
+
+## Running the app
+
+```bash
+# Debug build
+./gradlew assembleDebug
+
+# Install on a connected device/emulator
+./gradlew installDebug
+```
+
+Without a valid key in `local.properties`, the app builds and runs but headline
+requests fail — the development key is required to see live data.
+
+## Testing
+
+```bash
+# All JVM unit tests (fast, no device needed)
+./gradlew test
+
+# Instrumented tests (require a connected device or emulator)
+./gradlew connectedDebugAndroidTest
+```
+
+- **Unit tests** cover the repository (network success/error mapping),
+  the top-headlines ViewModel (loading/success/error flows), and the theme
+  ViewModel (dark-mode persistence).
+- **Instrumented tests** cover the top-headlines Compose screen, DataStore
+  theme-preference behavior, and application package verification. They exist in
+  `app/src/androidTest` but are **not** part of the CI workflow yet; executing
+  them requires a device or emulator.
+
+## Verified commands
+
+The following commands pass on the current baseline:
+
+```bash
+./gradlew test
+./gradlew lintDebug
+./gradlew assembleDebug
+```
+
+Android Lint (`lintDebug`) passes with warnings and no errors.
+
+## CI
+
+A basic GitHub Actions workflow (`.github/workflows/android_ci.yml`) runs on pull
+requests targeting `main`, on pushes to `main`, and on manual dispatch. It runs
+`./gradlew test`, `./gradlew lintDebug`, and `./gradlew assembleDebug` on
+`ubuntu-latest` with JDK 17. No NewsAPI key is required in CI.
+
+## Roadmap
+
+See [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md) for the phased plan:
+verified Android baseline (this PR), extended quality gates, shared KMP domain
+and data modules, offline-first storage with Room, shared presentation, Compose
+Multiplatform UI, and the full product MVP. The roadmap also separates features
+that belong in the public repository from commercial capabilities (payments,
+production synchronization, analytics, and signing) that are planned for a
+private repository.
+
+## License
+
 ```
    Copyright (C) 2026 Konrad Szewczuk (@recipesforsoftware-pl)
 
@@ -225,4 +215,3 @@ Release builds include code shrinking and obfuscation:
    See the License for the specific language governing permissions and
    limitations under the License.
 ```
-

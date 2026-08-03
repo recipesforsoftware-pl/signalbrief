@@ -20,7 +20,7 @@ Repository facts (verified on branch `docs/signalbrief-implementation-roadmap`, 
   - `./gradlew test` — success; 20 unit tests, 0 failures (Repository 6, ViewModel 6, Theme 8).
   - `./gradlew lintDebug` — success; 26 warnings, 0 errors (mostly dependency-version updates, plus `UseKtx`, `UnusedResources`, `OldTargetApi`, `ObsoleteSdkInt`, `MonochromeLauncherIcon`, `NotShrinkingResources`).
   - `./gradlew assembleDebug` — success.
-  - 17 instrumented tests exist (Compose UI, DataStore, package) but were not run (no emulator); they require `connectedDebugAndroidTest`.
+  - 20 instrumented test methods exist (Compose UI, DataStore, package) but were not run (no emulator); they require `connectedDebugAndroidTest`.
 - Secrets: `NEWS_API_KEY` is read from untracked `local.properties` into `BuildConfig` (locally non-empty). No tracked file contains credentials, keys, signing material, or private endpoints. This is a client-embedded key — extractable, not secret.
 
 Material discrepancies between README and code:
