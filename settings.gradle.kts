@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "News-MVVM-Compose"
+rootProject.name = "SignalBrief"
 include(":app")
