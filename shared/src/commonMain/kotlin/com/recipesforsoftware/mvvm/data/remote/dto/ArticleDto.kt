@@ -1,22 +1,21 @@
 package com.recipesforsoftware.mvvm.data.remote.dto
 
-import com.google.gson.annotations.SerializedName
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 /**
  * Remote transport shape of a single NewsAPI article.
  *
  * Tolerant parsing: every field is nullable because the remote contract does
- * not guarantee them. Gson annotations are confined to the data layer.
+ * not guarantee them. Unknown JSON keys are ignored by the shared JSON
+ * configuration.
  */
+@Serializable
 data class ArticleDto(
-    @SerializedName("title")
     val title: String? = null,
-    @SerializedName("description")
     val description: String? = null,
-    @SerializedName("url")
     val url: String? = null,
-    @SerializedName("urlToImage")
+    @SerialName("urlToImage")
     val imageUrl: String? = null,
-    @SerializedName("source")
     val source: SourceDto? = null,
 )
