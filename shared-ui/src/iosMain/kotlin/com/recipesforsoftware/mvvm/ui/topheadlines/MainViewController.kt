@@ -6,9 +6,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.window.ComposeUIViewController
-import com.recipesforsoftware.mvvm.data.remote.KtorNewsRepository
+import com.recipesforsoftware.mvvm.data.local.RoomNewsLocalDataSource
+import com.recipesforsoftware.mvvm.data.local.db.SignalBriefDatabase
+import com.recipesforsoftware.mvvm.data.local.db.createSignalBriefDatabase
+import com.recipesforsoftware.mvvm.data.remote.KtorNewsRemoteDataSource
 import com.recipesforsoftware.mvvm.data.remote.NewsApiConfig
 import com.recipesforsoftware.mvvm.data.remote.createHttpClient
+import com.recipesforsoftware.mvvm.data.repository.OfflineFirstNewsRepository
+import io.ktor.client.HttpClient
 import platform.Foundation.NSBundle
 import platform.UIKit.UIViewController
 
@@ -16,9 +21,11 @@ import platform.UIKit.UIViewController
  * iOS composition root, invoked from SwiftUI as `MainViewControllerKt.mainViewController()`.
  *
  * Assembles the shared data layer and [TopHeadlinesPresenter] without any
- * platform dependency injection framework, mirrors the Android wiring
- * (`NewsApiConfig` + [createHttpClient] + [KtorNewsRepository]), and lets the
- * screen live entirely in [SignalBriefTheme].
+ * platform dependency injection framework, mirroring the Android wiring:
+ * `NewsApiConfig` + [createHttpClient] + [KtorNewsRemoteDataSource] on the
+ * remote side, `SignalBriefDatabase` + [RoomNewsLocalDataSource] on the local
+ * side, combined into an [OfflineFirstNewsRepository] that implements the
+ * `NewsRepository` contract consumed by the shared screen.
  */
 fun mainViewController(): UIViewController =
     ComposeUIViewController {
@@ -29,11 +36,12 @@ fun mainViewController(): UIViewController =
 
 @Composable
 private fun TopHeadlinesRoute() {
-    val presenter = remember { createIosTopHeadlinesPresenter() }
+    val composition = remember { createIosTopHeadlinesPresenter() }
+    val presenter = composition.presenter
     val uiState by presenter.uiState.collectAsState()
 
-    DisposableEffect(presenter) {
-        onDispose { presenter.dispose() }
+    DisposableEffect(composition) {
+        onDispose { composition.dispose() }
     }
 
     TopHeadlinesScreen(
@@ -42,7 +50,24 @@ private fun TopHeadlinesRoute() {
     )
 }
 
-private fun createIosTopHeadlinesPresenter(): TopHeadlinesPresenter {
+/**
+ * Holds the iOS composition root and its externally owned resources. The shared
+ * HTTP client and the Room database are created here and closed here, so the
+ * view controller teardown leaves no client or database instance behind.
+ */
+private class IosTopHeadlinesComposition(
+    val presenter: TopHeadlinesPresenter,
+    private val client: HttpClient,
+    private val database: SignalBriefDatabase,
+) {
+    fun dispose() {
+        presenter.dispose()
+        client.close()
+        database.close()
+    }
+}
+
+private fun createIosTopHeadlinesPresenter(): IosTopHeadlinesComposition {
     val apiKey =
         readNewsApiKeyFromBundle()
             ?: error(
@@ -51,8 +76,15 @@ private fun createIosTopHeadlinesPresenter(): TopHeadlinesPresenter {
                     "and rebuild the app.",
             )
     val config = NewsApiConfig(apiKey = apiKey, baseUrl = "https://newsapi.org/v2/")
-    val repository = KtorNewsRepository(client = createHttpClient(config))
-    return TopHeadlinesPresenter(repository = repository)
+    val client = createHttpClient(config)
+    val database = createSignalBriefDatabase()
+    val remoteDataSource = KtorNewsRemoteDataSource(client)
+    val localDataSource = RoomNewsLocalDataSource(database)
+    val presenter =
+        TopHeadlinesPresenter(
+            repository = OfflineFirstNewsRepository(remoteDataSource, localDataSource),
+        )
+    return IosTopHeadlinesComposition(presenter, client, database)
 }
 
 /**

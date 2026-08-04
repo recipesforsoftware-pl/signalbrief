@@ -4,7 +4,6 @@ import com.recipesforsoftware.mvvm.data.remote.dto.TopHeadlinesResponseDto
 import com.recipesforsoftware.mvvm.data.remote.mapper.toDomainArticles
 import com.recipesforsoftware.mvvm.domain.failure.NewsFailure
 import com.recipesforsoftware.mvvm.domain.model.Article
-import com.recipesforsoftware.mvvm.domain.repository.NewsRepository
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.ResponseException
@@ -16,16 +15,17 @@ import kotlinx.serialization.SerializationException
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * Ktor-backed [NewsRepository] implementation shared by Android and iOS.
+ * Ktor-backed [NewsRemoteDataSource] shared by Android and iOS.
  *
  * Transport concerns stay inside this class: Ktor and serialization exceptions
  * are translated into [NewsFailure] so no raw transport exception reaches the
- * UI. The request path and parameters are built inline so the full request can
- * be asserted through the Ktor MockEngine in common tests.
+ * repository or the UI. The request path and parameters are built inline so the
+ * full request can be asserted through the Ktor MockEngine in common tests. The
+ * supplied [client] is owned by the composition root and is never closed here.
  */
-class KtorNewsRepository(
+class KtorNewsRemoteDataSource(
     private val client: HttpClient,
-) : NewsRepository {
+) : NewsRemoteDataSource {
     @Suppress("TooGenericExceptionCaught", "SwallowedException")
     override suspend fun getTopHeadlines(country: String): Result<List<Article>> =
         try {

@@ -136,6 +136,9 @@ dependencies {
     // Ktor client type used at the Hilt composition boundary
     implementation(libs.ktor.client.core)
 
+    // Room database type used at the Hilt composition boundary
+    implementation(libs.room.runtime)
+
     // Compose BOM
     implementation(platform(libs.compose.bom))
     androidTestImplementation(platform(libs.compose.bom))

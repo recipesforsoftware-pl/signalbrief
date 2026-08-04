@@ -20,20 +20,21 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Behavioral tests for [KtorNewsRepository] driven by the Ktor [MockEngine].
+ * Behavioral tests for [KtorNewsRemoteDataSource] driven by the Ktor
+ * [MockEngine].
  *
  * The client is configured with the exact same shared configuration used in
  * production (content negotiation, timeouts, validation, base URL and API-key
  * header), so the tests exercise the real request/response pipeline.
  */
-class KtorNewsRepositoryTest {
+class KtorNewsRemoteDataSourceTest {
     private val config =
         NewsApiConfig(
             apiKey = FAKE_API_KEY,
             baseUrl = "https://newsapi.example/v2/",
         )
 
-    private fun repositoryWith(handler: MockRequestHandler): KtorNewsRepository {
+    private fun dataSourceWith(handler: MockRequestHandler): KtorNewsRemoteDataSource {
         val client =
             HttpClient(MockEngine) {
                 engine {
@@ -41,20 +42,20 @@ class KtorNewsRepositoryTest {
                 }
                 configureNewsApiClient(config)
             }
-        return KtorNewsRepository(client)
+        return KtorNewsRemoteDataSource(client)
     }
 
     @Test
     fun successfulResponseIsMappedToDomainArticles() =
         runTest {
             var request: HttpRequestData? = null
-            val repository =
-                repositoryWith { captured ->
+            val dataSource =
+                dataSourceWith { captured ->
                     request = captured
                     respond(SUCCESSFUL_RESPONSE, headers = JSON_HEADERS)
                 }
 
-            val result = repository.getTopHeadlines("us")
+            val result = dataSource.getTopHeadlines("us")
 
             assertTrue(result.isSuccess)
             val article = result.getOrNull()?.single()
@@ -74,9 +75,9 @@ class KtorNewsRepositoryTest {
     @Test
     fun unknownJsonFieldsAreIgnored() =
         runTest {
-            val repository = repositoryWith { respond(UNKNOWN_FIELDS_RESPONSE, headers = JSON_HEADERS) }
+            val dataSource = dataSourceWith { respond(UNKNOWN_FIELDS_RESPONSE, headers = JSON_HEADERS) }
 
-            val result = repository.getTopHeadlines("us")
+            val result = dataSource.getTopHeadlines("us")
 
             assertTrue(result.isSuccess)
             assertEquals("Headline", result.getOrNull()?.single()?.title)
@@ -85,9 +86,9 @@ class KtorNewsRepositoryTest {
     @Test
     fun nullArticlesListMapsToAnEmptyList() =
         runTest {
-            val repository = repositoryWith { respond(NULL_ARTICLES_RESPONSE, headers = JSON_HEADERS) }
+            val dataSource = dataSourceWith { respond(NULL_ARTICLES_RESPONSE, headers = JSON_HEADERS) }
 
-            val result = repository.getTopHeadlines("us")
+            val result = dataSource.getTopHeadlines("us")
 
             assertTrue(result.isSuccess)
             assertTrue(result.getOrNull()?.isEmpty() == true)
@@ -96,9 +97,9 @@ class KtorNewsRepositoryTest {
     @Test
     fun articlesWithMissingOrBlankUrlAreDropped() =
         runTest {
-            val repository = repositoryWith { respond(DROPPED_ARTICLES_RESPONSE, headers = JSON_HEADERS) }
+            val dataSource = dataSourceWith { respond(DROPPED_ARTICLES_RESPONSE, headers = JSON_HEADERS) }
 
-            val result = repository.getTopHeadlines("us")
+            val result = dataSource.getTopHeadlines("us")
 
             assertTrue(result.isSuccess)
             assertTrue(result.getOrNull()?.isEmpty() == true)
@@ -107,15 +108,15 @@ class KtorNewsRepositoryTest {
     @Test
     fun non2xxResponseMapsToNetworkFailure() =
         runTest {
-            val repository =
-                repositoryWith {
+            val dataSource =
+                dataSourceWith {
                     respond(
                         content = "Internal Server Error",
                         status = HttpStatusCode.InternalServerError,
                     )
                 }
 
-            val result = repository.getTopHeadlines("us")
+            val result = dataSource.getTopHeadlines("us")
 
             assertTrue(result.isFailure)
             assertEquals(NewsFailure.Network, result.exceptionOrNull())
@@ -124,9 +125,9 @@ class KtorNewsRepositoryTest {
     @Test
     fun transportExceptionMapsToNetworkFailure() =
         runTest {
-            val repository = repositoryWith { throw IOException("connection reset") }
+            val dataSource = dataSourceWith { throw IOException("connection reset") }
 
-            val result = repository.getTopHeadlines("us")
+            val result = dataSource.getTopHeadlines("us")
 
             assertTrue(result.isFailure)
             assertEquals(NewsFailure.Network, result.exceptionOrNull())
@@ -136,9 +137,9 @@ class KtorNewsRepositoryTest {
     @Test
     fun malformedJsonMapsToInvalidDataFailure() =
         runTest {
-            val repository = repositoryWith { respond(MALFORMED_RESPONSE, headers = JSON_HEADERS) }
+            val dataSource = dataSourceWith { respond(MALFORMED_RESPONSE, headers = JSON_HEADERS) }
 
-            val result = repository.getTopHeadlines("us")
+            val result = dataSource.getTopHeadlines("us")
 
             assertTrue(result.isFailure)
             assertEquals(NewsFailure.InvalidData, result.exceptionOrNull())
@@ -148,9 +149,9 @@ class KtorNewsRepositoryTest {
     fun unexpectedFailureMapsToUnknownFailurePreservingCause() =
         runTest {
             val boom = IllegalStateException("boom")
-            val repository = repositoryWith { throw boom }
+            val dataSource = dataSourceWith { throw boom }
 
-            val result = repository.getTopHeadlines("us")
+            val result = dataSource.getTopHeadlines("us")
 
             assertTrue(result.isFailure)
             val failure = result.exceptionOrNull()
@@ -163,11 +164,11 @@ class KtorNewsRepositoryTest {
     @Test
     fun cancellationIsRethrownInsteadOfReportedAsFailure() =
         runTest {
-            val repository = repositoryWith { throw CancellationException("cancelled") }
+            val dataSource = dataSourceWith { throw CancellationException("cancelled") }
 
             var thrown: Throwable? = null
             try {
-                repository.getTopHeadlines("us")
+                dataSource.getTopHeadlines("us")
             } catch (e: CancellationException) {
                 thrown = e
             }
@@ -178,12 +179,12 @@ class KtorNewsRepositoryTest {
     @Test
     fun failureMessagesNeverExposeTheApiKey() =
         runTest {
-            val repository =
-                repositoryWith {
+            val dataSource =
+                dataSourceWith {
                     throw IOException("connection reset for $FAKE_API_KEY")
                 }
 
-            val result = repository.getTopHeadlines("us")
+            val result = dataSource.getTopHeadlines("us")
 
             assertTrue(result.isFailure)
             val failureMessage = result.exceptionOrNull()?.message
@@ -195,13 +196,13 @@ class KtorNewsRepositoryTest {
     fun requestCarriesTheInjectedApiKeyHeader() =
         runTest {
             var request: HttpRequestData? = null
-            val repository =
-                repositoryWith { captured ->
+            val dataSource =
+                dataSourceWith { captured ->
                     request = captured
                     respond(SUCCESSFUL_RESPONSE, headers = JSON_HEADERS)
                 }
 
-            repository.getTopHeadlines("us")
+            dataSource.getTopHeadlines("us")
 
             assertEquals(FAKE_API_KEY, request?.headers?.get(API_KEY_HEADER))
         }

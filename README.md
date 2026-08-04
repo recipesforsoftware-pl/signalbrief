@@ -19,13 +19,16 @@ search, topic monitoring, and a Daily Brief — is defined in the
   screen with light and dark theme support. `:app` keeps only the Hilt
   composition root and the Android dark-mode menu; the rest of the screen
   (presenter, strings, theme, composables) is shared with iOS.
-- **Not yet implemented:** offline-first storage, navigation, search, saved
-  articles, topic monitoring, the Daily Brief, payments, synchronization, and a
-  production backend. See the roadmap for the planned work.
+- **Not yet implemented:** navigation, search, saved articles, topic monitoring,
+  the Daily Brief, payments, synchronization, and a production backend. See the
+  roadmap for the planned work.
 
 ## Implemented features
 
 - Fetches and displays US top headlines from NewsAPI on **Android and iOS**.
+- Offline-first top headlines: the latest successful remote response per country
+  is cached in a shared Room database (KMP, `:shared`) and served when the
+  network fails, on both Android and iOS.
 - Shared loading state, empty state, error state with retry, and success list
   rendering (`:shared-ui`).
 - Refresh action in the shared top app bar.
@@ -45,13 +48,20 @@ are shared Kotlin Multiplatform code reused by both apps:
 Android UI (:app) ──┐
                     ├──> TopHeadlinesScreen (shared UI, :shared-ui) ──> TopHeadlinesPresenter (StateFlow, :shared-ui)
 iOS UI (iosApp) ────┘                                                                          |
-                                                                                               v
+                                                                                                v
                                                                         NewsRepository (domain contract, :shared)
-                                                                                               |
-                                                                                               v
-                                                                          KtorNewsRepository (:shared) -> Ktor + kotlinx.serialization (NewsAPI)
-                                                                                               |
-                                                                  ArticleDto --ArticleMapper--> Article (domain model, :shared)
+                                                                                                |
+                                                                                                v
+                                                              OfflineFirstNewsRepository (:shared)  // network-first, cache fallback
+                                                                               |                                  |
+                                                                               v                                  v
+                                                              NewsRemoteDataSource (:shared)     NewsLocalDataSource (:shared)
+                                                                               |                                  |
+                                                                               v                                  v
+                                                        KtorNewsRemoteDataSource (:shared)     RoomNewsLocalDataSource (:shared, Room KMP)
+                                                                               |                                  |
+                                                                               v                                  v
+                                                       Ktor + kotlinx.serialization (NewsAPI)     SignalBriefDatabase (CachedArticleDao)
 ```
 
 - The shared `TopHeadlinesScreen` (Compose Multiplatform, `:shared-ui`) is a
@@ -68,21 +78,35 @@ iOS UI (iosApp) ────┘                                                 
   `NewsFailure` (typed failures) live in `:shared:commonMain`. They are
   framework-independent: no Ktor, serialization, Android, Hilt, or transport DTO
   imports.
-- `KtorNewsRepository` (data layer, `:shared:commonMain`) is the only code
-  touching Ktor and kotlinx.serialization. It maps `ArticleDto` to the domain
-  `Article` and translates transport exceptions into typed `NewsFailure` values
-  (`Network`, `InvalidData`, `Unknown`). Cancellation is always rethrown.
+- The data layer (`:shared:commonMain`) splits network and storage behind two
+  interfaces. `KtorNewsRemoteDataSource` (the only code touching Ktor and
+  kotlinx.serialization) maps `ArticleDto` to the domain `Article` and
+  translates transport exceptions into typed `NewsFailure` values (`Network`,
+  `InvalidData`, `Unknown`). `RoomNewsLocalDataSource` persists the cache
+  through `SignalBriefDatabase` (`CachedArticleDao` +
+  `CachedArticleEntity`) and translates database failures into
+  `NewsFailure.Unknown`. Cancellation is always rethrown in both.
+- `OfflineFirstNewsRepository` implements `NewsRepository` with a network-first
+  policy: on remote success it transactionally replaces that country's cache
+  (remote `emptyList` clears it); on `NewsFailure.Network` it falls back to the
+  non-empty cache, keeping the original network failure when the cache is empty;
+  invalid-data, unknown, and cancellation failures are never hidden by the
+  cache, and a failed remote request never mutates the cache. Country caches are
+  isolated (one `country` + `top-headlines` feed key pair each).
 - The HTTP client is created by an `expect`/`actual` factory: the Android engine
   is wired on Android, the Darwin engine on iOS, and `MockEngine` in common
   tests. Client configuration (content negotiation, timeouts, response
   validation, base URL, API-key header) is shared and identical on both
   platforms.
 - Hilt (Android composition root only) provides `NewsApiConfig` from
-  `BuildConfig.NEWS_API_KEY`, builds the shared `HttpClient`, and binds
-  `NewsRepository` to `KtorNewsRepository` in `RepositoryModule`.
-- On iOS the same `KtorNewsRepository` is created in `MainViewController.kt`,
+  `BuildConfig.NEWS_API_KEY`, builds the shared `HttpClient` and the
+  `SignalBriefDatabase` singleton, and binds `NewsRepository` to
+  `OfflineFirstNewsRepository` in `RepositoryModule`/`DatabaseModule`.
+- On iOS the same offline-first chain is created in `MainViewController.kt`,
   which reads `NEWS_API_KEY` from the app's `Info.plist` (injected from the
-  git-ignored `Secrets.xcconfig`).
+  git-ignored `Secrets.xcconfig`). The iOS composition owns the presenter, the
+  HTTP client, and the database, and disposes all three together when the
+  controller disappears.
 - A `ThemePreference` (DataStore) plus `ThemeViewModel` persist and expose the
   dark-mode setting on Android.
 
@@ -100,7 +124,7 @@ presentation and UI for Android and iOS) is described in the
 | Dependency injection | Dagger/Hilt (Android only) |
 | Networking | Ktor 3 client + kotlinx.serialization (Android + iOS engines) |
 | Image loading | Coil 3 |
-| Persistence | DataStore Preferences |
+| Persistence | Room (KMP), DataStore Preferences |
 | Async | Coroutines + Flow |
 | Browser | Chrome Custom Tabs (Android article opening) |
 | Build | Gradle wrapper, AGP, Xcode (iosApp) |
@@ -127,19 +151,25 @@ shared/
 └── src/
     ├── commonMain/kotlin/com/recipesforsoftware/mvvm/
     │   ├── data/
-    │   │   ├── NewsApiConfig.kt          # Base URL, API-key header, timeout config
-    │   │   ├── HttpClientFactory.kt      # expect factory; content negotiation, timeouts, validation
-    │   │   ├── repository/KtorNewsRepository.kt  # NewsRepository implementation (Ktor)
-    │   │   ├── remote/dto/               # kotlinx.serialization DTOs (ArticleDto, SourceDto, TopHeadlinesResponseDto)
-    │   │   └── remote/mapper/            # DTO -> domain mapping (ArticleMapper)
+    │   │   ├── remote/
+    │   │   │   ├── NewsApiConfig.kt, HttpClientFactory.kt, NewsRemoteDataSource.kt, KtorNewsRemoteDataSource.kt
+    │   │   │   ├── dto/                   # kotlinx.serialization DTOs (ArticleDto, SourceDto, TopHeadlinesResponseDto)
+    │   │   │   └── mapper/                # DTO -> domain mapping (ArticleMapper)
+    │   │   ├── local/
+    │   │   │   ├── NewsLocalDataSource.kt, RoomNewsLocalDataSource.kt, DatabaseConstants.kt
+    │   │   │   ├── dao/                   # CachedArticleDao (replaceAll is transactional)
+    │   │   │   ├── db/                    # SignalBriefDatabase, SignalBriefDatabaseConstructor
+    │   │   │   ├── entity/                # CachedArticleEntity (composite key country/feed/url)
+    │   │   │   └── mapper/                # domain <-> entity mapping (CachedArticleMapper)
+    │   │   └── repository/OfflineFirstNewsRepository.kt  # NewsRepository implementation (network-first + cache fallback)
     │   └── domain/
     │       ├── failure/NewsFailure.kt    # Typed failures: Network, InvalidData, Unknown
     │       ├── model/                    # Domain models (Article, Source)
     │       └── repository/NewsRepository.kt  # Domain contract
-    ├── androidMain/kotlin/.../data/      # HttpClientFactory.android.kt (OkHttp engine)
-    ├── iosMain/kotlin/.../data/          # HttpClientFactory.ios.kt (Darwin engine)
+    ├── androidMain/kotlin/.../data/      # HttpClientFactory.android.kt (OkHttp engine), SignalBriefDatabase androidActual
+    ├── iosMain/kotlin/.../data/          # HttpClientFactory.ios.kt (Darwin engine), SignalBriefDatabase iosActual
     └── commonTest/kotlin/com/recipesforsoftware/mvvm/
-        ├── data/                         # Common tests: KtorNewsRepository (MockEngine), ArticleMapper
+        ├── data/                         # Common tests: remote (MockEngine), local (Room test DB), repository (offline-first policy)
         └── domain/                       # Common tests (models, failures, repository contract)
 shared-ui/
 ├── build.gradle.kts                      # KMP: android + iosArm64 + iosSimulatorArm64; framework SignalBriefSharedUi
@@ -268,11 +298,16 @@ required to see live data.
   instead.
 - **Shared common tests** cover the domain models (`Article` value semantics),
   the typed failures (`NewsFailure`), the DTO-to-domain mapper (happy path and
-  missing/invalid remote data), and the `NewsRepository` implementation against
-  Ktor's `MockEngine` (success, typed failure mapping, cancellation
-  propagation, and the platform-specific success/failure paths). They run both
-  on the JVM (`:shared:testAndroidHostTest`) and on the iOS simulator
-  (`:shared:iosSimulatorArm64Test`).
+  missing/invalid remote data), the `KtorNewsRemoteDataSource` against Ktor's
+  `MockEngine` (success, typed failure mapping, cancellation propagation), the
+  `RoomNewsLocalDataSource` against a real Room test database (round-trip in
+  stable order, replacement, empty-list clearing, country isolation, typed
+  failures after close), and the `OfflineFirstNewsRepository` offline-first
+  policy (cache write-through, replacement, empty-cache clearing, fallback to a
+  non-empty cache on network failure, never hiding non-network failures,
+  cancellation propagation, no cache corruption on failure, country isolation,
+  typed local failures). They run both on the JVM (`:shared:testAndroidHostTest`)
+  and on the iOS simulator (`:shared:iosSimulatorArm64Test`).
 - **Shared UI tests** (`:shared-ui`) cover the presenter end to end with a fake
   repository: initial loading, success/empty, every typed error, retry,
   cancellation on dispose, and stale-response protection. They run on the JVM
