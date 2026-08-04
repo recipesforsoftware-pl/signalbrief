@@ -9,7 +9,6 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class AppInstrumentedTest {
-
     @Test
     fun appPackageName_isCorrect() {
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext

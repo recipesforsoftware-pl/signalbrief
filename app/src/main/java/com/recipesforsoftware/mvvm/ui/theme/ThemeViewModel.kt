@@ -10,27 +10,29 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class ThemeViewModel @Inject constructor(
-    private val themePreference: ThemePreference
-) : ViewModel() {
+class ThemeViewModel
+    @Inject
+    constructor(
+        private val themePreference: ThemePreference,
+    ) : ViewModel() {
+        val isDarkMode =
+            themePreference.isDarkModeEnabled
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5_000),
+                    initialValue = false,
+                )
 
-    val isDarkMode = themePreference.isDarkModeEnabled
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = false
-        )
+        fun toggleDarkMode() {
+            viewModelScope.launch {
+                val current = themePreference.isDarkModeEnabled.first()
+                themePreference.setDarkMode(!current)
+            }
+        }
 
-    fun toggleDarkMode() {
-        viewModelScope.launch {
-            val current = themePreference.isDarkModeEnabled.first()
-            themePreference.setDarkMode(!current)
+        fun setDarkMode(enabled: Boolean) {
+            viewModelScope.launch {
+                themePreference.setDarkMode(enabled)
+            }
         }
     }
-
-    fun setDarkMode(enabled: Boolean) {
-        viewModelScope.launch {
-            themePreference.setDarkMode(enabled)
-        }
-    }
-}

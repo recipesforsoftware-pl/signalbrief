@@ -1,17 +1,23 @@
+import kotlinx.kover.gradle.plugin.dsl.AggregationType
+import kotlinx.kover.gradle.plugin.dsl.CoverageUnit
 import java.util.Properties
 
-val localProperties = Properties().apply {
-    val localPropertiesFile = rootProject.file("local.properties")
-    if (localPropertiesFile.exists()) {
-        load(localPropertiesFile.inputStream())
+val localProperties =
+    Properties().apply {
+        val localPropertiesFile = rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+            load(localPropertiesFile.inputStream())
+        }
     }
-}
 
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.devtools.ksp)
     alias(libs.plugins.hilt.android)
+    alias(libs.plugins.ktlint)
+    alias(libs.plugins.detekt)
+    alias(libs.plugins.kover)
 }
 
 android {
@@ -30,7 +36,7 @@ android {
         buildConfigField(
             "String",
             "NEWS_API_KEY",
-            "\"${localProperties.getProperty("NEWS_API_KEY", "")}\""
+            "\"${localProperties.getProperty("NEWS_API_KEY", "")}\"",
         )
     }
 
@@ -44,7 +50,7 @@ android {
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
         }
     }
@@ -67,6 +73,47 @@ android {
 kotlin {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
+}
+
+ktlint {
+    version.set(libs.versions.ktlintCore)
+}
+
+detekt {
+    toolVersion = libs.versions.detekt.get()
+    buildUponDefaultConfig = true
+    config.setFrom(rootProject.layout.projectDirectory.file("config/detekt/detekt.yml"))
+}
+
+kover {
+    reports {
+        variant("debug") {
+            filters {
+                excludes {
+                    // AGP generated
+                    classes("*.BuildConfig")
+                    classes("*.R")
+                    classes("*.R$*")
+                    // Dagger/Hilt generated
+                    classes("*Hilt*")
+                    classes("*Dagger*")
+                    classes("*_Factory")
+                    classes("*_MembersInjector")
+                    // Compose compiler generated
+                    classes("*ComposableSingletons*")
+                }
+            }
+            verify {
+                rule {
+                    bound {
+                        minValue = 9
+                        coverageUnits = CoverageUnit.LINE
+                        aggregationForGroup = AggregationType.COVERED_PERCENTAGE
+                    }
+                }
+            }
+        }
     }
 }
 

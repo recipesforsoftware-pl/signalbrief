@@ -22,9 +22,8 @@ import org.junit.Test
  * to avoid interfering with production preferences.
  */
 class ThemePreferenceInstrumentedTest {
-
     private val Context.testDataStore: DataStore<Preferences> by preferencesDataStore(
-        name = "test_theme_preferences"
+        name = "test_theme_preferences",
     )
 
     private lateinit var context: Context
@@ -39,54 +38,58 @@ class ThemePreferenceInstrumentedTest {
     }
 
     @Test
-    fun dataStore_defaultsToFalse() = runTest {
-        // When
-        val preferences = context.testDataStore.data.first()
+    fun dataStore_defaultsToFalse() =
+        runTest {
+            // When
+            val preferences = context.testDataStore.data.first()
 
-        // Then
-        val key = booleanPreferencesKey("dark_mode_enabled")
-        assertFalse(preferences[key] ?: false)
-    }
-
-    @Test
-    fun dataStore_setAndGetTrue() = runTest {
-        // Given
-        val key = booleanPreferencesKey("dark_mode_enabled")
-
-        // When
-        context.testDataStore.edit { it[key] = true }
-        val preferences = context.testDataStore.data.first()
-
-        // Then
-        assertTrue(preferences[key] ?: false)
-    }
+            // Then
+            val key = booleanPreferencesKey("dark_mode_enabled")
+            assertFalse(preferences[key] ?: false)
+        }
 
     @Test
-    fun dataStore_setAndGetFalse() = runTest {
-        // Given
-        val key = booleanPreferencesKey("dark_mode_enabled")
+    fun dataStore_setAndGetTrue() =
+        runTest {
+            // Given
+            val key = booleanPreferencesKey("dark_mode_enabled")
 
-        // When - set to true first, then back to false
-        context.testDataStore.edit { it[key] = true }
-        context.testDataStore.edit { it[key] = false }
-        val preferences = context.testDataStore.data.first()
+            // When
+            context.testDataStore.edit { it[key] = true }
+            val preferences = context.testDataStore.data.first()
 
-        // Then
-        assertFalse(preferences[key] ?: true)
-    }
+            // Then
+            assertTrue(preferences[key] ?: false)
+        }
 
     @Test
-    fun dataStore_overwriteValue() = runTest {
-        // Given
-        val key = booleanPreferencesKey("dark_mode_enabled")
+    fun dataStore_setAndGetFalse() =
+        runTest {
+            // Given
+            val key = booleanPreferencesKey("dark_mode_enabled")
 
-        // When
-        context.testDataStore.edit { it[key] = true }
-        context.testDataStore.edit { it[key] = true }
-        context.testDataStore.edit { it[key] = false }
-        val preferences = context.testDataStore.data.first()
+            // When - set to true first, then back to false
+            context.testDataStore.edit { it[key] = true }
+            context.testDataStore.edit { it[key] = false }
+            val preferences = context.testDataStore.data.first()
 
-        // Then - last write wins
-        assertFalse(preferences[key] ?: true)
-    }
+            // Then
+            assertFalse(preferences[key] ?: true)
+        }
+
+    @Test
+    fun dataStore_overwriteValue() =
+        runTest {
+            // Given
+            val key = booleanPreferencesKey("dark_mode_enabled")
+
+            // When
+            context.testDataStore.edit { it[key] = true }
+            context.testDataStore.edit { it[key] = true }
+            context.testDataStore.edit { it[key] = false }
+            val preferences = context.testDataStore.data.first()
+
+            // Then - last write wins
+            assertFalse(preferences[key] ?: true)
+        }
 }

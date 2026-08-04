@@ -169,24 +169,47 @@ requests fail — the development key is required to see live data.
   `app/src/androidTest` but are **not** part of the CI workflow yet; executing
   them requires a device or emulator.
 
-## Verified commands
+## Quality gates
 
 The following commands pass on the current baseline:
 
 ```bash
+./gradlew ktlintCheck
+./gradlew detekt
 ./gradlew test
 ./gradlew lintDebug
 ./gradlew assembleDebug
+./gradlew koverHtmlReportDebug
+./gradlew koverXmlReportDebug
+./gradlew koverVerifyDebug
 ```
 
-Android Lint (`lintDebug`) passes with warnings and no errors.
+Notes:
+
+- `ktlintCheck` verifies Kotlin formatting. The formatter is **not** run automatically in CI; violations fail the build so they must be fixed locally (`./gradlew ktlintFormat`).
+- `detekt` performs static analysis on Kotlin sources.
+- `lintDebug` passes with warnings and no errors.
+- Kover measures code coverage from the **JVM unit tests only** (`testDebugUnitTest`). It does not include Android instrumented tests or any future iOS tests.
+- Instrumented tests (`connectedDebugAndroidTest`) exist but are **not** executed in CI yet; they require a device or emulator.
 
 ## CI
 
-A basic GitHub Actions workflow (`.github/workflows/android_ci.yml`) runs on pull
-requests targeting `main`, on pushes to `main`, and on manual dispatch. It runs
-`./gradlew test`, `./gradlew lintDebug`, and `./gradlew assembleDebug` on
+The GitHub Actions workflow (`.github/workflows/android_ci.yml`) runs on pull
+requests targeting `main`, on pushes to `main`, and on manual dispatch. It
+validates the Gradle wrapper, then runs `ktlintCheck`, `detekt`, `test`,
+`lintDebug`, `assembleDebug`, and the Kover report/verification tasks on
 `ubuntu-latest` with JDK 17. No NewsAPI key is required in CI.
+
+Workflow reports are uploaded as artifacts with a 7-day retention:
+
+- unit-test reports (`app/build/reports/tests/`)
+- Android Lint reports (`app/build/reports/lint-results-debug.*`)
+- ktlint reports (`app/build/reports/ktlint/`)
+- detekt reports (`app/build/reports/detekt/`)
+- Kover reports (`app/build/reports/kover/`)
+
+Dependency review (`actions/dependency-review-action@v5`) runs on pull requests
+targeting `main` and fails on `moderate` severity vulnerabilities.
 
 ## Roadmap
 

@@ -14,32 +14,32 @@ import org.junit.Rule
 import org.junit.Test
 
 class TopHeadlineScreenTest {
-
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    private val fakeArticles = listOf(
-        Article(
-            title = "Test Article 1",
-            description = "Description 1",
-            url = "https://example.com/1",
-            imageUrl = null,
-            source = Source(id = "src1", name = "Source 1")
-        ),
-        Article(
-            title = "Test Article 2",
-            description = "Description 2",
-            url = "https://example.com/2",
-            imageUrl = null,
-            source = Source(id = "src2", name = "Source 2")
+    private val fakeArticles =
+        listOf(
+            Article(
+                title = "Test Article 1",
+                description = "Description 1",
+                url = "https://example.com/1",
+                imageUrl = null,
+                source = Source(id = "src1", name = "Source 1"),
+            ),
+            Article(
+                title = "Test Article 2",
+                description = "Description 2",
+                url = "https://example.com/2",
+                imageUrl = null,
+                source = Source(id = "src2", name = "Source 2"),
+            ),
         )
-    )
 
     private fun setContent(
         isDarkMode: Boolean = false,
         uiState: UiState<List<Article>> = UiState.Success(fakeArticles),
         onRefresh: () -> Unit = {},
-        onToggleDarkMode: () -> Unit = {}
+        onToggleDarkMode: () -> Unit = {},
     ) {
         composeTestRule.setContent {
             NewsAppTheme(isDarkMode = isDarkMode, dynamicColor = false) {
@@ -47,7 +47,7 @@ class TopHeadlineScreenTest {
                     uiState = uiState,
                     isDarkMode = isDarkMode,
                     onRefresh = onRefresh,
-                    onToggleDarkMode = onToggleDarkMode
+                    onToggleDarkMode = onToggleDarkMode,
                 )
             }
         }
@@ -154,7 +154,7 @@ class TopHeadlineScreenTest {
         var retried = false
         setContent(
             uiState = UiState.Error("Network error"),
-            onRefresh = { retried = true }
+            onRefresh = { retried = true },
         )
 
         composeTestRule.onNodeWithText("Try Again").performClick()
