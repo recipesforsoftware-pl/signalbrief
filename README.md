@@ -2,23 +2,25 @@
 
 SignalBrief is a production-oriented Android news reader that is being migrated
 incrementally to Kotlin Multiplatform. This repository currently contains a
-verified **Android app backed by a shared Kotlin Multiplatform domain module**
-(`:shared`); the Android-only baseline is described in the history. The product
-direction — an Android and iOS application with offline-first reading, saved
-articles, search, topic monitoring, and a Daily Brief — is defined in the
+verified **Android app backed by a shared Kotlin Multiplatform module** (`:shared`)
+that holds the domain boundary and the Ktor network data layer; the Android-only
+baseline is described in the history. The product direction — an Android and iOS
+application with offline-first reading, saved articles, search, topic
+monitoring, and a Daily Brief — is defined in the
 [implementation roadmap](IMPLEMENTATION_ROADMAP.md) and is **future work**.
 
 ## Current status
 
 - **Platforms:** Android app (`:app`) plus a Kotlin Multiplatform shared module
-  (`:shared`) that targets Android, iOS, and JVM. The clean domain boundary
-  lives in `commonMain`; there is **no iOS app, no iOS network layer, and no
-  Compose Multiplatform UI yet** — the iOS targets currently build the shared
-  framework (`SignalBriefShared`) and run common tests on the simulator.
+  (`:shared`) that targets Android, iOS, and JVM. The clean domain boundary and
+  the **network data layer live in `commonMain`**; there is **no iOS app and no
+  Compose Multiplatform UI yet** — the iOS targets build the shared framework
+  (`SignalBriefShared`), run common tests on the simulator, and now also link the
+  Darwin-engine HTTP client.
 - **Scope:** the app renders a "Top Headlines" feed from NewsAPI in one Compose
   screen with light and dark theme support. The Android app consumes the shared
-  domain models and contract; the data layer, Hilt wiring, and UI remain in
-  `:app`.
+  domain models, contract, and Ktor-backed `NewsRepository` implementation; only
+  the Hilt composition root and UI remain in `:app`.
 - **Not yet implemented:** Compose Multiplatform, an iOS app, offline-first
   storage, navigation, search, saved articles, topic monitoring, the Daily
   Brief, payments, synchronization, and a production backend. See the roadmap
@@ -36,15 +38,18 @@ articles, search, topic monitoring, and a Daily Brief — is defined in the
 ## Architecture
 
 MVVM with a single-activity Compose UI and a clean domain boundary. The domain
-boundary now lives in the shared KMP module (`commonMain`) and is reused by the
-Android app:
+boundary and the network data layer now live in the shared KMP module
+(`commonMain`) and are reused by the Android app:
 
 ```
-UI (Compose, :app)  ->  TopHeadlineViewModel (StateFlow + sealed UiState)  ->  NewsRepository (domain contract, :shared)  ->  TopHeadlineRepository (:app)  ->  Retrofit (NewsAPI)
-                                                                                                                          |
+UI (Compose, :app)  ->  TopHeadlineViewModel (StateFlow + sealed UiState)  ->  NewsRepository (domain contract, :shared)
+                                                                                          |
+                                                                                          v
+                                                            KtorNewsRepository (:shared)  ->  Ktor + kotlinx.serialization (NewsAPI)
+                                                                                          |
                                                               ArticleDto --ArticleMapper--> Article (domain model, :shared)
-                                                                                                                          |
-                                                       ThemeViewModel <-> ThemePreference (DataStore)
+                                                                                          |
+                                                   ThemeViewModel <-> ThemePreference (DataStore)
 ```
 
 - One launcher activity (`TopHeadlineActivity`).
@@ -53,18 +58,25 @@ UI (Compose, :app)  ->  TopHeadlineViewModel (StateFlow + sealed UiState)  ->  N
   domain contract.
 - `NewsRepository` (domain contract), `Article`/`Source` (domain models), and
   `NewsFailure` (typed failures) live in `:shared:commonMain`. They are
-  framework-independent: no Retrofit, Gson, Android, Hilt, or transport DTO
+  framework-independent: no Ktor, serialization, Android, Hilt, or transport DTO
   imports.
-- `TopHeadlineRepository` (data layer, `:app`) is the only code touching
-  Retrofit/Gson. It maps `ArticleDto` to the domain `Article` and translates
-  transport exceptions into typed `NewsFailure` values (`Network`,
-  `InvalidData`, `Unknown`). Cancellation is always rethrown.
-- Hilt binds `NewsRepository` to `TopHeadlineRepository` in `RepositoryModule`.
+- `KtorNewsRepository` (data layer, `:shared:commonMain`) is the only code
+  touching Ktor and kotlinx.serialization. It maps `ArticleDto` to the domain
+  `Article` and translates transport exceptions into typed `NewsFailure` values
+  (`Network`, `InvalidData`, `Unknown`). Cancellation is always rethrown.
+- The HTTP client is created by an `expect`/`actual` factory: the Android engine
+  is wired on Android, the Darwin engine on iOS, and `MockEngine` in common
+  tests. Client configuration (content negotiation, timeouts, response
+  validation, base URL, API-key header) is shared and identical on both
+  platforms.
+- Hilt (Android composition root only) provides `NewsApiConfig` from
+  `BuildConfig.NEWS_API_KEY`, builds the shared `HttpClient`, and binds
+  `NewsRepository` to `KtorNewsRepository` in `RepositoryModule`.
 - A `ThemePreference` (DataStore) plus `ThemeViewModel` persist and expose the
   dark-mode setting.
 
 This is the current, honest state of the code. The target architecture (shared
-data and presentation layers for Android and iOS) is described in the
+presentation and UI for Android and iOS) is described in the
 [implementation roadmap](IMPLEMENTATION_ROADMAP.md).
 
 ## Technology stack
@@ -75,7 +87,7 @@ data and presentation layers for Android and iOS) is described in the
 | UI | Jetpack Compose, Material 3 (Android app) |
 | Architecture | MVVM with StateFlow |
 | Dependency injection | Dagger/Hilt |
-| Networking | Retrofit + Gson |
+| Networking | Ktor 3 client + kotlinx.serialization (Android + iOS engines) |
 | Image loading | Coil 3 |
 | Persistence | DataStore Preferences |
 | Async | Coroutines + Flow |
@@ -92,12 +104,7 @@ app/
 └── src/
     ├── main/java/com/recipesforsoftware/mvvm/
     │   ├── NewsApplication.kt            # @HiltAndroidApp
-    │   ├── data/
-    │   │   ├── api/NetworkService.kt     # Retrofit API interface
-    │   │   ├── remote/dto/               # Gson DTOs (ArticleDto, SourceDto, TopHeadlinesResponseDto)
-    │   │   ├── remote/mapper/            # DTO -> domain mapping (ArticleMapper)
-    │   │   └── repository/TopHeadlineRepository.kt  # NewsRepository implementation (Retrofit)
-    │   ├── di/                           # Hilt network + repository modules and qualifiers
+    │   ├── di/                           # Hilt composition root (news config + repository binding)
     │   ├── ui/
     │   │   ├── base/UiState.kt
     │   │   ├── components/ArticleCard.kt
@@ -110,12 +117,22 @@ app/
 shared/
 ├── build.gradle.kts                      # KMP: android + iosArm64 + iosSimulatorArm64 + iosX64
 └── src/
-    ├── commonMain/kotlin/com/recipesforsoftware/mvvm/domain/
-    │   ├── failure/NewsFailure.kt        # Typed failures: Network, InvalidData, Unknown
-    │   ├── model/                        # Domain models (Article, Source)
-    │   └── repository/NewsRepository.kt  # Domain contract
-    └── commonTest/kotlin/com/recipesforsoftware/mvvm/domain/
-        └── ...                           # Common tests (models, failures, repository contract)
+    ├── commonMain/kotlin/com/recipesforsoftware/mvvm/
+    │   ├── data/
+    │   │   ├── NewsApiConfig.kt          # Base URL, API-key header, timeout config
+    │   │   ├── HttpClientFactory.kt      # expect factory; content negotiation, timeouts, validation
+    │   │   ├── repository/KtorNewsRepository.kt  # NewsRepository implementation (Ktor)
+    │   │   ├── remote/dto/               # kotlinx.serialization DTOs (ArticleDto, SourceDto, TopHeadlinesResponseDto)
+    │   │   └── remote/mapper/            # DTO -> domain mapping (ArticleMapper)
+    │   └── domain/
+    │       ├── failure/NewsFailure.kt    # Typed failures: Network, InvalidData, Unknown
+    │       ├── model/                    # Domain models (Article, Source)
+    │       └── repository/NewsRepository.kt  # Domain contract
+    ├── androidMain/kotlin/.../data/      # HttpClientFactory.android.kt (OkHttp engine)
+    ├── iosMain/kotlin/.../data/          # HttpClientFactory.ios.kt (Darwin engine)
+    └── commonTest/kotlin/com/recipesforsoftware/mvvm/
+        ├── data/                         # Common tests: KtorNewsRepository (MockEngine), ArticleMapper
+        └── domain/                       # Common tests (models, failures, repository contract)
 ├── gradle/libs.versions.toml             # Version catalog
 └── settings.gradle.kts                   # Root project name: SignalBrief
 ```
@@ -191,14 +208,16 @@ requests fail — the development key is required to see live data.
 ./gradlew connectedDebugAndroidTest
 ```
 
-- **Android unit tests** cover the DTO-to-domain mapper (happy path and
-  missing/invalid remote data), the repository (success, typed failure mapping,
-  cancellation propagation), the top-headlines ViewModel
-  (loading/success/typed-error flows), and the theme ViewModel (dark-mode
-  persistence).
+- **Android unit tests** cover the top-headlines ViewModel
+  (loading/success/typed-error flows) and the theme ViewModel (dark-mode
+  persistence). Data-layer behavior is covered by the shared common tests
+  instead.
 - **Shared common tests** cover the domain models (`Article` value semantics),
-  the typed failures (`NewsFailure`), and the `NewsRepository` contract. They
-  run both on the JVM (`:shared:testAndroidHostTest`) and on the iOS simulator
+  the typed failures (`NewsFailure`), the DTO-to-domain mapper (happy path and
+  missing/invalid remote data), and the `NewsRepository` implementation against
+  Ktor's `MockEngine` (success, typed failure mapping, cancellation
+  propagation, and the platform-specific success/failure paths). They run both
+  on the JVM (`:shared:testAndroidHostTest`) and on the iOS simulator
   (`:shared:iosSimulatorArm64Test`). On arm64 Macs the x86_64 simulator target
   (`iosX64Test`) is automatically skipped because no x86_64 simulator runtime is
   installed.
@@ -217,9 +236,9 @@ The following commands pass on the current state:
 ./gradlew test
 ./gradlew lintDebug
 ./gradlew assembleDebug
-./gradlew koverHtmlReportDebug
-./gradlew koverXmlReportDebug
-./gradlew koverVerifyDebug
+./gradlew :app:koverHtmlReportAll
+./gradlew :app:koverXmlReportAll
+./gradlew :app:koverVerifyAll
 ./gradlew :shared:allTests
 ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64
 ```
@@ -233,7 +252,10 @@ Notes:
 - `lintDebug` passes with warnings and no errors.
 - Kover measures code coverage from the **JVM unit tests only**
   (`testDebugUnitTest`). It does not include Android instrumented tests or the
-  shared iOS tests; the verification thresholds remain on the `:app` module.
+  shared iOS tests. Because the data layer moved into `:shared`, coverage is
+  aggregated into a custom Kover variant named `all` (`:app` debug variant plus
+  the `:shared` Android/KMP project); the 9% LINE threshold is verified against
+  that aggregated report via `:app:koverVerifyAll`.
 - `:shared:allTests` runs the common tests on the JVM host and on the
   `iosSimulatorArm64` simulator. The framework link task verifies the iOS
   export (`SignalBriefShared.framework`) without an iOS app.
@@ -245,9 +267,11 @@ Notes:
 The GitHub Actions workflow (`.github/workflows/android_ci.yml`) runs on pull
 requests targeting `main`, on pushes to `main`, and on manual dispatch. It
 validates the Gradle wrapper, then runs `ktlintCheck`, `detekt`, `test`,
-`lintDebug`, `assembleDebug`, and the Kover report/verification tasks on
-`ubuntu-latest` with JDK 17. No NewsAPI key is required in CI. The shared KMP
-module is included in these gates (static analysis and its JVM host tests);
+`lintDebug`, `assembleDebug`, and the Kover report/verification tasks (using the
+aggregated `all` variant: `:app:koverHtmlReportAll`,
+`:app:koverXmlReportAll`, `:app:koverVerifyAll`) on `ubuntu-latest` with JDK 17.
+No NewsAPI key is required in CI. The shared KMP module is included in these
+gates (static analysis, its JVM host tests, and Kover coverage aggregation);
 iOS-specific tasks (simulator tests, framework link) require Xcode and are
 planned as a macOS CI job.
 

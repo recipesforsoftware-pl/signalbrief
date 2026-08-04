@@ -87,8 +87,13 @@ detekt {
 }
 
 kover {
+    currentProject {
+        createVariant("all") {
+            addWithDependencies("debug")
+        }
+    }
     reports {
-        variant("debug") {
+        variant("all") {
             filters {
                 excludes {
                     // AGP generated
@@ -121,6 +126,12 @@ dependencies {
     // Shared KMP domain module
     implementation(project(":shared"))
 
+    // Aggregate :shared coverage into :app's Kover "all" report variant
+    kover(project(":shared"))
+
+    // Ktor client type used at the Hilt composition boundary
+    implementation(libs.ktor.client.core)
+
     // Compose BOM
     implementation(platform(libs.compose.bom))
     androidTestImplementation(platform(libs.compose.bom))
@@ -146,10 +157,6 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
-
-    // Networking
-    implementation(libs.retrofit)
-    implementation(libs.retrofit.converter.gson)
 
     // Image Loading
     implementation(libs.coil.compose)

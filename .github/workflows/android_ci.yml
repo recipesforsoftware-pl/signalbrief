@@ -50,10 +50,10 @@ jobs:
         run: ./gradlew assembleDebug
 
       - name: Generate coverage reports
-        run: ./gradlew koverHtmlReportDebug koverXmlReportDebug
+        run: ./gradlew :app:koverHtmlReportAll :app:koverXmlReportAll
 
       - name: Verify coverage
-        run: ./gradlew koverVerifyDebug
+        run: ./gradlew :app:koverVerifyAll
 
       - name: Upload unit-test reports
         if: always()

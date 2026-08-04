@@ -3,15 +3,14 @@ package com.recipesforsoftware.mvvm.data.remote.mapper
 import com.recipesforsoftware.mvvm.data.remote.dto.ArticleDto
 import com.recipesforsoftware.mvvm.data.remote.dto.SourceDto
 import com.recipesforsoftware.mvvm.data.remote.dto.TopHeadlinesResponseDto
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class ArticleMapperTest {
     @Test
-    fun `maps a complete dto to domain`() {
-        // Given
+    fun mapsACompleteDtoToDomain() {
         val dto =
             ArticleDto(
                 title = "Title",
@@ -21,10 +20,8 @@ class ArticleMapperTest {
                 source = SourceDto(id = "src", name = "Source"),
             )
 
-        // When
         val article = dto.toDomain()
 
-        // Then
         assertEquals("Title", article?.title)
         assertEquals("Description", article?.description)
         assertEquals("https://example.com/a", article?.url)
@@ -34,8 +31,7 @@ class ArticleMapperTest {
     }
 
     @Test
-    fun `keeps null optional fields as null`() {
-        // Given
+    fun keepsNullOptionalFieldsAsNull() {
         val dto =
             ArticleDto(
                 title = null,
@@ -45,10 +41,8 @@ class ArticleMapperTest {
                 source = null,
             )
 
-        // When
         val article = dto.toDomain()
 
-        // Then - nulls are preserved, no placeholder values are invented
         assertNull(article?.title)
         assertNull(article?.description)
         assertNull(article?.imageUrl)
@@ -56,32 +50,25 @@ class ArticleMapperTest {
     }
 
     @Test
-    fun `returns null when url is missing`() {
-        // Given
+    fun returnsNullWhenUrlIsMissing() {
         val dto = ArticleDto(title = "Title", url = null)
 
-        // When
         val article = dto.toDomain()
 
-        // Then
         assertNull(article)
     }
 
     @Test
-    fun `returns null when url is blank`() {
-        // Given
+    fun returnsNullWhenUrlIsBlank() {
         val dto = ArticleDto(title = "Title", url = "   ")
 
-        // When
         val article = dto.toDomain()
 
-        // Then
         assertNull(article)
     }
 
     @Test
-    fun `maps a response and skips invalid articles`() {
-        // Given
+    fun mapsAResponseAndSkipsInvalidArticles() {
         val response =
             TopHeadlinesResponseDto(
                 status = "ok",
@@ -94,34 +81,26 @@ class ArticleMapperTest {
                     ),
             )
 
-        // When
         val articles = response.toDomainArticles()
 
-        // Then
         assertEquals(listOf("A", "C"), articles.map { it.title })
     }
 
     @Test
-    fun `maps a null articles list to an empty list`() {
-        // Given
+    fun mapsANullArticlesListToAnEmptyList() {
         val response = TopHeadlinesResponseDto(status = "ok", totalResults = 0, articles = null)
 
-        // When
         val articles = response.toDomainArticles()
 
-        // Then
         assertTrue(articles.isEmpty())
     }
 
     @Test
-    fun `maps a source with null fields`() {
-        // Given
+    fun mapsASourceWithNullFields() {
         val dto = SourceDto(id = null, name = null)
 
-        // When
         val source = dto.toDomain()
 
-        // Then
         assertNull(source.id)
         assertNull(source.name)
     }
