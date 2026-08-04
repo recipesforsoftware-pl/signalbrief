@@ -1,6 +1,7 @@
 [versions]
 agp = "9.3.1"
 kotlin = "2.3.21"
+composeMultiplatform = "1.11.1"
 devtoolsKsp = "2.3.10"
 composeBom = "2026.04.01"
 activityCompose = "1.10.1"
@@ -64,6 +65,9 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
 
+# Compose Multiplatform (shared-ui)
+compose-material-icons-core = { group = "org.jetbrains.compose.material", name = "material-icons-core", version = "1.7.3" }
+
 # Browser
 browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
 
@@ -91,6 +95,7 @@ android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 devtools-ksp = { id = "com.google.devtools.ksp", version.ref = "devtoolsKsp" }
 hilt-android = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }

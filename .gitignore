@@ -14,3 +14,12 @@
 .cxx
 /.idea
 /shared/build/
+/shared-ui/build/
+
+# iOS host app
+iosApp/Configuration/Secrets.xcconfig
+iosApp/build/
+iosApp/iosApp.xcodeproj/xcuserdata/
+iosApp/iosApp.xcodeproj/project.xcworkspace/
+iosApp/iosApp.xcodeproj/xcshareddata/
+iosApp/*.xcuserstate

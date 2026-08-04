@@ -7,9 +7,12 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.recipesforsoftware.mvvm.domain.model.Article
 import com.recipesforsoftware.mvvm.domain.model.Source
-import com.recipesforsoftware.mvvm.ui.base.UiState
-import com.recipesforsoftware.mvvm.ui.screens.TopHeadlineScreen
 import com.recipesforsoftware.mvvm.ui.theme.NewsAppTheme
+import com.recipesforsoftware.mvvm.ui.topheadline.DarkModeMenu
+import com.recipesforsoftware.mvvm.ui.topheadlines.TopHeadlinesError
+import com.recipesforsoftware.mvvm.ui.topheadlines.TopHeadlinesScreen
+import com.recipesforsoftware.mvvm.ui.topheadlines.TopHeadlinesStrings
+import com.recipesforsoftware.mvvm.ui.topheadlines.TopHeadlinesUiState
 import org.junit.Rule
 import org.junit.Test
 
@@ -37,17 +40,21 @@ class TopHeadlineScreenTest {
 
     private fun setContent(
         isDarkMode: Boolean = false,
-        uiState: UiState<List<Article>> = UiState.Success(fakeArticles),
+        uiState: TopHeadlinesUiState = TopHeadlinesUiState.Success(fakeArticles),
         onRefresh: () -> Unit = {},
         onToggleDarkMode: () -> Unit = {},
     ) {
         composeTestRule.setContent {
             NewsAppTheme(isDarkMode = isDarkMode, dynamicColor = false) {
-                TopHeadlineScreen(
+                TopHeadlinesScreen(
                     uiState = uiState,
-                    isDarkMode = isDarkMode,
                     onRefresh = onRefresh,
-                    onToggleDarkMode = onToggleDarkMode,
+                    topBarActions = {
+                        DarkModeMenu(
+                            isDarkMode = isDarkMode,
+                            onToggleDarkMode = onToggleDarkMode,
+                        )
+                    },
                 )
             }
         }
@@ -133,19 +140,21 @@ class TopHeadlineScreenTest {
 
     @Test
     fun loadingState_showsLoadingIndicator() {
-        setContent(uiState = UiState.Loading)
+        setContent(uiState = TopHeadlinesUiState.Loading)
         composeTestRule.onNodeWithText("Loading headlines...").assertIsDisplayed()
     }
 
     @Test
     fun errorState_showsErrorMessage() {
-        setContent(uiState = UiState.Error("Network connection failed"))
-        composeTestRule.onNodeWithText("Network connection failed").assertIsDisplayed()
+        setContent(uiState = TopHeadlinesUiState.Error(TopHeadlinesError.Network))
+        composeTestRule
+            .onNodeWithText(TopHeadlinesStrings.errorBody(TopHeadlinesError.Network))
+            .assertIsDisplayed()
     }
 
     @Test
     fun errorState_showsRetryButton() {
-        setContent(uiState = UiState.Error("Network error"))
+        setContent(uiState = TopHeadlinesUiState.Error(TopHeadlinesError.Network))
         composeTestRule.onNodeWithText("Try Again").assertIsDisplayed()
     }
 
@@ -153,7 +162,7 @@ class TopHeadlineScreenTest {
     fun errorState_retryCallsOnRefresh() {
         var retried = false
         setContent(
-            uiState = UiState.Error("Network error"),
+            uiState = TopHeadlinesUiState.Error(TopHeadlinesError.Network),
             onRefresh = { retried = true },
         )
 
@@ -164,9 +173,15 @@ class TopHeadlineScreenTest {
 
     @Test
     fun successState_displaysArticles() {
-        setContent(uiState = UiState.Success(fakeArticles))
+        setContent(uiState = TopHeadlinesUiState.Success(fakeArticles))
         composeTestRule.onNodeWithText("Test Article 1").assertIsDisplayed()
         composeTestRule.onNodeWithText("Test Article 2").assertIsDisplayed()
+    }
+
+    @Test
+    fun emptyState_showsEmptyMessage() {
+        setContent(uiState = TopHeadlinesUiState.Empty)
+        composeTestRule.onNodeWithText("No headlines right now").assertIsDisplayed()
     }
 
     // --- Dark mode light/dark state rendering ---

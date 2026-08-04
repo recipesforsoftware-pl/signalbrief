@@ -7,9 +7,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.recipesforsoftware.mvvm.ui.screens.TopHeadlineScreen
 import com.recipesforsoftware.mvvm.ui.theme.NewsAppTheme
 import com.recipesforsoftware.mvvm.ui.theme.ThemeViewModel
+import com.recipesforsoftware.mvvm.ui.topheadlines.TopHeadlinesScreen
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -26,11 +26,15 @@ class TopHeadlineActivity : ComponentActivity() {
                 val viewModel: TopHeadlineViewModel = hiltViewModel()
                 val uiState by viewModel.uiState.collectAsState()
 
-                TopHeadlineScreen(
+                TopHeadlinesScreen(
                     uiState = uiState,
-                    isDarkMode = isDarkMode,
-                    onRefresh = viewModel::fetchTopHeadlines,
-                    onToggleDarkMode = themeViewModel::toggleDarkMode,
+                    onRefresh = viewModel::refresh,
+                    topBarActions = {
+                        DarkModeMenu(
+                            isDarkMode = isDarkMode,
+                            onToggleDarkMode = themeViewModel::toggleDarkMode,
+                        )
+                    },
                 )
             }
         }
