@@ -52,8 +52,8 @@ import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.recipesforsoftware.mvvm.R
-import com.recipesforsoftware.mvvm.data.model.Article
-import com.recipesforsoftware.mvvm.data.model.Source
+import com.recipesforsoftware.mvvm.domain.model.Article
+import com.recipesforsoftware.mvvm.domain.model.Source
 import com.recipesforsoftware.mvvm.ui.theme.NewsAppTheme
 
 private const val HERO_ASPECT_RATIO = 16f / 9f
@@ -78,10 +78,8 @@ fun ArticleCard(
                 .padding(horizontal = 16.dp, vertical = 6.dp)
                 .scale(scale),
         onClick = {
-            article.url?.let { url ->
-                val customTabsIntent = CustomTabsIntent.Builder().build()
-                customTabsIntent.launchUrl(context, Uri.parse(url))
-            }
+            val customTabsIntent = CustomTabsIntent.Builder().build()
+            customTabsIntent.launchUrl(context, Uri.parse(article.url))
         },
         shape = RoundedCornerShape(20.dp),
         colors =
@@ -201,10 +199,8 @@ fun ArticleCard(
 
                     FilledIconButton(
                         onClick = {
-                            article.url?.let { url ->
-                                val customTabsIntent = CustomTabsIntent.Builder().build()
-                                customTabsIntent.launchUrl(context, Uri.parse(url))
-                            }
+                            val customTabsIntent = CustomTabsIntent.Builder().build()
+                            customTabsIntent.launchUrl(context, Uri.parse(article.url))
                         },
                         modifier = Modifier.size(32.dp),
                         shape = CircleShape,

@@ -51,8 +51,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.recipesforsoftware.mvvm.data.model.Article
-import com.recipesforsoftware.mvvm.data.model.Source
+import com.recipesforsoftware.mvvm.domain.model.Article
+import com.recipesforsoftware.mvvm.domain.model.Source
 import com.recipesforsoftware.mvvm.ui.base.UiState
 import com.recipesforsoftware.mvvm.ui.components.ArticleCard
 import com.recipesforsoftware.mvvm.ui.theme.NewsAppTheme
@@ -283,7 +283,7 @@ private fun TopHeadlineContent(
     ) {
         items(
             items = currentArticles,
-            key = { it.url.orEmpty().hashCode() },
+            key = { it.url.hashCode() },
         ) { article ->
             ArticleCard(
                 article = article,

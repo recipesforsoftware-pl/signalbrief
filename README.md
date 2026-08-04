@@ -30,20 +30,28 @@ and is **future work**, not yet implemented.
 
 ## Architecture
 
-MVVM with a single-activity Compose UI:
+MVVM with a single-activity Compose UI and a clean domain boundary:
 
 ```
-UI (Compose)  ->  TopHeadlineViewModel (StateFlow + sealed UiState)  ->  TopHeadlineRepository  ->  Retrofit (NewsAPI)
-                                                                                                      |
+UI (Compose)  ->  TopHeadlineViewModel (StateFlow + sealed UiState)  ->  NewsRepository (domain contract)  ->  TopHeadlineRepository  ->  Retrofit (NewsAPI)
+                                                                                                                          |
+                                                              ArticleDto --ArticleMapper--> Article (domain model)
+                                                                                                                          |
                                                        ThemeViewModel <-> ThemePreference (DataStore)
 ```
 
 - One launcher activity (`TopHeadlineActivity`).
 - `TopHeadlineViewModel` exposes a `StateFlow<UiState>` with sealed
-  `Loading` / `Success` / `Error` states.
-- `TopHeadlineRepository` wraps Retrofit calls in `kotlin.Result`.
-- Gson DTOs are used directly by the UI; there is no separate domain layer yet.
-- Hilt provides the application graph and ViewModels.
+  `Loading` / `Success` / `Error` states and consumes the `NewsRepository`
+  domain contract.
+- `NewsRepository` (domain contract) and `Article`/`Source` (domain models)
+  are framework-independent: they do not depend on Retrofit, Gson, Android,
+  Hilt, or transport DTOs.
+- `TopHeadlineRepository` (data layer) is the only code touching Retrofit/Gson.
+  It maps `ArticleDto` to the domain `Article` and translates transport
+  exceptions into typed `NewsFailure` values (`Network`, `InvalidData`,
+  `Unknown`). Cancellation is always rethrown.
+- Hilt binds `NewsRepository` to `TopHeadlineRepository` in `RepositoryModule`.
 - A `ThemePreference` (DataStore) plus `ThemeViewModel` persist and expose the
   dark-mode setting.
 
@@ -78,9 +86,14 @@ app/
     │   ├── NewsApplication.kt            # @HiltAndroidApp
     │   ├── data/
     │   │   ├── api/NetworkService.kt     # Retrofit API interface
-    │   │   ├── model/                    # Gson DTOs
-    │   │   └── repository/TopHeadlineRepository.kt
-    │   ├── di/                           # Hilt network module and qualifiers
+    │   │   ├── remote/dto/               # Gson DTOs (ArticleDto, SourceDto, TopHeadlinesResponseDto)
+    │   │   ├── remote/mapper/            # DTO -> domain mapping (ArticleMapper)
+    │   │   └── repository/TopHeadlineRepository.kt  # NewsRepository implementation (Retrofit)
+    │   ├── domain/
+    │   │   ├── failure/NewsFailure.kt    # Typed failures: Network, InvalidData, Unknown
+    │   │   ├── model/                    # Domain models (Article, Source)
+    │   │   └── repository/NewsRepository.kt  # Domain contract
+    │   ├── di/                           # Hilt network + repository modules and qualifiers
     │   ├── ui/
     │   │   ├── base/UiState.kt
     │   │   ├── components/ArticleCard.kt
@@ -161,9 +174,10 @@ requests fail — the development key is required to see live data.
 ./gradlew connectedDebugAndroidTest
 ```
 
-- **Unit tests** cover the repository (network success/error mapping),
-  the top-headlines ViewModel (loading/success/error flows), and the theme
-  ViewModel (dark-mode persistence).
+- **Unit tests** cover the DTO-to-domain mapper (happy path and missing/invalid
+  remote data), the repository (success, typed failure mapping, cancellation
+  propagation), the top-headlines ViewModel (loading/success/typed-error
+  flows), and the theme ViewModel (dark-mode persistence).
 - **Instrumented tests** cover the top-headlines Compose screen, DataStore
   theme-preference behavior, and application package verification. They exist in
   `app/src/androidTest` but are **not** part of the CI workflow yet; executing

@@ -5,8 +5,8 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import com.recipesforsoftware.mvvm.data.model.Article
-import com.recipesforsoftware.mvvm.data.model.Source
+import com.recipesforsoftware.mvvm.domain.model.Article
+import com.recipesforsoftware.mvvm.domain.model.Source
 import com.recipesforsoftware.mvvm.ui.base.UiState
 import com.recipesforsoftware.mvvm.ui.screens.TopHeadlineScreen
 import com.recipesforsoftware.mvvm.ui.theme.NewsAppTheme
