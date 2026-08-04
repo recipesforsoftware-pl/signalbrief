@@ -1,163 +1,666 @@
 # SignalBrief Implementation Roadmap
 
+_Last updated: 2026-08-04_
+
 ## 1. Executive summary
 
-The current repository is an Android-only news reader (`:app`, namespace `com.recipesforsoftware.mvvm`) built with Jetpack Compose, Hilt, MVVM, Retrofit/Gson, Coroutines/StateFlow, DataStore, and Coil. It renders a single "Top Headlines" feed from NewsAPI in a Compose UI with light/dark theme support. The unit-test baseline (20 tests) and the debug build are green; Android Lint passes with warnings only. There is no CI, no offline storage, no navigation library, no search, no saved content, and no iOS target. The README overstates the implementation ("production-level", "clean architecture", "comprehensive testing").
+SignalBrief is evolving incrementally from a verified Android-only news reader into a production-oriented Kotlin Multiplatform application for Android and iOS.
 
-SignalBrief is the product evolution of this codebase: a production-oriented Kotlin Multiplatform application for Android and iOS. A local design and product prototype in `/ui` (read-only, untracked) specifies the full target product: five-tab navigation (Brief, Feed, Monitor, Saved, Settings), onboarding, a Daily Brief reader, personalized feed, search, article details, story clusters, topic monitoring, collections, offline reading, guest/authenticated usage, and a free/Pro boundary.
+The repository already has a preserved Android baseline, an accurate public README, SignalBrief branding, and Android CI with formatting verification, static analysis, dependency review, JVM coverage reporting, Gradle Wrapper validation, and temporary report artifacts.
 
-This roadmap defines the smallest coherent MVP derived from the prototype, the target architecture, an incremental migration from the current Android app (not a destructive rewrite), a vertical-slice delivery order, testing and quality strategy, risks and decisions, and the exact first implementation PR.
+The next priority is not the complete product redesign. It is a small but real end-to-end Kotlin Multiplatform foundation that proves:
+
+- shared code in `commonMain`;
+- Android and iOS targets;
+- shared domain and networking;
+- a deliberate platform-boundary strategy;
+- tests in `commonTest`;
+- one working Compose Multiplatform screen on Android and iOS;
+- Android and iOS CI;
+- clear architecture decisions.
+
+After that foundation is stable, the project continues toward the full SignalBrief MVP: offline-first reading, saved articles, Daily Brief, search, collections, monitoring, adaptive UI, and the later private commercial layer.
+
+The migration must remain incremental. Every pull request must keep the repository buildable, reviewable, testable, and free of production credentials.
 
 ## 2. Verified current state
 
-Repository facts (verified on branch `docs/signalbrief-implementation-roadmap`, commit `a02cba5`, tag `android-baseline-v1`, matching `origin/main`):
+### Completed
 
-- Single Gradle module `:app`. Root project name `News-MVVM-Compose`; app label "Recipes News". No `.github` workflows.
-- Build: Gradle 9.5.0, AGP 9.3.1, Kotlin 2.3.21, KSP, Compose BOM 2026.04.01, Hilt 2.60.1, Retrofit 3.0.0 + Gson, Coil 3.0.4, DataStore Preferences 1.1.7. `compileSdk 37`, `targetSdk 35`, `minSdk 24`, JDK 17 bytecode.
-- Architecture as implemented: one `TopHeadlineActivity`, one `TopHeadlineViewModel` (StateFlow + sealed `UiState.Loading/Success/Error`), `TopHeadlineRepository` wrapping Retrofit in `kotlin.Result`, Gson DTOs used directly as UI models, `ArticleCard` opening URLs via Custom Tabs, Material 3 theme with dynamic color and a DataStore-backed dark-mode toggle (`ThemePreference`, `ThemeViewModel`).
-- Validation executed and passing:
-  - `./gradlew tasks --all` — success.
-  - `./gradlew test` — success; 20 unit tests, 0 failures (Repository 6, ViewModel 6, Theme 8).
-  - `./gradlew lintDebug` — success; 26 warnings, 0 errors (mostly dependency-version updates, plus `UseKtx`, `UnusedResources`, `OldTargetApi`, `ObsoleteSdkInt`, `MonochromeLauncherIcon`, `NotShrinkingResources`).
-  - `./gradlew assembleDebug` — success.
-  - 20 instrumented test methods exist (Compose UI, DataStore, package) but were not run (no emulator); they require `connectedDebugAndroidTest`.
-- Secrets: `NEWS_API_KEY` is read from untracked `local.properties` into `BuildConfig` (locally non-empty). No tracked file contains credentials, keys, signing material, or private endpoints. This is a client-embedded key — extractable, not secret.
+- Repository renamed and publicly presented as **SignalBrief**.
+- Root Gradle project and Android display name changed to SignalBrief.
+- Android-only behavior preserved.
+- README corrected to reflect the actual implementation.
+- Public implementation roadmap added.
+- Basic Android GitHub Actions workflow added.
+- Verified baseline:
+  - 20 JVM unit tests;
+  - 20 Android instrumented test methods present;
+  - instrumented tests are not yet executed in CI;
+  - `test`, `lintDebug`, and `assembleDebug` pass.
+- `android-baseline-v1` tag preserved before the migration work.
+- Dagger/Hilt remains the Android dependency-injection choice.
+- `commonMain` is required to remain independent of any DI framework.
+- iOS dependencies will be assembled through an explicit composition root.
 
-Material discrepancies between README and code:
+### Completed quality-gates phase
 
-- README claims "clean architecture" and "production-level practices"; in reality the UI consumes Gson DTOs directly and there is no domain layer, repository contract, typed failure model, or offline source of truth.
-- README claims "responsive UI"; the only adaptation is a standard Compose list and a dark-mode toggle.
-- README clone URL points to `recipesforsoftware/news-mvvm-compose.git`; the real remote is `recipesforsoftware-pl/signalbrief.git`.
-- README lists versions that drift from the catalog (e.g. Kotlin, Compose BOM, Hilt are accurate; minor claims about "comprehensive testing" overstate coverage).
+Branch:
 
-## 3. Target MVP product
+```text
+ci/android-quality-gates
+```
 
-The target product is derived from `/ui` (every screen below is represented in `ui/shared/app.js`, the CSS tokens, or the HTML shells). Demo copy and prices in the prototype are placeholder content, not API contracts.
+Planned outcome:
 
-### MVP Core (public Android + iOS)
-- Onboarding (4 steps: 3 pitch steps + interests/language/region/notification preference), guest by default.
-- Five-tab shell: Brief, Feed, Monitor, Saved, Settings.
-- Daily Brief with progress ring/bar and a full-screen story reader (save, share, open source, completion state).
-- Personalized Feed with topic chips, featured story, refresh, and skeleton loading.
-- Article details with source metadata, bookmark, mark-read, open-in-publisher (platform port).
-- Saved articles with an All/Offline filter.
-- Basic search over fetched and cached content, with an empty state.
-- Offline cache: cached headlines and saved articles readable without network; offline banner and pills.
-- Theme and basic settings (including language/region).
-- Android and iOS.
+- ktlint formatting verification;
+- detekt static analysis;
+- Kover JVM coverage reporting and verification;
+- Gradle Wrapper validation;
+- dependency review for pull requests;
+- temporary CI report artifacts;
+- accurate quality-gate documentation.
 
-### MVP Complete (public Android + iOS)
-- Collections: create/rename/delete with article counts and offline availability.
-- Topic monitoring: dashboard, activity bars, detail, pause/delete (free limit 3).
-- Monitor creation flow (5-step wizard).
-- Advanced offline management: storage view, auto-download briefing, Wi-Fi-only downloads, clear cache.
-- Notification preferences.
+### Current implementation limitations
 
-The project must reach a stable Android/iOS MVP Core before implementing advanced Monitor and Collection workflows.
+The application is still:
 
-### Post-MVP public features
-- Story clusters (timeline, source comparison) once the MVP is validated.
-- Fully adaptive tablet/web layouts (navigation rail, split-pane list/detail).
+- Android-only;
+- one Gradle application module;
+- based on Retrofit and Gson;
+- directly exposing API DTOs to the UI;
+- without a domain layer;
+- without typed failures;
+- without local database storage;
+- without navigation;
+- without search, saved articles, Daily Brief, monitoring, or iOS.
 
-### Private commercial features (later, private repository)
-- Authenticated cross-device synchronization (Apple/Google/email).
-- Production push notifications and reliable real-time/background alert delivery.
-- Play Billing + StoreKit with the free/Pro boundary (3 vs unlimited monitors, 2 vs unlimited collections, immediate alerts, full offline, clusters).
-- Production backend proxy, analytics, remote configuration, signing/deployment secrets.
+## 3. Delivery priorities
+
+The roadmap is split into four delivery levels.
+
+### Priority A — KMP Foundation Slice
+
+This is the immediate technical milestone.
+
+It proves the complete Android-to-iOS path with the smallest useful vertical slice. It deliberately comes before Room KMP, the full redesign, and advanced product features.
+
+Required outcome:
+
+- `shared` Kotlin Multiplatform module;
+- `commonMain`, `commonTest`, `androidMain`, and `iosMain`;
+- shared domain model;
+- repository contract;
+- DTO-to-domain mapping;
+- typed failures;
+- Ktor Client;
+- `kotlinx.serialization`;
+- Android and iOS Ktor engines;
+- a justified use of `expect/actual` for an inherently platform-specific dependency;
+- Android Hilt composition;
+- framework-agnostic constructor injection in shared code;
+- explicit iOS composition root;
+- one shared Compose Multiplatform screen;
+- successful Android build;
+- successful iOS simulator build;
+- shared tests;
+- Linux and macOS CI;
+- concise ADRs and architecture documentation.
+
+### Priority B — Public MVP Core
+
+The first coherent product release for Android and iOS:
+
+- onboarding;
+- Brief shell;
+- personalized Feed;
+- article details;
+- saved articles;
+- basic search;
+- offline cache;
+- theme and essential settings;
+- deterministic demo data or documented bring-your-own-key development mode.
+
+### Priority C — Public MVP Complete
+
+After MVP Core is stable:
+
+- collections;
+- topic-monitor dashboard;
+- monitor creation and configuration;
+- advanced offline management;
+- notification preferences;
+- adaptive phone and tablet layouts;
+- accessibility review;
+- complete light and dark themes based on the SignalBrief design system.
+
+### Priority D — Private commercial layer
+
+A separate private repository may later contain:
+
+- authenticated cross-device synchronization;
+- production backend and provider proxy;
+- Play Billing and StoreKit;
+- subscription entitlement verification;
+- production analytics;
+- remote configuration;
+- push infrastructure;
+- signing and deployment secrets.
 
 ## 4. Target architecture
 
-High-level layout:
+Initial target layout:
 
 ```text
-androidApp     Hilt graph, platform adapters, Compose host
-shared/        commonMain: domain, data, presentation, design system; androidMain; iosMain
-iosApp         SwiftUI/Compose host + explicit composition root
+androidApp/
+shared/
+  src/commonMain/
+  src/commonTest/
+  src/androidMain/
+  src/iosMain/
+iosApp/
 ```
 
-Intended responsibilities:
+Do not introduce the final large module graph immediately. Begin with the smallest stable structure and extract `core:*` or `feature:*` modules only when a dependency boundary is proven.
 
-- **Domain (commonMain, framework-free).** `Topic`, `Article`, `StoryCluster`, `Briefing`, `Monitor`, `Collection`, `Entitlement` value models with invariants; repository interfaces (`NewsRepository`, `SavedRepository`, `MonitorRepository`, `SettingsRepository`); use cases only where rules are non-trivial (brief generation, monitor matching, cluster grouping); typed failures (network, rate-limit, invalid-data, authorization, unknown).
-- **Data.** Ktor Client + `kotlinx.serialization` in shared networking; Room 3 KMP as the offline-first source of truth; DTO/entity/domain/UI model separation with validation at the mapper boundary; explicit cache metadata and refresh policy; schema export and migration tests.
-- **Presentation.** Shared ViewModels/state holders where justified, with immutable `UiState` and explicit `Action`/`Effect` contracts; the local database flow drives the UI; cached content stays visible during refresh and recoverable failures.
-- **Platform ports.** Small interfaces (`ExternalNavigator`, `ShareService`, `NotificationScheduler`, `SecureStorage`, `ConnectivityObserver`, `PurchaseService`, `AppReviewService`) implemented in platform source sets; `expect/actual` only when the type is inherently platform-specific.
-- **DI (decision).** Android application graph → Dagger/Hilt; `commonMain` → constructor injection, no DI framework; iOS application graph → explicit composition root. Hilt modules provide shared factories at the Android boundary; the iOS root constructs the same factories directly.
+### Domain
 
-Module policy: start with `androidApp`, `shared`, `iosApp` plus a handful of shared packages. Extract `core:*` / `feature:*` modules only when boundaries are stable and a module demonstrably removes coupling (extraction criteria: distinct test scope, separate release cadence, or enforced dependency direction). Do not create one module per package or class.
+`commonMain` contains framework-independent models and contracts:
 
-## 5. Incremental migration strategy
+- `Article`;
+- `Topic`;
+- `Briefing`;
+- `Monitor`;
+- `Collection`;
+- repository interfaces;
+- typed failure hierarchy;
+- non-trivial use cases only.
 
-Do not replace the Android app with a generated KMP project in one step. Deliver phased, reviewable PRs (provisional order, refine after each phase):
+Domain code must not depend on:
 
-1. **Verified Android baseline and rebrand** — verified Android baseline; honest README with correct clone references; SignalBrief root project name and Android display name; documented development run mode (user-provided NewsAPI key in ignored `local.properties`) and planned production-connected mode (authorized provider, optionally via backend proxy); basic CI running unit tests, `lintDebug`, and `assembleDebug`. No KMP, no redesign.
-2. **Extended Android quality gates** — ktlint; detekt; Kover; dependency review; improved test reporting; warning cleanup policy.
-3. **Domain boundaries** — repository interface, DTO→domain mapping, typed failures, regression tests, while the existing Android UI keeps working.
-4. **KMP shared module** — introduce `shared`; move pure domain and repository contracts to `commonMain`; Android Hilt graph still composes them.
-5. **Shared networking** — Ktor Client + `kotlinx.serialization` in shared paths; platform engines (`androidMain`/`iosMain`); keep existing Android screens functional.
-6. **Room KMP offline-first** — database as source of truth, migrations, refresh-then-cache flow.
-7. **Shared presentation** — move eligible ViewModels and UI contracts to common code; preserve Hilt acquisition via factories/bindings; explicit iOS composition.
-8. **Compose Multiplatform design system and navigation** — shared tokens/typography/components, type-safe shared navigation, platform adapters.
-9. **Android/iOS vertical feature slices** — deliver features (section 6), maintaining both targets.
-10. **Hardening** — adaptive layouts, accessibility, security, observability, release hardening, macOS CI.
+- Android SDK;
+- UIKit;
+- Room entities;
+- Ktor response types;
+- DI annotations;
+- Compose UI.
 
-Each phase must leave the repository buildable and each feature slice independently testable.
+### Data
 
-## 6. Vertical feature delivery
+The KMP foundation uses:
 
-Deliver features as vertical slices after the foundations of section 5 are reliable. Slices 1–4 plus theme/basic settings and offline cache form MVP Core; collections, topic monitoring, and the monitor creation flow complete the MVP (section 3). Provisional order:
+- Ktor Client;
+- `kotlinx.serialization`;
+- separate remote DTO and domain models;
+- explicit mapping and validation;
+- platform engines supplied from `androidMain` and `iosMain`.
 
-1. **Feed and article details** — value: core reading loop; shared: feed/brief domain, repository contract, UI models; Android: Hilt wiring, list + details; iOS: composition root, same UI; persistence: headline cache; tests: repository (MockEngine), ViewModel (Turbine), Compose UI, Kotest domain; acceptance: offline shows cached headlines, refresh preserves content.
-2. **Saved articles** — value: bookmarks; shared: saved state, bookmark use case; persistence: Room tables; tests: DB + ViewModel; acceptance: bookmark toggles survive restart and offline.
-3. **Daily Brief** — value: differentiated product; shared: brief generation, progress state; tests: BDD brief-generation scenarios; acceptance: progress persists, completion state renders.
-4. **Search** — shared: query + result ranking; tests: ranking/filtering; acceptance: search works on cached and saved content.
-5. **Collections** — shared: collection aggregate; persistence; acceptance: create/rename/delete with count and offline availability.
-6. **Topic monitoring** — shared: monitor config, matching, activity model; free limit 3; acceptance: create/edit/pause/delete monitor, matches appear.
-7. **Story clusters** — shared: grouping and neutral summary (Pro boundary); acceptance: cluster timeline + source comparison.
-8. **Settings and offline management** — theme, text size, notifications, storage bar, clear cache.
-9. **Authentication and synchronization boundary** — shared sync contract + platform auth ports; actual sync backend stays private.
-10. **Pro conversion boundary** — shared `Entitlement` + `PurchaseService` contract; real billing SDKs stay private.
+Room KMP is introduced after the first Android/iOS networking slice is proven. The local database then becomes the source of truth.
 
-Payment SDKs, production synchronization, production analytics, and signing secrets remain outside the public repository.
+### Presentation
+
+Use MVVM with explicit unidirectional data flow:
+
+```text
+immutable UiState
+user Action
+optional transient Effect
+```
+
+Shared ViewModels or state holders are introduced only where they reduce real duplication and remain ergonomic for both platforms.
+
+The first shared UI target is one complete feed-oriented screen, not the entire design prototype.
+
+### Dependency injection
+
+Accepted decision:
+
+```text
+Android app graph -> Dagger/Hilt
+commonMain -> constructor injection, no DI framework
+iOS app graph -> explicit composition root
+```
+
+Do not add Koin to the main production graph merely to list another technology.
+
+A later isolated comparison spike may evaluate Koin, but it must not create two competing production containers.
+
+### Platform boundaries
+
+Prefer interfaces when a capability can be modeled as a port.
+
+Use `expect/actual` only when the type or creation logic is inherently platform-specific, such as the Ktor engine or platform identity.
+
+Document the choice in an ADR.
+
+## 5. Accelerated incremental migration
+
+### Phase 0 — Verified Android baseline
+
+Status: **complete**
+
+Delivered:
+
+- baseline tag;
+- SignalBrief rebrand;
+- accurate README;
+- basic Android CI;
+- unchanged Android behavior.
+
+### Phase 1 — Android quality gates
+
+Status: **complete**
+
+Branch:
+
+```text
+ci/android-quality-gates
+```
+
+Deliver:
+
+- ktlint;
+- detekt;
+- Kover;
+- wrapper validation;
+- dependency review;
+- report artifacts;
+- documented JVM coverage limitations.
+
+Exit criteria:
+
+- all configured local tasks pass;
+- remote CI is green;
+- no broad analysis baseline;
+- no behavior changes;
+- squash merge into `main`.
+
+### Phase 2 — Domain boundaries before KMP
+
+Suggested branch:
+
+```text
+refactor/domain-boundaries
+```
+
+Deliver:
+
+- domain `Article`;
+- remote DTO separated from the domain model;
+- DTO-to-domain mapper;
+- `NewsRepository` interface;
+- Android repository implementation;
+- typed failures;
+- cancellation-safe exception handling;
+- regression tests;
+- existing Android UI still works.
+
+Exit criteria:
+
+- UI no longer consumes Gson DTOs directly;
+- repository contract has no Retrofit or Android types;
+- failure states are typed;
+- existing Android behavior remains unchanged;
+- tests cover mapping, failures, and repository behavior.
+
+### Phase 3 — KMP shared foundation
+
+Suggested branch:
+
+```text
+feat/kmp-shared-foundation
+```
+
+Deliver:
+
+- `shared` KMP module;
+- Android and iOS targets;
+- `commonMain`, `commonTest`, `androidMain`, `iosMain`;
+- domain models, repository contract, typed failures moved to common code;
+- Android Hilt continues composing shared dependencies;
+- initial iOS composition root;
+- common tests run successfully.
+
+Exit criteria:
+
+- Android app still builds and runs;
+- iOS framework is generated;
+- no Android dependency leaks into `commonMain`;
+- shared code is covered by deterministic tests.
+
+### Phase 4 — Shared networking
+
+Suggested branch:
+
+```text
+feat/shared-networking-ktor
+```
+
+Deliver:
+
+- Ktor Client;
+- `kotlinx.serialization`;
+- shared DTOs and mapping;
+- Android engine;
+- iOS engine;
+- one justified `expect/actual` or platform factory boundary;
+- Ktor `MockEngine` tests;
+- Retrofit/Gson removed only after equivalent behavior is verified.
+
+Exit criteria:
+
+- Android feed uses shared networking;
+- iOS can execute the same repository path;
+- no real API key is committed;
+- development provider rules remain documented.
+
+### Phase 5 — First Android/iOS Compose slice
+
+Suggested branch:
+
+```text
+feat/compose-multiplatform-feed-slice
+```
+
+Deliver:
+
+- iOS application host;
+- one shared Compose Multiplatform feed screen;
+- shared screen contract and state;
+- Android and iOS platform adapters for external article navigation;
+- loading, success, empty, and recoverable error states;
+- Android and iOS screenshots.
+
+This phase does not implement the entire `/ui` redesign.
+
+Exit criteria:
+
+- the same feed screen renders on Android and iOS;
+- article opening is delegated to platform adapters;
+- Android Hilt and iOS composition root both assemble the slice;
+- platform builds are reproducible.
+
+### Phase 6 — Dual-platform CI and architecture evidence
+
+Suggested branch:
+
+```text
+ci/kmp-android-ios
+```
+
+Deliver:
+
+- Linux shared/JVM and Android validation;
+- macOS shared native tests;
+- iOS simulator build;
+- selected iOS tests;
+- `ARCHITECTURE.md`;
+- `TESTING.md`;
+- ADRs:
+  - Hilt Android and framework-agnostic shared code;
+  - interface versus `expect/actual`;
+  - Ktor versus Retrofit;
+  - shared Compose screen versus native SwiftUI;
+- concise README update with verified commands.
+
+Exit criteria:
+
+- green Android and iOS CI;
+- repository claims match executed checks;
+- diagrams and ADRs explain trade-offs rather than list frameworks.
+
+### Phase 7 — Room KMP and offline-first source of truth
+
+Deliver:
+
+- Room KMP;
+- schema export;
+- migration tests;
+- article cache;
+- refresh policy;
+- database `Flow` as the UI source of truth;
+- cached content preserved during recoverable refresh failures.
+
+### Phase 8 — Shared presentation and navigation
+
+Deliver:
+
+- eligible shared ViewModels/state holders;
+- type-safe navigation;
+- design-system tokens;
+- reusable Compose Multiplatform components;
+- platform adapters for share, browser, notifications, and storage.
+
+### Phase 9 — Public product slices
+
+Deliver in this order:
+
+1. Feed and article details;
+2. saved articles;
+3. Daily Brief;
+4. search;
+5. collections;
+6. topic monitoring;
+7. settings and offline management;
+8. story clusters;
+9. authentication boundary;
+10. Pro entitlement boundary.
+
+Do not begin advanced monitoring or commercial features before Feed, Saved, Brief, and offline behavior are stable on both platforms.
+
+## 6. KMP Foundation Slice acceptance criteria
+
+The immediate milestone is complete only when all of the following are true:
+
+### Structure
+
+- `shared` module exists;
+- Android and iOS targets compile;
+- source sets are correctly separated;
+- `commonMain` has no Android SDK, UIKit, Hilt, Dagger, or Koin dependency.
+
+### Shared code
+
+- domain models are shared;
+- repository contract is shared;
+- typed failures are shared;
+- networking is shared through Ktor and serialization;
+- mapping is deterministic and tested.
+
+### Platform code
+
+- Android uses Hilt;
+- iOS uses an explicit composition root;
+- platform engine creation is isolated;
+- external navigation is behind a platform port.
+
+### UI
+
+- one complete screen is shared with Compose Multiplatform;
+- loading, content, empty, and recoverable error behavior is visible;
+- Android and iOS screenshots are available.
+
+### Testing and CI
+
+- `commonTest` passes;
+- Android unit tests pass;
+- Android build passes;
+- iOS simulator build passes;
+- macOS CI validates the iOS path;
+- no unexecuted platform is described as verified.
+
+### Documentation
+
+- README describes implemented KMP capability accurately;
+- architecture diagram is current;
+- material decisions have ADRs;
+- no production credentials are present;
+- AI-assisted work is presented as a reviewed engineering workflow, not autonomous code generation.
 
 ## 7. Testing and quality strategy
 
-- **Common tests:** Kotest `BehaviorSpec`/`FeatureSpec` Given/When/Then for domain rules; fakes for repository/clock/dispatcher seams.
-- **JVM/Android tests:** MockK at Android/external boundaries; `kotlinx-coroutines-test` virtual time; Turbine for Flow assertions; Ktor MockEngine for network behavior; Room in-memory databases and migration tests; Hilt test components for integration.
-- **UI tests:** Compose UI tests for critical user flows; screenshot tests for design-system regressions once stable in the toolchain; accessibility checks (content descriptions, touch targets, font scaling).
-- **iOS:** shared native tests, simulator framework/app build, selected iOS tests via macOS CI (macOS runners only).
-- **Static analysis and coverage:** ktlint (official style), detekt with type resolution, Android Lint, dependency/vulnerability scanning, Kover for JVM/common coverage (not claimed as native iOS coverage). No broad baselines; temporary baseline only for legacy findings with a reduction plan.
-- **CI:** Linux workflow (wrapper validation, formatting, detekt, lint, shared/JVM tests, Android tests, debug assembly, coverage, dependency review) and macOS workflow (native tests, iOS build, selected iOS tests). Pin actions, set minimal permissions, keep secrets out of fork PRs.
+### Common tests
 
-## 8. Risks and decisions
+Use:
 
-- **Client-embedded API keys** are extractable from any APK/IPA. Mitigation: bring-your-own-key dev mode; production uses an authorized provider and, where necessary, a backend proxy (documented ADR).
-- **NewsAPI licensing and limits** (no production/commercial use without an authorized tier; developer tier restrictions). Mitigation: keep provider behind the shared `NewsRepository` contract; support deterministic demo data; plan provider/proxy swap.
-- **Monitor alerts in the public repository** — public monitors operate only on fetched and cached content; reliable real-time or background alerts require private backend and push-notification infrastructure. Mitigation: implement monitor matching over cached content in the public repo and defer production alert delivery to the private repository's push infrastructure.
-- **Migration complexity** — risk of a long-running rewrite. Mitigation: incremental phases with reviewable PRs; every phase stays buildable and tested.
-- **Hilt unavailable in `commonMain`** — accepted constraint. Mitigation: constructor injection in shared code, shared factories, Hilt only at the Android boundary.
-- **Target role mentions Koin.** Decision: Hilt remains the Android DI; `commonMain` is framework-agnostic; iOS uses explicit composition. A short-lived `spike/koin-composition-root` branch + an ADR comparing Hilt vs Koin is acceptable. Never run two production DI containers for the same graph.
-- **Room/KMP migration risk** — schema drift and migration bugs. Mitigation: schema export from the first production schema, migration tests, Room KMP vetted before adoption (ADR vs SQLDelight).
-- **iOS build requires macOS** — cannot validate on Linux. Mitigation: macOS CI runners; shared code tests run on Linux; native paths only merged with macOS evidence.
-- **Over-modularization** — premature module extraction adds friction. Mitigation: start minimal, define extraction criteria, prefer packages initially.
-- **Over-building the prototype before validating the core feed.** Mitigation: features follow the vertical-slice order; validate Feed → Saved → Brief before monitors/clusters/paywall.
+- Kotest BDD-style tests where compatible and valuable;
+- `kotlinx-coroutines-test`;
+- Turbine;
+- fakes for repository and clock boundaries;
+- Ktor `MockEngine`.
 
-## 9. Recommended first implementation PR
+### Android
 
-Branch: `chore/verified-android-baseline`. Scope (small, reviewable):
+Use:
 
-- Preserve current Android behavior (no behavior changes).
-- Rewrite the README so claims match the code; fix stale clone URL and repository references (`recipesforsoftware-pl/signalbrief`); document current architecture and verified commands.
-- Rename the root project and Android display name to SignalBrief (root project name in `settings.gradle.kts`, `app_name` string). Do not change package/namespace/applicationId in this PR.
-- Add a basic Android CI workflow running `./gradlew test`, `./gradlew lintDebug`, and `./gradlew assembleDebug` on the default branch (Linux). Instrumented tests exist but are not yet part of this workflow; managed-device or emulator execution is planned as a later quality-gate step.
-- Document the currently available development mode: a user-provided NewsAPI key stored in ignored `local.properties`.
-- Document the planned production-connected mode: an authorized provider and, where necessary, a backend proxy. State explicitly that the production-connected mode and deterministic demo fixtures are not implemented in this baseline PR; deterministic demo fixtures are planned as a later dedicated PR.
+- JVM tests;
+- MockK at external or Android boundaries;
+- Hilt integration tests;
+- Compose UI tests;
+- Android Lint;
+- ktlint;
+- detekt;
+- Kover for JVM coverage visibility.
 
-Acceptance criteria: CI green on the PR; README no longer claims unverified capabilities; app builds, unit tests pass, lint has no new errors; display name reads "SignalBrief".
+### iOS
 
-Out of scope: KMP module, package/namespace/applicationId changes, UI redesign, dependency upgrades, adding ktlint/detekt wiring beyond the minimal CI, and any feature work.
+Use:
+
+- native shared tests;
+- simulator build;
+- selected integration tests;
+- macOS CI.
+
+Kover results must never be presented as Android instrumented coverage or native iOS coverage.
+
+### Pull-request discipline
+
+Every PR must:
+
+- have one coherent goal;
+- preserve unrelated local work;
+- include regression tests where applicable;
+- pass `git diff --check`;
+- avoid secrets and generated build outputs;
+- be squash-merged so `main` keeps one logical commit per PR.
+
+## 8. Documentation and technical presentation
+
+After the KMP Foundation Slice reaches `main`, update:
+
+- README;
+- repository description and topics;
+- architecture diagram;
+- test matrix;
+- ADR index;
+- screenshots for Android and iOS;
+- a short technical walkthrough.
+
+The walkthrough should demonstrate:
+
+- why the migration was incremental;
+- what moved to `commonMain`;
+- one justified platform boundary;
+- Hilt on Android and explicit iOS composition;
+- tests and CI;
+- one AI-agent suggestion that was reviewed, changed, or rejected;
+- how correctness was verified after generated changes.
+
+Do not describe roadmap items as implemented until the corresponding merge and CI evidence exist.
+
+## 9. Risks and mitigations
+
+### Time pressure can encourage a rewrite
+
+Mitigation:
+
+- preserve the Android baseline;
+- use small pull requests;
+- migrate one working slice;
+- postpone Room and the full redesign until Android/iOS sharing is proven.
+
+### Client API keys are extractable
+
+Mitigation:
+
+- keep bring-your-own-key development mode;
+- never treat a client key as secret;
+- use an authorized production provider and backend proxy later.
+
+### News provider licensing can block production use
+
+Mitigation:
+
+- keep provider logic behind `NewsRepository`;
+- add deterministic demo fixtures later;
+- document provider limitations.
+
+### Hilt is unavailable in common code
+
+Mitigation:
+
+- constructor injection in `commonMain`;
+- Hilt only at the Android boundary;
+- explicit iOS composition;
+- ADR documenting the decision.
+
+### Koin may appear in role requirements
+
+Mitigation:
+
+- do not distort the main architecture;
+- explain the trade-off;
+- create an optional short-lived Koin composition spike only after the primary KMP slice is complete.
+
+### iOS validation can be skipped accidentally
+
+Mitigation:
+
+- macOS CI is mandatory before claiming iOS support;
+- require simulator build evidence for every platform-sensitive PR.
+
+### Shared UI can become an all-or-nothing migration
+
+Mitigation:
+
+- begin with one screen;
+- retain platform hosts and adapters;
+- evaluate each later screen independently.
+
+### Large formatting changes can hide semantic changes
+
+Mitigation:
+
+- isolate quality-gate formatting from architecture migration;
+- inspect whitespace-insensitive diffs;
+- avoid drive-by refactoring in tooling PRs.
 
 ## 10. Definition of done
 
-- **Roadmap task:** README verified against code; baseline commands executed and results recorded; `/ui`, the skill directory, and `OPENCODE_SUMMARY.md` remain untracked; no implementation performed; no commit or push.
-- **First implementation PR:** acceptance criteria above met; CI green; README accurate; diff clean of secrets; reviewable single-purpose change.
-- **Public KMP MVP:** Android and iOS apps deliver the section-3 MVP; offline-first reading works; shared business logic and justified shared UI live in `commonMain`; Hilt composes the Android graph and the iOS root composes explicitly; unit, UI, DB, and migration tests pass in CI on both platforms; accessibility and adaptive layouts reviewed; no credentials or private endpoints in the repository.
+### Android quality-gates phase
+
+- ktlint, detekt, Kover, wrapper validation, dependency review, and report artifacts work locally and in CI;
+- documented limitations are accurate;
+- no intentional feature behavior changed.
+
+### KMP Foundation Slice
+
+- shared domain and networking work on Android and iOS;
+- one Compose Multiplatform screen runs on both platforms;
+- Android Hilt and explicit iOS composition are proven;
+- common tests and both platform builds pass in CI;
+- architecture documentation and ADRs are published;
+- no production credentials are committed.
+
+### Public MVP Core
+
+- Android and iOS support onboarding, Feed, article details, saved articles, basic search, offline cache, and essential settings;
+- Room KMP is the source of truth;
+- recoverable network failure preserves cached content;
+- accessibility and theme behavior are reviewed;
+- test and build evidence exists for both platforms.
+
+### Public MVP Complete
+
+- Daily Brief, collections, monitoring, notification preferences, adaptive layouts, and complete offline management are delivered;
+- the public repository remains free of private backend, billing, analytics, signing, and deployment secrets.
