@@ -1,6 +1,9 @@
 package com.recipesforsoftware.mvvm.di
 
-import com.recipesforsoftware.mvvm.data.remote.KtorNewsRepository
+import com.recipesforsoftware.mvvm.data.local.NewsLocalDataSource
+import com.recipesforsoftware.mvvm.data.remote.KtorNewsRemoteDataSource
+import com.recipesforsoftware.mvvm.data.remote.NewsRemoteDataSource
+import com.recipesforsoftware.mvvm.data.repository.OfflineFirstNewsRepository
 import com.recipesforsoftware.mvvm.domain.repository.NewsRepository
 import dagger.Module
 import dagger.Provides
@@ -14,5 +17,12 @@ import javax.inject.Singleton
 object RepositoryModule {
     @Provides
     @Singleton
-    fun provideNewsRepository(client: HttpClient): NewsRepository = KtorNewsRepository(client)
+    fun provideNewsRemoteDataSource(client: HttpClient): NewsRemoteDataSource = KtorNewsRemoteDataSource(client)
+
+    @Provides
+    @Singleton
+    fun provideNewsRepository(
+        remoteDataSource: NewsRemoteDataSource,
+        localDataSource: NewsLocalDataSource,
+    ): NewsRepository = OfflineFirstNewsRepository(remoteDataSource, localDataSource)
 }

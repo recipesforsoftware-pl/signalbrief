@@ -13,7 +13,7 @@ val localProperties =
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.devtools.ksp)
+    alias(libs.plugins.ksp)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.ktlint)
     alias(libs.plugins.detekt)
@@ -135,6 +135,9 @@ dependencies {
 
     // Ktor client type used at the Hilt composition boundary
     implementation(libs.ktor.client.core)
+
+    // Room database type used at the Hilt composition boundary
+    implementation(libs.room.runtime)
 
     // Compose BOM
     implementation(platform(libs.compose.bom))
