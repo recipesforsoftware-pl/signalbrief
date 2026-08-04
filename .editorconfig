@@ -11,3 +11,6 @@ indent_size = 4
 [*.{kt,kts}]
 indent_size = 4
 ktlint_function_naming_ignore_when_annotated_with = Composable
+
+[shared/build/generated/**]
+ktlint = disabled

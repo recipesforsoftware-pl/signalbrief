@@ -78,13 +78,16 @@ room {
 
 ktlint {
     version.set(libs.versions.ktlintCore)
+    filter {
+        exclude { element -> element.file.absolutePath.contains("build/generated") }
+    }
 }
 
 detekt {
     toolVersion = libs.versions.detekt.get()
     buildUponDefaultConfig = true
     config.setFrom(rootProject.layout.projectDirectory.file("config/detekt/detekt.yml"))
-    source.setFrom(kotlin.sourceSets.flatMap { it.kotlin.srcDirs })
+    source.setFrom(files("src"))
 }
 
 kover {

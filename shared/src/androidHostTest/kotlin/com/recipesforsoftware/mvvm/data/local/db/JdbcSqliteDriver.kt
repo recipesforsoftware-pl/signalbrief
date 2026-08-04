@@ -22,23 +22,41 @@ private class JdbcSqliteConnection(
     fileName: String,
 ) : SQLiteConnection {
     private val connection: Connection = DriverManager.getConnection("jdbc:sqlite:$fileName")
+    private val transactionLock = Any()
+    private var transactionDepth = 0
 
-    override fun prepare(sql: String): SQLiteStatement = JdbcSqliteStatement(connection, sql)
+    override fun prepare(sql: String): SQLiteStatement {
+        synchronized(transactionLock) {
+            val normalized = sql.trim()
+            when {
+                normalized.startsWith("BEGIN", ignoreCase = true) -> {
+                    transactionDepth++
+                }
 
-    override fun inTransaction(): Boolean = false
+                normalized.startsWith("COMMIT", ignoreCase = true) ||
+                    normalized.startsWith("END", ignoreCase = true) ||
+                    normalized.startsWith("ROLLBACK", ignoreCase = true) -> {
+                    transactionDepth = (transactionDepth - 1).coerceAtLeast(0)
+                }
+            }
+        }
+        return JdbcSqliteStatement(connection, sql)
+    }
+
+    override fun inTransaction(): Boolean = synchronized(transactionLock) { transactionDepth > 0 }
 
     override fun close() {
         connection.close()
     }
 }
 
+@Suppress("TooManyFunctions")
 private class JdbcSqliteStatement(
     connection: Connection,
     sql: String,
 ) : SQLiteStatement {
     private val preparedStatement: PreparedStatement = connection.prepareStatement(sql)
     private var resultSet: ResultSet? = null
-    private var isQuery = sql.trim().startsWith("SELECT", ignoreCase = true)
     private var executed = false
 
     override fun bindBlob(
@@ -90,10 +108,14 @@ private class JdbcSqliteStatement(
 
     override fun getColumnCount(): Int = preparedStatement.metaData?.columnCount ?: 0
 
-    override fun getColumnName(index: Int): String = preparedStatement.metaData?.getColumnName(index.jdbcIndex()) ?: error("No result set")
+    override fun getColumnName(index: Int): String {
+        val metaData = preparedStatement.metaData
+        return metaData?.getColumnName(index.jdbcIndex()) ?: error("No result set")
+    }
 
     override fun getColumnType(index: Int): Int {
-        val jdbcType = preparedStatement.metaData?.getColumnType(index.jdbcIndex()) ?: return SQLITE_DATA_NULL
+        val columnIndex = index.jdbcIndex()
+        val jdbcType = preparedStatement.metaData?.getColumnType(columnIndex) ?: return SQLITE_DATA_NULL
         return when (jdbcType) {
             Types.INTEGER, Types.BIGINT, Types.SMALLINT, Types.TINYINT -> SQLITE_DATA_INTEGER
             Types.REAL, Types.FLOAT, Types.DOUBLE, Types.NUMERIC, Types.DECIMAL -> SQLITE_DATA_FLOAT

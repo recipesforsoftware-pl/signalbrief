@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.Dispatchers
 import java.io.File
 import java.util.concurrent.Executor
 
@@ -27,5 +28,6 @@ actual fun createTestDatabase(): SignalBriefDatabase {
             name = databaseFile.absolutePath,
             factory = { SignalBriefDatabaseConstructor.initialize() },
         ).setDriver(JdbcSqliteDriver())
+        .setQueryCoroutineContext(Dispatchers.IO)
         .build()
 }

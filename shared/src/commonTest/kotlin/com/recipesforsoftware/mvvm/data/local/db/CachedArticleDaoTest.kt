@@ -1,5 +1,7 @@
 package com.recipesforsoftware.mvvm.data.local.db
 
+import androidx.room.Transactor
+import androidx.room.useWriterConnection
 import com.recipesforsoftware.mvvm.data.local.TOP_HEADLINES_FEED
 import com.recipesforsoftware.mvvm.data.local.mapper.toDomain
 import com.recipesforsoftware.mvvm.data.local.mapper.toEntity
@@ -10,6 +12,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -170,6 +173,25 @@ class CachedArticleDaoTest {
 
             val cached = dao.getByCountryAndFeed(COUNTRY_US, TOP_HEADLINES_FEED).single().toDomain()
             assertEquals(Source(id = null, name = "Named Source"), cached.source)
+        }
+
+    @Test
+    fun transaction_rollsBackOnFailure() =
+        runTest {
+            val articles = listOf(sampleArticle(url = "https://example.com/rollback"))
+            dao.replaceAll(COUNTRY_US, TOP_HEADLINES_FEED, articles.toEntities(COUNTRY_US, TOP_HEADLINES_FEED))
+
+            assertFailsWith<IllegalStateException> {
+                database.useWriterConnection { transactor ->
+                    transactor.withTransaction(Transactor.SQLiteTransactionType.DEFERRED) {
+                        dao.deleteByCountryAndFeed(COUNTRY_US, TOP_HEADLINES_FEED)
+                        error("Simulated transaction failure")
+                    }
+                }
+            }
+
+            val cached = dao.getByCountryAndFeed(COUNTRY_US, TOP_HEADLINES_FEED)
+            assertEquals(listOf("https://example.com/rollback"), cached.map { it.url })
         }
 
     private companion object {

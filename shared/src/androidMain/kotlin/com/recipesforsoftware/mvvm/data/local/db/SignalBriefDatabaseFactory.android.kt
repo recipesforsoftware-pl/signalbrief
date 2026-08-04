@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.recipesforsoftware.mvvm.data.local.DATABASE_FILE_NAME
+import kotlinx.coroutines.Dispatchers
 
 /**
  * Creates the [SignalBriefDatabase] for Android.
@@ -19,5 +20,6 @@ fun createSignalBriefDatabase(context: Context): SignalBriefDatabase {
             name = applicationContext.getDatabasePath(DATABASE_FILE_NAME).absolutePath,
             factory = { SignalBriefDatabaseConstructor.initialize() },
         ).setDriver(BundledSQLiteDriver())
+        .setQueryCoroutineContext(Dispatchers.IO)
         .build()
 }

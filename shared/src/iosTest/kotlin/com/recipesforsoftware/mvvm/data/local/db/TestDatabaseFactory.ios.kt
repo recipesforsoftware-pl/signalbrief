@@ -2,6 +2,7 @@ package com.recipesforsoftware.mvvm.data.local.db
 
 import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
+import kotlinx.coroutines.Dispatchers
 import platform.Foundation.NSTemporaryDirectory
 import platform.Foundation.NSUUID
 
@@ -16,5 +17,6 @@ actual fun createTestDatabase(): SignalBriefDatabase {
             name = databasePath,
             factory = { SignalBriefDatabaseConstructor.initialize() },
         ).setDriver(BundledSQLiteDriver())
+        .setQueryCoroutineContext(Dispatchers.Default)
         .build()
 }
