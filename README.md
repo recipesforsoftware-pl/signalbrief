@@ -197,6 +197,9 @@ Notes:
 - `local.properties` and `Secrets.xcconfig` must **never be committed**. Both are
   listed in `.gitignore`; only `Secrets.example.xcconfig` (with a placeholder) is
   tracked.
+- CI never uses a real key. The macOS workflow creates a temporary
+  `Secrets.xcconfig` with an obvious fake value for the unsigned Xcode build and
+  never uploads it; the Android workflow needs no key at all.
 - On Android the key is embedded into `BuildConfig` at build time and sent in the
   `X-Api-Key` header. On iOS it is injected into `Info.plist` via the xcconfig
   and read by `MainViewController.kt`. A client-side key is extractable from the
@@ -319,24 +322,83 @@ Notes:
 - Instrumented tests (`connectedDebugAndroidTest`) exist but are **not**
   executed in CI yet; they require a device or emulator.
 - The iOS app (`iosApp`) builds locally with Xcode and has been verified on the
-  iPhone simulator; it is not built by the Android CI workflow (planned as a
-  macOS CI job).
+  iPhone simulator; it is built by the macOS "KMP and iOS CI" workflow described
+  below.
 
 ## CI
 
-The GitHub Actions workflow (`.github/workflows/android_ci.yml`) runs on pull
-requests targeting `main`, on pushes to `main`, and on manual dispatch. It
-validates the Gradle wrapper, then runs `ktlintCheck`, `detekt`, `test`,
-`lintDebug`, `assembleDebug`, and the Kover report/verification tasks (using the
-aggregated `all` variant: `:app:koverHtmlReportAll`,
-`:app:koverXmlReportAll`, `:app:koverVerifyAll`) on `ubuntu-latest` with JDK 17.
-No NewsAPI key is required in CI. The shared KMP modules are included in these
-gates (static analysis, JVM host tests, and Kover coverage aggregation for both
-`:shared` and `:shared-ui`); iOS-specific tasks (simulator tests, framework
-link) require Xcode and are planned as a macOS CI job, which will also build the
-`iosApp`.
+Two GitHub Actions workflows plus dependency review protect the `main` branch.
 
-Workflow reports are uploaded as artifacts with a 7-day retention:
+### Android CI (`android_ci.yml`)
+
+Runs on **Ubuntu** (`ubuntu-latest`, JDK 17) on pull requests targeting `main`,
+on pushes to `main`, and on manual dispatch. It validates the Gradle wrapper,
+then runs `ktlintCheck`, `detekt`, `test`, `lintDebug`, `assembleDebug`, and the
+Kover report/verification tasks (using the aggregated `all` variant:
+`:app:koverHtmlReportAll`, `:app:koverXmlReportAll`, `:app:koverVerifyAll`). The
+shared KMP modules are included in these gates (static analysis, JVM host tests,
+and Kover coverage aggregation for both `:shared` and `:shared-ui`); the
+iOS-specific tasks (simulator tests, framework link) require Xcode and are
+handled by the macOS workflow below. No NewsAPI key is required.
+
+### KMP and iOS CI (`kmp_ios_ci.yml`)
+
+Runs on **macOS** (pinned `macos-26`, Apple Silicon, JDK 21) on the same
+triggers, filtered to changes in Gradle configuration, the version catalog and
+wrapper, `shared/`, `shared-ui/`, `iosApp/`, and workflow files. It validates
+the Gradle wrapper and runs:
+
+```bash
+./gradlew :shared:allTests
+./gradlew :shared-ui:allTests
+./gradlew :shared-ui:linkDebugFrameworkIosSimulatorArm64
+./gradlew ktlintCheck
+./gradlew detekt
+```
+
+then performs an unsigned iOS simulator build of the host app with the Gradle
+framework embed step enabled:
+
+```bash
+xcodebuild \
+  -project iosApp/iosApp.xcodeproj \
+  -scheme iosApp \
+  -configuration Debug \
+  -sdk iphonesimulator \
+  -destination 'generic/platform=iOS Simulator' \
+  -derivedDataPath iosApp/build \
+  CODE_SIGNING_ALLOWED=NO \
+  ARCHS=arm64 \
+  build
+```
+
+Notes:
+
+- `ARCHS=arm64` pins the simulator build to the arm64 slice because `:shared-ui`
+  declares `iosSimulatorArm64`/`iosArm64` targets (no `iosX64`); the generic
+  simulator destination would otherwise request both simulator architectures and
+  fail.
+- **No real API key and no signing credentials are used.** The workflow creates
+  a temporary, git-ignored `iosApp/Configuration/Secrets.xcconfig` containing an
+  obvious fake value (`CI_FAKE_NEWS_API_KEY_DO_NOT_USE`) before the Xcode build.
+  The key is only read at app runtime, never during the build or tests, so no
+  live NewsAPI request is made.
+- The simulator **runtime is not launched** in CI; the unsigned simulator build
+  is the verified slice.
+- Reports (shared/shared-ui test reports, ktlint/detekt reports, and a focused
+  Xcode build log) are uploaded as artifacts with 7-day retention, only on
+  failure. No build trees, frameworks, `.kexe`, `.dSYM`, DerivedData, or secret
+  configuration are uploaded.
+- Gradle and Xcode checks each run in a single `macos-26` job with `concurrency`
+  canceling obsolete runs for the same branch/PR and `permissions:
+  contents: read`.
+
+The exact local equivalents are the commands listed above (Gradle tasks in the
+"Quality gates" section and the `xcodebuild` invocation in "Running the app").
+
+### Workflow artifacts (Android CI)
+
+Uploaded with 7-day retention:
 
 - unit-test reports (`app/build/reports/tests/`)
 - Android Lint reports (`app/build/reports/lint-results-debug.*`)
@@ -344,8 +406,10 @@ Workflow reports are uploaded as artifacts with a 7-day retention:
 - detekt reports (`app/build/reports/detekt/`)
 - Kover reports (`app/build/reports/kover/`)
 
-Dependency review (`actions/dependency-review-action@v5`) runs on pull requests
-targeting `main` and fails on `moderate` severity vulnerabilities.
+### Dependency review
+
+`actions/dependency-review-action@v5` runs on pull requests targeting `main`
+and fails on `moderate` severity vulnerabilities.
 
 ## Roadmap
 
