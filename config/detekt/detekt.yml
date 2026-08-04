@@ -1,0 +1,15 @@
+# Project-specific detekt overrides.
+# Uses detekt 2.0.0-alpha.3 defaults via buildUponDefaultConfig = true.
+# Only add rules here that differ from defaults.
+
+config:
+  validation: true
+  warningsAsErrors: false
+  checkExhaustiveness: false
+  excludes: []
+
+naming:
+  FunctionNaming:
+    # detekt 2.0.0-alpha.3 has no ignoreAnnotated for this rule.
+    # Allow Compose function names (PascalCase) while still rejecting digits/underscores.
+    functionPattern: '[a-zA-Z][a-zA-Z0-9]*'

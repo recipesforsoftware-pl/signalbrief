@@ -20,6 +20,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      - name: Validate Gradle wrapper
+        uses: gradle/wrapper-validation-action@v3
+
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
@@ -31,6 +34,12 @@ jobs:
         with:
           cache-disabled: 'true'
 
+      - name: Check formatting
+        run: ./gradlew ktlintCheck
+
+      - name: Run static analysis
+        run: ./gradlew detekt
+
       - name: Run unit tests
         run: ./gradlew test
 
@@ -39,3 +48,54 @@ jobs:
 
       - name: Assemble debug APK
         run: ./gradlew assembleDebug
+
+      - name: Generate coverage reports
+        run: ./gradlew koverHtmlReportDebug koverXmlReportDebug
+
+      - name: Verify coverage
+        run: ./gradlew koverVerifyDebug
+
+      - name: Upload unit-test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: unit-test-reports
+          path: app/build/reports/tests/
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Upload Android lint reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-lint-reports
+          path: app/build/reports/lint-results-debug.*
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Upload ktlint reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ktlint-reports
+          path: app/build/reports/ktlint/
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Upload detekt reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: detekt-reports
+          path: app/build/reports/detekt/
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Upload Kover reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: kover-reports
+          path: app/build/reports/kover/
+          retention-days: 7
+          if-no-files-found: warn

@@ -58,13 +58,14 @@ import com.recipesforsoftware.mvvm.ui.components.ArticleCard
 import com.recipesforsoftware.mvvm.ui.theme.NewsAppTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("LongMethod")
 @Composable
 fun TopHeadlineScreen(
     uiState: UiState<List<Article>>,
     isDarkMode: Boolean,
     onRefresh: () -> Unit,
     onToggleDarkMode: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val listState = rememberLazyListState()
@@ -72,6 +73,7 @@ fun TopHeadlineScreen(
         derivedStateOf { listState.firstVisibleItemScrollOffset > 0 }
     }
     var menuExpanded by remember { mutableStateOf(false) }
+    val themeIcon = if (isDarkMode) Icons.Rounded.DarkMode else Icons.Rounded.LightMode
 
     Scaffold(
         modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -82,13 +84,13 @@ fun TopHeadlineScreen(
                         Text(
                             text = "Top Headlines",
                             style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         Text(
                             text = "Latest news from around the world",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 2.dp)
+                            modifier = Modifier.padding(top = 2.dp),
                         )
                     }
                 },
@@ -96,26 +98,26 @@ fun TopHeadlineScreen(
                     IconButton(onClick = onRefresh) {
                         Icon(
                             imageVector = Icons.Rounded.Refresh,
-                            contentDescription = "Refresh"
+                            contentDescription = "Refresh",
                         )
                     }
                     Box {
                         IconButton(onClick = { menuExpanded = true }) {
                             Icon(
                                 imageVector = Icons.Rounded.MoreVert,
-                                contentDescription = "Menu"
+                                contentDescription = "Menu",
                             )
                         }
                         DropdownMenu(
                             expanded = menuExpanded,
-                            onDismissRequest = { menuExpanded = false }
+                            onDismissRequest = { menuExpanded = false },
                         ) {
                             DropdownMenuItem(
                                 text = { Text("Dark Mode") },
                                 leadingIcon = {
                                     Icon(
-                                        imageVector = if (isDarkMode) Icons.Rounded.DarkMode else Icons.Rounded.LightMode,
-                                        contentDescription = null
+                                        imageVector = themeIcon,
+                                        contentDescription = null,
                                     )
                                 },
                                 trailingIcon = {
@@ -127,32 +129,34 @@ fun TopHeadlineScreen(
                                         },
                                         thumbContent = {
                                             Icon(
-                                                imageVector = if (isDarkMode) Icons.Rounded.DarkMode else Icons.Rounded.LightMode,
+                                                imageVector = themeIcon,
                                                 contentDescription = null,
-                                                modifier = Modifier.size(SwitchDefaults.IconSize)
+                                                modifier = Modifier.size(SwitchDefaults.IconSize),
                                             )
                                         },
-                                        colors = SwitchDefaults.colors(
-                                            checkedTrackColor = MaterialTheme.colorScheme.primary,
-                                            checkedThumbColor = MaterialTheme.colorScheme.onPrimary
-                                        )
+                                        colors =
+                                            SwitchDefaults.colors(
+                                                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                                            ),
                                     )
                                 },
                                 onClick = {
                                     onToggleDarkMode()
                                     menuExpanded = false
-                                }
+                                },
                             )
                         }
                     }
                 },
                 scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surface
-                )
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        scrolledContainerColor = MaterialTheme.colorScheme.surface,
+                    ),
             )
-        }
+        },
     ) { paddingValues ->
         when (uiState) {
             is UiState.Loading -> {
@@ -163,7 +167,7 @@ fun TopHeadlineScreen(
                 TopHeadlineContent(
                     articles = uiState.data,
                     contentPadding = paddingValues,
-                    listState = listState
+                    listState = listState,
                 )
             }
 
@@ -171,7 +175,7 @@ fun TopHeadlineScreen(
                 ErrorContent(
                     message = uiState.message,
                     paddingValues = paddingValues,
-                    onRetry = onRefresh
+                    onRetry = onRefresh,
                 )
             }
         }
@@ -181,22 +185,23 @@ fun TopHeadlineScreen(
 @Composable
 private fun LoadingContent(paddingValues: PaddingValues) {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(paddingValues),
-        contentAlignment = Alignment.Center
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(paddingValues),
+        contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             CircularProgressIndicator(
                 modifier = Modifier.size(48.dp),
                 strokeWidth = 4.dp,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "Loading headlines...",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -206,45 +211,46 @@ private fun LoadingContent(paddingValues: PaddingValues) {
 private fun ErrorContent(
     message: String,
     paddingValues: PaddingValues,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(paddingValues),
-        contentAlignment = Alignment.Center
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(paddingValues),
+        contentAlignment = Alignment.Center,
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.padding(32.dp)
+            modifier = Modifier.padding(32.dp),
         ) {
             Icon(
                 imageVector = Icons.Rounded.ErrorOutline,
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
+                tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
             )
 
             Text(
                 text = "Something went wrong",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
             )
 
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
             )
 
             FilledTonalButton(onClick = onRetry) {
                 Icon(
                     imageVector = Icons.Rounded.Refresh,
                     contentDescription = null,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(18.dp),
                 )
                 Spacer(modifier = Modifier.size(8.dp))
                 Text("Try Again")
@@ -257,7 +263,7 @@ private fun ErrorContent(
 private fun TopHeadlineContent(
     articles: List<Article>,
     contentPadding: PaddingValues,
-    listState: androidx.compose.foundation.lazy.LazyListState = rememberLazyListState()
+    listState: androidx.compose.foundation.lazy.LazyListState = rememberLazyListState(),
 ) {
     var currentArticles by remember { mutableStateOf(articles) }
 
@@ -268,19 +274,20 @@ private fun TopHeadlineContent(
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(
-            top = contentPadding.calculateTopPadding(),
-            bottom = contentPadding.calculateBottomPadding() + 24.dp
-        ),
-        verticalArrangement = Arrangement.spacedBy(0.dp)
+        contentPadding =
+            PaddingValues(
+                top = contentPadding.calculateTopPadding(),
+                bottom = contentPadding.calculateBottomPadding() + 24.dp,
+            ),
+        verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
         items(
             items = currentArticles,
-            key = { it.url.orEmpty().hashCode() }
+            key = { it.url.orEmpty().hashCode() },
         ) { article ->
             ArticleCard(
                 article = article,
-                modifier = Modifier.animateItem()
+                modifier = Modifier.animateItem(),
             )
         }
     }
@@ -291,27 +298,28 @@ private fun TopHeadlineContent(
 private fun TopHeadlineScreenPreview() {
     NewsAppTheme(dynamicColor = false) {
         TopHeadlineScreen(
-            uiState = UiState.Success(
-                listOf(
-                    Article(
-                        title = "Breaking: Major Tech Company Unveils New Product Line",
-                        description = "The announcement that surprised the industry with revolutionary new features and competitive pricing.",
-                        url = "https://example.com/1",
-                        imageUrl = null,
-                        source = Source(id = "tech", name = "TechCrunch")
+            uiState =
+                UiState.Success(
+                    listOf(
+                        Article(
+                            title = "Breaking: Major Tech Company Unveils New Product Line",
+                            description = "The announcement that surprised the industry with new features and pricing.",
+                            url = "https://example.com/1",
+                            imageUrl = null,
+                            source = Source(id = "tech", name = "TechCrunch"),
+                        ),
+                        Article(
+                            title = "Climate Summit Reaches Historic Agreement",
+                            description = "World leaders agree on ambitious targets to cut carbon emissions by 2035.",
+                            url = "https://example.com/2",
+                            imageUrl = null,
+                            source = Source(id = "news", name = "Reuters"),
+                        ),
                     ),
-                    Article(
-                        title = "Climate Summit Reaches Historic Agreement",
-                        description = "World leaders agree on ambitious new targets to reduce carbon emissions by 2035.",
-                        url = "https://example.com/2",
-                        imageUrl = null,
-                        source = Source(id = "news", name = "Reuters")
-                    )
-                )
-            ),
+                ),
             isDarkMode = false,
             onRefresh = {},
-            onToggleDarkMode = {}
+            onToggleDarkMode = {},
         )
     }
 }

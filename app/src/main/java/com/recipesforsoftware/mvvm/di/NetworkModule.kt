@@ -12,14 +12,15 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import javax.inject.Singleton
 
+private const val BASE_URL = "https://newsapi.org/v2/"
+
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
-
     @Provides
     @Singleton
     @BaseUrl
-    fun provideBaseUrl(): String = "https://newsapi.org/v2/"
+    fun provideBaseUrl(): String = BASE_URL
 
     @Provides
     @Singleton
@@ -27,30 +28,34 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
-        return OkHttpClient.Builder()
-            .addInterceptor(Interceptor { chain ->
-                val request = chain.request().newBuilder()
-                    .addHeader("X-Api-Key", BuildConfig.NEWS_API_KEY)
-                    .addHeader("User-Agent", "ABC")
-                    .build()
-                chain.proceed(request)
-            })
-            .build()
-    }
+    fun provideOkHttpClient(): OkHttpClient =
+        OkHttpClient
+            .Builder()
+            .addInterceptor(
+                Interceptor { chain ->
+                    val request =
+                        chain
+                            .request()
+                            .newBuilder()
+                            .addHeader("X-Api-Key", BuildConfig.NEWS_API_KEY)
+                            .addHeader("User-Agent", "ABC")
+                            .build()
+                    chain.proceed(request)
+                },
+            ).build()
 
     @Provides
     @Singleton
     fun provideNetworkService(
         @BaseUrl baseUrl: String,
         okHttpClient: OkHttpClient,
-        gsonConverterFactory: GsonConverterFactory
-    ): NetworkService {
-        return Retrofit.Builder()
+        gsonConverterFactory: GsonConverterFactory,
+    ): NetworkService =
+        Retrofit
+            .Builder()
             .baseUrl(baseUrl)
             .client(okHttpClient)
             .addConverterFactory(gsonConverterFactory)
             .build()
             .create(NetworkService::class.java)
-    }
 }

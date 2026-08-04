@@ -7,14 +7,13 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
-import dagger.hilt.android.AndroidEntryPoint
 import com.recipesforsoftware.mvvm.ui.screens.TopHeadlineScreen
 import com.recipesforsoftware.mvvm.ui.theme.NewsAppTheme
 import com.recipesforsoftware.mvvm.ui.theme.ThemeViewModel
+import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class TopHeadlineActivity : ComponentActivity() {
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -31,7 +30,7 @@ class TopHeadlineActivity : ComponentActivity() {
                     uiState = uiState,
                     isDarkMode = isDarkMode,
                     onRefresh = viewModel::fetchTopHeadlines,
-                    onToggleDarkMode = themeViewModel::toggleDarkMode
+                    onToggleDarkMode = themeViewModel::toggleDarkMode,
                 )
             }
         }
