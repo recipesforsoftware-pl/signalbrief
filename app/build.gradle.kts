@@ -118,6 +118,9 @@ kover {
 }
 
 dependencies {
+    // Shared KMP domain module
+    implementation(project(":shared"))
+
     // Compose BOM
     implementation(platform(libs.compose.bom))
     androidTestImplementation(platform(libs.compose.bom))
