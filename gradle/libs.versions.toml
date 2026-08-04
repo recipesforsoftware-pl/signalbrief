@@ -2,7 +2,10 @@
 agp = "9.3.1"
 kotlin = "2.3.21"
 composeMultiplatform = "1.11.1"
-devtoolsKsp = "2.3.10"
+ksp = "2.3.10"
+room = "2.8.0"
+sqliteBundled = "2.6.0"
+sqliteJdbc = "3.41.2.2"
 composeBom = "2026.04.01"
 activityCompose = "1.10.1"
 coreKtx = "1.16.0"
@@ -87,6 +90,12 @@ compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-mani
 # DataStore
 datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastorePreferences" }
 
+# Room / SQLite
+room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
+room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+sqlite-bundled = { group = "androidx.sqlite", name = "sqlite-bundled", version.ref = "sqliteBundled" }
+sqlite-jdbc = { group = "org.xerial", name = "sqlite-jdbc", version.ref = "sqliteJdbc" }
+
 # Multiplatform
 kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test", version.ref = "kotlin" }
 
@@ -97,7 +106,8 @@ android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
-devtools-ksp = { id = "com.google.devtools.ksp", version.ref = "devtoolsKsp" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+room = { id = "androidx.room", version.ref = "room" }
 hilt-android = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }
 detekt = { id = "dev.detekt", version.ref = "detekt" }
