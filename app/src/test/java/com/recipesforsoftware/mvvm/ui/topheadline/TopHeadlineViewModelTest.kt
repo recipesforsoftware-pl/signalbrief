@@ -4,7 +4,9 @@ import com.recipesforsoftware.mvvm.domain.failure.NewsFailure
 import com.recipesforsoftware.mvvm.domain.model.Article
 import com.recipesforsoftware.mvvm.domain.model.Source
 import com.recipesforsoftware.mvvm.domain.repository.NewsRepository
-import com.recipesforsoftware.mvvm.ui.base.UiState
+import com.recipesforsoftware.mvvm.ui.topheadlines.TopHeadlinesError
+import com.recipesforsoftware.mvvm.ui.topheadlines.TopHeadlinesStrings
+import com.recipesforsoftware.mvvm.ui.topheadlines.TopHeadlinesUiState
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -49,11 +51,11 @@ class TopHeadlineViewModelTest {
             viewModel = TopHeadlineViewModel(repository)
 
             // Then - initial state should be Loading before the coroutine completes
-            assertTrue(viewModel.uiState.value is UiState.Loading)
+            assertTrue(viewModel.uiState.value is TopHeadlinesUiState.Loading)
         }
 
     @Test
-    fun `fetchTopHeadlines success updates state to Success`() =
+    fun `success updates state to Success`() =
         runTest {
             // Given
             coEvery { repository.getTopHeadlines(any()) } returns Result.success(createFakeArticles(3))
@@ -64,12 +66,12 @@ class TopHeadlineViewModelTest {
 
             // Then
             val state = viewModel.uiState.value
-            assertTrue(state is UiState.Success)
-            assertEquals(3, (state as UiState.Success).data.size)
+            assertTrue(state is TopHeadlinesUiState.Success)
+            assertEquals(3, (state as TopHeadlinesUiState.Success).articles.size)
         }
 
     @Test
-    fun `fetchTopHeadlines with empty list updates state to Success with empty list`() =
+    fun `empty list updates state to Empty`() =
         runTest {
             // Given
             coEvery { repository.getTopHeadlines(any()) } returns Result.success(emptyList())
@@ -79,9 +81,7 @@ class TopHeadlineViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val state = viewModel.uiState.value
-            assertTrue(state is UiState.Success)
-            assertEquals(0, (state as UiState.Success).data.size)
+            assertTrue(viewModel.uiState.value is TopHeadlinesUiState.Empty)
         }
 
     @Test
@@ -96,10 +96,10 @@ class TopHeadlineViewModelTest {
 
             // Then
             val state = viewModel.uiState.value
-            assertTrue(state is UiState.Error)
+            assertTrue(state is TopHeadlinesUiState.Error)
             assertEquals(
-                "Network error. Please check your connection and try again.",
-                (state as UiState.Error).message,
+                TopHeadlinesStrings.errorBody(TopHeadlinesError.Network),
+                (state as TopHeadlinesUiState.Error).errorBody(),
             )
         }
 
@@ -115,10 +115,10 @@ class TopHeadlineViewModelTest {
 
             // Then
             val state = viewModel.uiState.value
-            assertTrue(state is UiState.Error)
+            assertTrue(state is TopHeadlinesUiState.Error)
             assertEquals(
-                "Invalid data received from the server.",
-                (state as UiState.Error).message,
+                TopHeadlinesStrings.errorBody(TopHeadlinesError.InvalidData),
+                (state as TopHeadlinesUiState.Error).errorBody(),
             )
         }
 
@@ -135,12 +135,15 @@ class TopHeadlineViewModelTest {
 
             // Then
             val state = viewModel.uiState.value
-            assertTrue(state is UiState.Error)
-            assertEquals("An unexpected error occurred", (state as UiState.Error).message)
+            assertTrue(state is TopHeadlinesUiState.Error)
+            assertEquals(
+                TopHeadlinesStrings.errorBody(TopHeadlinesError.Unknown),
+                (state as TopHeadlinesUiState.Error).errorBody(),
+            )
         }
 
     @Test
-    fun `fetchTopHeadlines calls repository with default country`() =
+    fun `loads headlines for the configured country`() =
         runTest {
             // Given
             coEvery { repository.getTopHeadlines("us") } returns Result.success(emptyList())
@@ -160,7 +163,7 @@ class TopHeadlineViewModelTest {
             coEvery { repository.getTopHeadlines(any()) } returns Result.success(createFakeArticles(1))
             viewModel = TopHeadlineViewModel(repository)
             advanceUntilIdle()
-            assertTrue(viewModel.uiState.value is UiState.Success)
+            assertTrue(viewModel.uiState.value is TopHeadlinesUiState.Success)
 
             // And the next fetch suspends before completing
             val gate = CompletableDeferred<Unit>()
@@ -170,18 +173,18 @@ class TopHeadlineViewModelTest {
             }
 
             // When
-            viewModel.fetchTopHeadlines()
+            viewModel.refresh()
             testDispatcher.scheduler.runCurrent()
 
             // Then - loading is shown while the fetch is in flight
-            assertTrue(viewModel.uiState.value is UiState.Loading)
+            assertTrue(viewModel.uiState.value is TopHeadlinesUiState.Loading)
 
             // When - the fetch completes
             gate.complete(Unit)
             advanceUntilIdle()
 
             // Then - error is applied afterwards
-            assertTrue(viewModel.uiState.value is UiState.Error)
+            assertTrue(viewModel.uiState.value is TopHeadlinesUiState.Error)
         }
 
     private fun createFakeArticles(count: Int): List<Article> =
@@ -195,3 +198,5 @@ class TopHeadlineViewModelTest {
             )
         }
 }
+
+private fun TopHeadlinesUiState.Error.errorBody(): String = TopHeadlinesStrings.errorBody(error)

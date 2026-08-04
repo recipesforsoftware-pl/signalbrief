@@ -126,8 +126,12 @@ dependencies {
     // Shared KMP domain module
     implementation(project(":shared"))
 
-    // Aggregate :shared coverage into :app's Kover "all" report variant
+    // Shared Compose Multiplatform UI (Top Headlines screen + presenter)
+    implementation(project(":shared-ui"))
+
+    // Aggregate :shared and :shared-ui coverage into :app's Kover "all" report variant
     kover(project(":shared"))
+    kover(project(":shared-ui"))
 
     // Ktor client type used at the Hilt composition boundary
     implementation(libs.ktor.client.core)

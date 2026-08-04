@@ -1,61 +1,69 @@
 # SignalBrief
 
-SignalBrief is a production-oriented Android news reader that is being migrated
-incrementally to Kotlin Multiplatform. This repository currently contains a
-verified **Android app backed by a shared Kotlin Multiplatform module** (`:shared`)
-that holds the domain boundary and the Ktor network data layer; the Android-only
-baseline is described in the history. The product direction — an Android and iOS
-application with offline-first reading, saved articles, search, topic
-monitoring, and a Daily Brief — is defined in the
+SignalBrief is a production-oriented news reader for Android and iOS that is
+being migrated incrementally to Kotlin Multiplatform. This repository currently
+contains a verified **Android app and an iOS app that share both a Kotlin
+Multiplatform domain/network module** (`:shared`) **and a Compose Multiplatform
+UI module** (`:shared-ui`) that renders the same "Top Headlines" screen on both
+platforms. The product direction — offline-first reading, saved articles,
+search, topic monitoring, and a Daily Brief — is defined in the
 [implementation roadmap](IMPLEMENTATION_ROADMAP.md) and is **future work**.
 
 ## Current status
 
-- **Platforms:** Android app (`:app`) plus a Kotlin Multiplatform shared module
-  (`:shared`) that targets Android, iOS, and JVM. The clean domain boundary and
-  the **network data layer live in `commonMain`**; there is **no iOS app and no
-  Compose Multiplatform UI yet** — the iOS targets build the shared framework
-  (`SignalBriefShared`), run common tests on the simulator, and now also link the
-  Darwin-engine HTTP client.
-- **Scope:** the app renders a "Top Headlines" feed from NewsAPI in one Compose
-  screen with light and dark theme support. The Android app consumes the shared
-  domain models, contract, and Ktor-backed `NewsRepository` implementation; only
-  the Hilt composition root and UI remain in `:app`.
-- **Not yet implemented:** Compose Multiplatform, an iOS app, offline-first
-  storage, navigation, search, saved articles, topic monitoring, the Daily
-  Brief, payments, synchronization, and a production backend. See the roadmap
-  for the planned work.
+- **Platforms:** Android app (`:app`), iOS app (`iosApp`), and two Kotlin
+  Multiplatform shared modules: `:shared` (domain boundary + Ktor network data
+  layer) and `:shared-ui` (framework-independent presenter + Compose
+  Multiplatform UI, targets Android and iOS).
+- **Scope:** a "Top Headlines" feed from NewsAPI rendered in one shared Compose
+  screen with light and dark theme support. `:app` keeps only the Hilt
+  composition root and the Android dark-mode menu; the rest of the screen
+  (presenter, strings, theme, composables) is shared with iOS.
+- **Not yet implemented:** offline-first storage, navigation, search, saved
+  articles, topic monitoring, the Daily Brief, payments, synchronization, and a
+  production backend. See the roadmap for the planned work.
 
 ## Implemented features
 
-- Fetches and displays US top headlines from NewsAPI.
-- Loading state, error state with retry, and success list rendering.
-- Refresh action in the top app bar.
-- Article cards open the original article in Chrome Custom Tabs.
-- Material 3 theme with dynamic color support (Android 12+) and a persisted
-  dark-mode toggle backed by DataStore.
+- Fetches and displays US top headlines from NewsAPI on **Android and iOS**.
+- Shared loading state, empty state, error state with retry, and success list
+  rendering (`:shared-ui`).
+- Refresh action in the shared top app bar.
+- Material 3 theme shared between platforms; Android additionally has dynamic
+  color support (Android 12+) and a persisted dark-mode toggle backed by
+  DataStore rendered through the shared screen's `topBarActions` slot.
+- iOS app (`iosApp`) embeds the shared `SignalBriefSharedUi.framework` and reads
+  its NewsAPI key from a git-ignored `Secrets.xcconfig`.
 
 ## Architecture
 
-MVVM with a single-activity Compose UI and a clean domain boundary. The domain
-boundary and the network data layer now live in the shared KMP module
-(`commonMain`) and are reused by the Android app:
+MVVM with a single-activity Compose UI, a clean domain boundary, and shared
+presentation. The domain boundary, the network data layer, and the screen itself
+are shared Kotlin Multiplatform code reused by both apps:
 
 ```
-UI (Compose, :app)  ->  TopHeadlineViewModel (StateFlow + sealed UiState)  ->  NewsRepository (domain contract, :shared)
-                                                                                          |
-                                                                                          v
-                                                            KtorNewsRepository (:shared)  ->  Ktor + kotlinx.serialization (NewsAPI)
-                                                                                          |
-                                                              ArticleDto --ArticleMapper--> Article (domain model, :shared)
-                                                                                          |
-                                                   ThemeViewModel <-> ThemePreference (DataStore)
+Android UI (:app) ──┐
+                    ├──> TopHeadlinesScreen (shared UI, :shared-ui) ──> TopHeadlinesPresenter (StateFlow, :shared-ui)
+iOS UI (iosApp) ────┘                                                                          |
+                                                                                               v
+                                                                        NewsRepository (domain contract, :shared)
+                                                                                               |
+                                                                                               v
+                                                                          KtorNewsRepository (:shared) -> Ktor + kotlinx.serialization (NewsAPI)
+                                                                                               |
+                                                                  ArticleDto --ArticleMapper--> Article (domain model, :shared)
 ```
 
-- One launcher activity (`TopHeadlineActivity`).
-- `TopHeadlineViewModel` exposes a `StateFlow<UiState>` with sealed
-  `Loading` / `Success` / `Error` states and consumes the `NewsRepository`
-  domain contract.
+- The shared `TopHeadlinesScreen` (Compose Multiplatform, `:shared-ui`) is a
+  stateless composable that receives `TopHeadlinesUiState` (sealed
+  `Loading` / `Success` / `Empty` / `Error`) and callbacks from the host. A
+  `topBarActions` slot lets Android inject its dark-mode menu while iOS renders
+  the same core screen.
+- `TopHeadlinesPresenter` (`:shared-ui`) is framework-independent: it owns its
+  `CoroutineScope`, exposes a `StateFlow<TopHeadlinesUiState>`, guards against
+  stale responses with a request-generation counter, and must be disposed by the
+  host. Both `TopHeadlineViewModel` (Android, Hilt) and `MainViewController`
+  (iOS) delegate to it.
 - `NewsRepository` (domain contract), `Article`/`Source` (domain models), and
   `NewsFailure` (typed failures) live in `:shared:commonMain`. They are
   framework-independent: no Ktor, serialization, Android, Hilt, or transport DTO
@@ -72,8 +80,11 @@ UI (Compose, :app)  ->  TopHeadlineViewModel (StateFlow + sealed UiState)  ->  N
 - Hilt (Android composition root only) provides `NewsApiConfig` from
   `BuildConfig.NEWS_API_KEY`, builds the shared `HttpClient`, and binds
   `NewsRepository` to `KtorNewsRepository` in `RepositoryModule`.
+- On iOS the same `KtorNewsRepository` is created in `MainViewController.kt`,
+  which reads `NEWS_API_KEY` from the app's `Info.plist` (injected from the
+  git-ignored `Secrets.xcconfig`).
 - A `ThemePreference` (DataStore) plus `ThemeViewModel` persist and expose the
-  dark-mode setting.
+  dark-mode setting on Android.
 
 This is the current, honest state of the code. The target architecture (shared
 presentation and UI for Android and iOS) is described in the
@@ -83,16 +94,16 @@ presentation and UI for Android and iOS) is described in the
 
 | Category | Technology |
 |---|---|
-| Language | Kotlin, Kotlin Multiplatform |
-| UI | Jetpack Compose, Material 3 (Android app) |
-| Architecture | MVVM with StateFlow |
-| Dependency injection | Dagger/Hilt |
+| Language | Kotlin, Kotlin Multiplatform, Swift (iOS host) |
+| UI | Compose Multiplatform, Material 3 (shared screen on Android and iOS) |
+| Architecture | MVVM with StateFlow + shared presenter |
+| Dependency injection | Dagger/Hilt (Android only) |
 | Networking | Ktor 3 client + kotlinx.serialization (Android + iOS engines) |
 | Image loading | Coil 3 |
 | Persistence | DataStore Preferences |
 | Async | Coroutines + Flow |
-| Browser | Chrome Custom Tabs |
-| Build | Gradle wrapper, AGP |
+| Browser | Chrome Custom Tabs (Android article opening) |
+| Build | Gradle wrapper, AGP, Xcode (iosApp) |
 | Unit testing | JUnit 4, MockK, Turbine, kotlinx-coroutines-test, Robolectric, kotlin.test |
 | UI testing | Compose UI test, Espresso |
 
@@ -106,11 +117,8 @@ app/
     │   ├── NewsApplication.kt            # @HiltAndroidApp
     │   ├── di/                           # Hilt composition root (news config + repository binding)
     │   ├── ui/
-    │   │   ├── base/UiState.kt
-    │   │   ├── components/ArticleCard.kt
-    │   │   ├── screens/TopHeadlineScreen.kt
     │   │   ├── theme/                    # Color, Theme, Type, ThemePreference, ThemeViewModel
-    │   │   └── topheadline/              # TopHeadlineActivity, TopHeadlineViewModel
+    │   │   └── topheadline/              # TopHeadlineActivity, TopHeadlineViewModel, DarkModeMenu
     │   └── utils/AppConstant.kt
     ├── test/                             # JVM unit tests
     └── androidTest/                      # Instrumented (device) tests
@@ -133,6 +141,25 @@ shared/
     └── commonTest/kotlin/com/recipesforsoftware/mvvm/
         ├── data/                         # Common tests: KtorNewsRepository (MockEngine), ArticleMapper
         └── domain/                       # Common tests (models, failures, repository contract)
+shared-ui/
+├── build.gradle.kts                      # KMP: android + iosArm64 + iosSimulatorArm64; framework SignalBriefSharedUi
+└── src/
+    ├── commonMain/kotlin/com/recipesforsoftware/mvvm/ui/topheadlines/
+    │   ├── TopHeadlinesPresenter.kt      # Framework-independent StateFlow presenter (dispose() contract)
+    │   ├── TopHeadlinesUiState.kt        # Sealed Loading / Success / Empty / Error
+    │   ├── TopHeadlinesError.kt          # Typed errors + Throwable mapping (CancellationException rethrown)
+    │   ├── TopHeadlinesStrings.kt        # Centralized user-facing strings + error bodies
+    │   ├── SignalBriefTheme.kt           # Shared light/dark Material 3 theme
+    │   ├── TopHeadlinesScreen.kt         # Shared stateless screen (topBarActions slot)
+    │   └── components/ArticleCard.kt     # Text-first shared article card
+    ├── commonTest/.../TopHeadlinesPresenterTest.kt   # 11 presenter tests (JVM + iOS simulator)
+    └── iosMain/kotlin/.../MainViewController.kt      # ComposeUIViewController + iOS repository wiring
+iosApp/
+├── iosApp.xcodeproj/                     # Xcode project; "Compile Kotlin Framework" = embedAndSignAppleFrameworkForXcode
+├── iosApp/                               # SwiftUI host: iosApp.swift, ContentView.swift, Info.plist, Assets.xcassets
+└── Configuration/
+    ├── Secrets.example.xcconfig          # Tracked template with placeholder
+    └── Secrets.xcconfig                  # Git-ignored; real NEWS_API_KEY for the iOS app
 ├── gradle/libs.versions.toml             # Version catalog
 └── settings.gradle.kts                   # Root project name: SignalBrief
 ```
@@ -149,20 +176,32 @@ shared/
 
 ### API key handling and security limitations
 
-The current development mode reads a user-supplied NewsAPI key from the
-**ignored** `local.properties` file:
+The current development mode reads a user-supplied NewsAPI key from **ignored,
+local-only files** — one per platform:
+
+- Android: `local.properties`
 
 ```properties
 NEWS_API_KEY=your_news_api_key
 ```
 
+- iOS: `iosApp/Configuration/Secrets.xcconfig` (copy the tracked
+  `Secrets.example.xcconfig` template)
+
+```xcconfig
+NEWS_API_KEY=your_news_api_key
+```
+
 Notes:
 
-- `local.properties` must **never be committed**. It is listed in `.gitignore`.
-- The key is embedded into `BuildConfig` at build time and sent in the
-  `X-Api-Key` header. A client-side key is extractable from the APK, so this
-  setup is intended for **local development only**, never as a secure production
-  credential.
+- `local.properties` and `Secrets.xcconfig` must **never be committed**. Both are
+  listed in `.gitignore`; only `Secrets.example.xcconfig` (with a placeholder) is
+  tracked.
+- On Android the key is embedded into `BuildConfig` at build time and sent in the
+  `X-Api-Key` header. On iOS it is injected into `Info.plist` via the xcconfig
+  and read by `MainViewController.kt`. A client-side key is extractable from the
+  APK/IPA, so this setup is intended for **local development only**, never as a
+  secure production credential.
 - You are responsible for complying with the selected data provider's licensing
   and usage terms (for example NewsAPI's developer-tier restrictions and rate
   limits).
@@ -184,15 +223,23 @@ as later work so the app can run and be tested without a third-party key.
 ## Running the app
 
 ```bash
-# Debug build
+# Android: debug build
 ./gradlew assembleDebug
 
-# Install on a connected device/emulator
+# Android: install on a connected device/emulator
 ./gradlew installDebug
+
+# iOS: build and launch on a simulator via Xcode
+open iosApp/iosApp.xcodeproj   # then Run (⌘R)
+# or from the command line (after opening the workspace once):
+xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -configuration Debug \
+  -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -derivedDataPath iosApp/build CODE_SIGNING_ALLOWED=NO build
 ```
 
-Without a valid key in `local.properties`, the app builds and runs but headline
-requests fail — the development key is required to see live data.
+Without a valid key in `local.properties` (Android) or `Secrets.xcconfig` (iOS),
+the app builds and runs but headline requests fail — the development key is
+required to see live data.
 
 ## Testing
 
@@ -203,6 +250,10 @@ requests fail — the development key is required to see live data.
 # Shared KMP module: JVM host tests + iOS simulator tests + iOS framework link
 ./gradlew :shared:allTests
 ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64
+
+# Shared UI module: JVM host tests + iOS simulator tests + iOS framework link
+./gradlew :shared-ui:allTests
+./gradlew :shared-ui:linkDebugFrameworkIosSimulatorArm64
 
 # Instrumented tests (require a connected device or emulator)
 ./gradlew connectedDebugAndroidTest
@@ -218,13 +269,16 @@ requests fail — the development key is required to see live data.
   Ktor's `MockEngine` (success, typed failure mapping, cancellation
   propagation, and the platform-specific success/failure paths). They run both
   on the JVM (`:shared:testAndroidHostTest`) and on the iOS simulator
-  (`:shared:iosSimulatorArm64Test`). On arm64 Macs the x86_64 simulator target
-  (`iosX64Test`) is automatically skipped because no x86_64 simulator runtime is
-  installed.
-- **Instrumented tests** cover the top-headlines Compose screen, DataStore
-  theme-preference behavior, and application package verification. They exist in
-  `app/src/androidTest` but are **not** part of the CI workflow yet; executing
-  them requires a device or emulator.
+  (`:shared:iosSimulatorArm64Test`).
+- **Shared UI tests** (`:shared-ui`) cover the presenter end to end with a fake
+  repository: initial loading, success/empty, every typed error, retry,
+  cancellation on dispose, and stale-response protection. They run on the JVM
+  host and on the iOS simulator (`:shared-ui:allTests`).
+- **Instrumented tests** cover the shared Top Headlines Compose screen
+  (including the Android dark-mode menu), DataStore theme-preference behavior,
+  and application package verification. They exist in `app/src/androidTest` but
+  are **not** part of the CI workflow yet; executing them requires a device or
+  emulator.
 
 ## Quality gates
 
@@ -241,26 +295,32 @@ The following commands pass on the current state:
 ./gradlew :app:koverVerifyAll
 ./gradlew :shared:allTests
 ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64
+./gradlew :shared-ui:allTests
+./gradlew :shared-ui:linkDebugFrameworkIosSimulatorArm64
 ```
 
 Notes:
 
-- `ktlintCheck` verifies Kotlin formatting across `:app` and `:shared`. The
-  formatter is **not** run automatically in CI; violations fail the build so
-  they must be fixed locally (`./gradlew ktlintFormat`).
-- `detekt` performs static analysis on Kotlin sources of both modules.
+- `ktlintCheck` verifies Kotlin formatting across `:app`, `:shared`, and
+  `:shared-ui`. The formatter is **not** run automatically in CI; violations
+  fail the build so they must be fixed locally (`./gradlew ktlintFormat`).
+- `detekt` performs static analysis on Kotlin sources of all modules.
 - `lintDebug` passes with warnings and no errors.
 - Kover measures code coverage from the **JVM unit tests only**
   (`testDebugUnitTest`). It does not include Android instrumented tests or the
-  shared iOS tests. Because the data layer moved into `:shared`, coverage is
-  aggregated into a custom Kover variant named `all` (`:app` debug variant plus
-  the `:shared` Android/KMP project); the 9% LINE threshold is verified against
-  that aggregated report via `:app:koverVerifyAll`.
-- `:shared:allTests` runs the common tests on the JVM host and on the
-  `iosSimulatorArm64` simulator. The framework link task verifies the iOS
-  export (`SignalBriefShared.framework`) without an iOS app.
+  shared iOS tests. Coverage is aggregated into a custom Kover variant named
+  `all` (`:app` debug variant plus the `:shared` and `:shared-ui` Android/KMP
+  projects); the 9% LINE threshold is verified against that aggregated report
+  via `:app:koverVerifyAll`.
+- `:shared:allTests` and `:shared-ui:allTests` run the common tests on the JVM
+  host and on the `iosSimulatorArm64` simulator. The framework link tasks verify
+  the iOS exports (`SignalBriefShared.framework`,
+  `SignalBriefSharedUi.framework`).
 - Instrumented tests (`connectedDebugAndroidTest`) exist but are **not**
   executed in CI yet; they require a device or emulator.
+- The iOS app (`iosApp`) builds locally with Xcode and has been verified on the
+  iPhone simulator; it is not built by the Android CI workflow (planned as a
+  macOS CI job).
 
 ## CI
 
@@ -270,10 +330,11 @@ validates the Gradle wrapper, then runs `ktlintCheck`, `detekt`, `test`,
 `lintDebug`, `assembleDebug`, and the Kover report/verification tasks (using the
 aggregated `all` variant: `:app:koverHtmlReportAll`,
 `:app:koverXmlReportAll`, `:app:koverVerifyAll`) on `ubuntu-latest` with JDK 17.
-No NewsAPI key is required in CI. The shared KMP module is included in these
-gates (static analysis, its JVM host tests, and Kover coverage aggregation);
-iOS-specific tasks (simulator tests, framework link) require Xcode and are
-planned as a macOS CI job.
+No NewsAPI key is required in CI. The shared KMP modules are included in these
+gates (static analysis, JVM host tests, and Kover coverage aggregation for both
+`:shared` and `:shared-ui`); iOS-specific tasks (simulator tests, framework
+link) require Xcode and are planned as a macOS CI job, which will also build the
+`iosApp`.
 
 Workflow reports are uploaded as artifacts with a 7-day retention:
 
@@ -289,12 +350,12 @@ targeting `main` and fails on `moderate` severity vulnerabilities.
 ## Roadmap
 
 See [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md) for the phased plan:
-verified Android baseline, extended quality gates, shared KMP domain module
-(this milestone), shared data modules, offline-first storage with Room, shared
-presentation, Compose Multiplatform UI, and the full product MVP. The roadmap
-also separates features that belong in the public repository from commercial
-capabilities (payments, production synchronization, analytics, and signing)
-that are planned for a private repository.
+verified Android baseline, extended quality gates, shared KMP domain module,
+shared data modules, shared presentation, Compose Multiplatform UI (first shared
+screen, this milestone), offline-first storage with Room, and the full product
+MVP. The roadmap also separates features that belong in the public repository
+from commercial capabilities (payments, production synchronization, analytics,
+and signing) that are planned for a private repository.
 
 ## License
 
