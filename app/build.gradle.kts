@@ -165,12 +165,11 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
 
-    // Image Loading
-    implementation(libs.coil.compose)
-    implementation(libs.coil.network.okhttp)
-
     // Browser
     implementation(libs.browser)
+
+    // Splash screen (Android 12+ platform API, backported)
+    implementation(libs.core.splashscreen)
 
     // DataStore Preferences
     implementation(libs.datastore.preferences)

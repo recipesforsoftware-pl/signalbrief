@@ -18,7 +18,7 @@
         <activity
             android:name=".ui.topheadline.TopHeadlineActivity"
             android:exported="true"
-            android:theme="@style/Theme.MVVMNews">
+            android:theme="@style/Theme.MVVMNews.Starting">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

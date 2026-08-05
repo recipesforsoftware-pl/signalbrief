@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!--
+      Simplified monochromatic Sigby mark for Android themed icons.
+      The shape is a rounded speech-bubble body with a small wave tail and a
+      signal arc on top, drawn in white so the launcher can tint it.
+    -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="
+            M 42,36
+            L 66,36
+            C 74,36 78,40 78,48
+            L 78,60
+            C 78,68 74,72 66,72
+            L 50,72
+            L 34,80
+            L 42,66
+            L 42,48
+            C 42,40 42,40 42,36
+            Z
+            M 42,52
+            C 32,48 32,64 42,60
+            Z
+            M 78,52
+            C 86,48 86,64 78,60
+            Z
+            M 44,30
+            C 54,22 64,30 64,30
+            L 60,34
+            C 54,28 48,34 48,34
+            Z
+        " />
+</vector>

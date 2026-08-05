@@ -4,22 +4,29 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.UriHandler
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.recipesforsoftware.mvvm.domain.model.Article
 import com.recipesforsoftware.mvvm.ui.app.SignalBriefApp
 import com.recipesforsoftware.mvvm.ui.onboarding.OnboardingViewModel
 import com.recipesforsoftware.mvvm.ui.theme.NewsAppTheme
 import com.recipesforsoftware.mvvm.ui.theme.ThemeViewModel
 import com.recipesforsoftware.mvvm.ui.topheadlines.TopHeadlinesScreen
+import com.recipesforsoftware.mvvm.ui.topheadlines.hasActionableUrl
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class TopHeadlineActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
@@ -36,6 +43,8 @@ class TopHeadlineActivity : ComponentActivity() {
 
             NewsAppTheme(isDarkMode = isDarkMode) {
                 val resolvedCompleted = localOnboardingCompleted ?: onboardingCompleted
+                val uriHandler = LocalUriHandler.current
+                val openArticle = rememberOpenArticleAction(uriHandler)
 
                 SignalBriefApp(
                     onboardingCompleted = resolvedCompleted,
@@ -50,6 +59,7 @@ class TopHeadlineActivity : ComponentActivity() {
                         TopHeadlinesScreen(
                             uiState = uiState,
                             onRefresh = viewModel::refresh,
+                            onArticleClick = openArticle,
                             topBarActions = {
                                 DarkModeMenu(
                                     isDarkMode = isDarkMode,
@@ -62,4 +72,14 @@ class TopHeadlineActivity : ComponentActivity() {
             }
         }
     }
+
+    @Composable
+    private fun rememberOpenArticleAction(uriHandler: UriHandler): (Article) -> Unit =
+        remember(uriHandler) {
+            { article ->
+                if (article.hasActionableUrl()) {
+                    uriHandler.openUri(article.url)
+                }
+            }
+        }
 }

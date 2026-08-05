@@ -2,7 +2,9 @@ package com.recipesforsoftware.mvvm.ui.topheadlines
 
 import com.recipesforsoftware.mvvm.domain.failure.NewsFailure
 import com.recipesforsoftware.mvvm.domain.model.Article
+import com.recipesforsoftware.mvvm.domain.model.FeedSource
 import com.recipesforsoftware.mvvm.domain.model.Source
+import com.recipesforsoftware.mvvm.domain.model.TopHeadlinesFeed
 import com.recipesforsoftware.mvvm.domain.repository.NewsRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -28,12 +30,13 @@ import kotlin.test.assertTrue
 private class FakeNewsRepository : NewsRepository {
     private val gates = mutableListOf<CompletableDeferred<Unit>>()
 
-    var nextResult: Result<List<Article>> = Result.success(emptyList())
+    var nextResult: Result<TopHeadlinesFeed> =
+        Result.success(TopHeadlinesFeed(emptyList(), FeedSource.NETWORK))
     var callCount: Int = 0
     var lastCountry: String? = null
     var lastCancelled: Boolean = false
 
-    override suspend fun getTopHeadlines(country: String): Result<List<Article>> {
+    override suspend fun getTopHeadlines(country: String): Result<TopHeadlinesFeed> {
         val gate = CompletableDeferred<Unit>()
         gates.add(gate)
         callCount++
@@ -64,6 +67,11 @@ private fun article(id: Int): Article =
         source = source,
     )
 
+private fun feed(
+    articles: List<Article> = emptyList(),
+    source: FeedSource = FeedSource.NETWORK,
+): Result<TopHeadlinesFeed> = Result.success(TopHeadlinesFeed(articles, source))
+
 @OptIn(ExperimentalCoroutinesApi::class)
 private fun createPresenter(
     repository: NewsRepository,
@@ -89,7 +97,7 @@ class TopHeadlinesPresenterTest {
             assertEquals(1, repository.callCount)
             assertEquals(TopHeadlinesUiState.Loading, presenter.uiState.value)
 
-            repository.nextResult = Result.success(listOf(article(1)))
+            repository.nextResult = feed(listOf(article(1)))
             repository.releaseCall(0)
             advanceUntilIdle()
 
@@ -103,13 +111,30 @@ class TopHeadlinesPresenterTest {
             val presenter = createPresenter(repository, this, country = "de")
             advanceUntilIdle()
 
-            repository.nextResult = Result.success(listOf(article(1), article(2)))
+            repository.nextResult = feed(listOf(article(1), article(2)))
             repository.releaseCall(0)
             advanceUntilIdle()
 
             assertEquals("de", repository.lastCountry)
             val state = assertIs<TopHeadlinesUiState.Success>(presenter.uiState.value)
             assertEquals(listOf(article(1), article(2)), state.articles)
+            assertEquals(FeedSource.NETWORK, state.source)
+        }
+
+    @Test
+    fun `cached feed exposes the cache provenance in the success state`() =
+        runTest {
+            val repository = FakeNewsRepository()
+            val presenter = createPresenter(repository, this)
+            advanceUntilIdle()
+
+            repository.nextResult = feed(listOf(article(1)), source = FeedSource.CACHE)
+            repository.releaseCall(0)
+            advanceUntilIdle()
+
+            val state = assertIs<TopHeadlinesUiState.Success>(presenter.uiState.value)
+            assertEquals(listOf(article(1)), state.articles)
+            assertEquals(FeedSource.CACHE, state.source)
         }
 
     @Test
@@ -119,7 +144,7 @@ class TopHeadlinesPresenterTest {
             val presenter = createPresenter(repository, this)
             advanceUntilIdle()
 
-            repository.nextResult = Result.success(emptyList())
+            repository.nextResult = feed(emptyList())
             repository.releaseCall(0)
             advanceUntilIdle()
 
@@ -208,7 +233,7 @@ class TopHeadlinesPresenterTest {
 
             presenter.refresh()
             advanceUntilIdle()
-            repository.nextResult = Result.success(listOf(article(1)))
+            repository.nextResult = feed(listOf(article(1)))
             repository.releaseCall(1)
             advanceUntilIdle()
 
@@ -251,7 +276,7 @@ class TopHeadlinesPresenterTest {
             val presenter = createPresenter(repository, this)
 
             advanceUntilIdle()
-            repository.nextResult = Result.success(listOf(article(1)))
+            repository.nextResult = feed(listOf(article(1)))
             repository.releaseCall(0)
             advanceUntilIdle()
             assertIs<TopHeadlinesUiState.Success>(presenter.uiState.value)
@@ -264,7 +289,7 @@ class TopHeadlinesPresenterTest {
             advanceUntilIdle()
             assertEquals(3, repository.callCount)
 
-            repository.nextResult = Result.success(listOf(article(3)))
+            repository.nextResult = feed(listOf(article(3)))
             repository.releaseCall(2)
             advanceUntilIdle()
             assertEquals(listOf(article(3)), assertIs<TopHeadlinesUiState.Success>(presenter.uiState.value).articles)

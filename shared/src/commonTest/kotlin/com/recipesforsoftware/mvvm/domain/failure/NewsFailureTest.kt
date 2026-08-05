@@ -1,6 +1,6 @@
 package com.recipesforsoftware.mvvm.domain.failure
 
-import com.recipesforsoftware.mvvm.domain.model.Article
+import com.recipesforsoftware.mvvm.domain.model.TopHeadlinesFeed
 import com.recipesforsoftware.mvvm.domain.repository.NewsRepository
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -46,10 +46,10 @@ class NewsFailureTest {
     @Test
     fun typedFailuresAreUsableThroughTheRepositoryContract() =
         runTest {
-            val expected: Result<List<Article>> = Result.failure(NewsFailure.Network)
+            val expected: Result<TopHeadlinesFeed> = Result.failure(NewsFailure.Network)
             val repository =
                 object : NewsRepository {
-                    override suspend fun getTopHeadlines(country: String): Result<List<Article>> = expected
+                    override suspend fun getTopHeadlines(country: String): Result<TopHeadlinesFeed> = expected
                 }
 
             val result = repository.getTopHeadlines("us")

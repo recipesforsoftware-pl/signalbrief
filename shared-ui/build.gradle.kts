@@ -41,6 +41,8 @@ kotlin {
             implementation(compose.material3)
             implementation(compose.ui)
             implementation(libs.compose.material.icons.core)
+            implementation(libs.coil.compose)
+            implementation(libs.coil.network.ktor3)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

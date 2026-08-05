@@ -6,6 +6,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.recipesforsoftware.mvvm.domain.model.Article
+import com.recipesforsoftware.mvvm.domain.model.FeedSource
 import com.recipesforsoftware.mvvm.domain.model.Source
 import com.recipesforsoftware.mvvm.ui.theme.NewsAppTheme
 import com.recipesforsoftware.mvvm.ui.topheadline.DarkModeMenu
@@ -40,8 +41,10 @@ class TopHeadlineScreenTest {
 
     private fun setContent(
         isDarkMode: Boolean = false,
-        uiState: TopHeadlinesUiState = TopHeadlinesUiState.Success(fakeArticles),
+        uiState: TopHeadlinesUiState =
+            TopHeadlinesUiState.Success(fakeArticles, FeedSource.NETWORK),
         onRefresh: () -> Unit = {},
+        onArticleClick: (Article) -> Unit = {},
         onToggleDarkMode: () -> Unit = {},
     ) {
         composeTestRule.setContent {
@@ -49,6 +52,7 @@ class TopHeadlineScreenTest {
                 TopHeadlinesScreen(
                     uiState = uiState,
                     onRefresh = onRefresh,
+                    onArticleClick = onArticleClick,
                     topBarActions = {
                         DarkModeMenu(
                             isDarkMode = isDarkMode,
@@ -139,9 +143,9 @@ class TopHeadlineScreenTest {
     // --- Content states ---
 
     @Test
-    fun loadingState_showsLoadingIndicator() {
+    fun loadingState_showsLoadingDescription() {
         setContent(uiState = TopHeadlinesUiState.Loading)
-        composeTestRule.onNodeWithText("Loading headlines...").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Loading headlines...").assertIsDisplayed()
     }
 
     @Test
@@ -173,15 +177,59 @@ class TopHeadlineScreenTest {
 
     @Test
     fun successState_displaysArticles() {
-        setContent(uiState = TopHeadlinesUiState.Success(fakeArticles))
+        setContent(uiState = TopHeadlinesUiState.Success(fakeArticles, FeedSource.NETWORK))
         composeTestRule.onNodeWithText("Test Article 1").assertIsDisplayed()
         composeTestRule.onNodeWithText("Test Article 2").assertIsDisplayed()
     }
 
     @Test
+    fun cachedSuccess_showsCacheNoticeBanner() {
+        setContent(uiState = TopHeadlinesUiState.Success(fakeArticles, FeedSource.CACHE))
+        composeTestRule.onNodeWithText("Showing saved headlines").assertIsDisplayed()
+    }
+
+    @Test
+    fun networkSuccess_doesNotShowCacheNoticeBanner() {
+        setContent(uiState = TopHeadlinesUiState.Success(fakeArticles, FeedSource.NETWORK))
+        composeTestRule.onNodeWithText("Showing saved headlines").assertDoesNotExist()
+    }
+
+    @Test
     fun emptyState_showsEmptyMessage() {
         setContent(uiState = TopHeadlinesUiState.Empty)
-        composeTestRule.onNodeWithText("No headlines right now").assertIsDisplayed()
+        composeTestRule.onNodeWithText("No headlines available").assertIsDisplayed()
+    }
+
+    // --- Article click ---
+
+    @Test
+    fun articleCard_clickInvokesOnArticleClickWithArticle() {
+        var clickedArticle: Article? = null
+        setContent(
+            uiState = TopHeadlinesUiState.Success(fakeArticles, FeedSource.NETWORK),
+            onArticleClick = { clickedArticle = it },
+        )
+
+        composeTestRule.onNodeWithText("Test Article 1").performClick()
+
+        assert(clickedArticle == fakeArticles[0]) {
+            "onArticleClick should receive the clicked article"
+        }
+    }
+
+    @Test
+    fun articleCard_clickOnDescriptionInvokesOnArticleClick() {
+        var clickedArticle: Article? = null
+        setContent(
+            uiState = TopHeadlinesUiState.Success(fakeArticles, FeedSource.NETWORK),
+            onArticleClick = { clickedArticle = it },
+        )
+
+        composeTestRule.onNodeWithText("Description 2").performClick()
+
+        assert(clickedArticle == fakeArticles[1]) {
+            "onArticleClick should receive the clicked article when tapping the description"
+        }
     }
 
     // --- Dark mode light/dark state rendering ---

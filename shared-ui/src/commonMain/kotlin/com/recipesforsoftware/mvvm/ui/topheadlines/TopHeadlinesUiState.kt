@@ -1,6 +1,7 @@
 package com.recipesforsoftware.mvvm.ui.topheadlines
 
 import com.recipesforsoftware.mvvm.domain.model.Article
+import com.recipesforsoftware.mvvm.domain.model.FeedSource
 
 /**
  * Framework-independent renderable state of the Top Headlines screen.
@@ -14,9 +15,10 @@ sealed interface TopHeadlinesUiState {
     /** Initial fetch is in flight and no content is available yet. */
     data object Loading : TopHeadlinesUiState
 
-    /** Headlines were loaded successfully. */
+    /** Headlines were loaded successfully, tagged with where they came from. */
     data class Success(
         val articles: List<Article>,
+        val source: FeedSource,
     ) : TopHeadlinesUiState
 
     /** The feed is available but returned no articles. */

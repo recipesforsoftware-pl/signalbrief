@@ -1,6 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.MVVMNews" parent="android:Theme.Material.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <!-- Splash/launch theme in dark mode uses the same SignalBrief blue. -->
+    <style name="Theme.MVVMNews.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#1E5ABE</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground_silhouette</item>
+        <item name="windowSplashScreenAnimationDuration">0</item>
+        <item name="postSplashScreenTheme">@style/Theme.MVVMNews</item>
+        <item name="android:statusBarColor">#1E5ABE</item>
+        <item name="android:navigationBarColor">#1E5ABE</item>
     </style>
 </resources>
