@@ -85,7 +85,12 @@ iOS UI (iosApp) ────┘                                                 
   stateless, avoids a navigation framework for the two destinations, and lets
   each host supply the onboarding flag plus its own Top Headlines content. The
   two-page paging state is owned by a small `OnboardingPresenter`
-  (`:shared-ui`, `StateFlow`-based) remembered inside the shell.
+  (`:shared-ui`, `StateFlow`-based); its current page index is persisted with
+  `rememberSaveable` (via a small `Saver`), so page 1 stays on page 1 across
+  recompositions and the flow resumes on the saved page (for example page 2)
+  after host recreation such as an Android configuration change. Both "Skip" and
+  "Start reading" are routed through a per-shell `OnboardingCompletion` guard so
+  the host completion callback fires at most once per shell instance.
 - The shared `TopHeadlinesScreen` (Compose Multiplatform, `:shared-ui`) is a
   stateless composable that receives `TopHeadlinesUiState` (sealed
   `Loading` / `Success` / `Empty` / `Error`) and callbacks from the host. A
@@ -215,7 +220,9 @@ shared-ui/
     │       ├── TopHeadlinesScreen.kt         # Shared stateless screen (topBarActions slot)
     │       └── components/ArticleCard.kt     # Text-first shared article card
     ├── commonTest/.../ui/
-    │   ├── onboarding/OnboardingPresenterTest.kt   # 10 presenter tests (JVM + iOS simulator)
+    │   ├── onboarding/OnboardingPresenterTest.kt    # Page-state tests (6)
+    │   ├── onboarding/OnboardingCompletionTest.kt   # At-most-once host completion (4)
+    │   ├── onboarding/OnboardingSaverTest.kt        # rememberSaveable save/restore round trip (3)
     │   └── topheadlines/TopHeadlinesPresenterTest.kt  # 11 presenter tests (JVM + iOS simulator)
     └── iosMain/kotlin/.../ui/topheadlines/MainViewController.kt  # ComposeUIViewController + iOS wiring + NSUserDefaults onboarding
 iosApp/
@@ -329,9 +336,11 @@ required to see live data.
 - **Android unit tests** cover the top-headlines ViewModel
   (loading/success/typed-error flows), the theme ViewModel (dark-mode
   persistence), and onboarding: the DataStore-backed `OnboardingPreference`
-  (default value, persistence, cross-instance reads) and `OnboardingViewModel`
-  (null-until-loaded, state reflection, completion persistence). Data-layer
-  behavior is covered by the shared common tests instead.
+  (default value, persistence, cross-instance reads, `IOException` read fallback
+  to not-completed, non-IO exceptions propagated, cancellation not swallowed)
+  and `OnboardingViewModel` (null-until-loaded, state reflection, completion
+  persistence). Data-layer behavior is covered by the shared common tests
+  instead.
 - **Shared common tests** cover the domain models (`Article` value semantics),
   the typed failures (`NewsFailure`), the DTO-to-domain mapper (happy path and
   missing/invalid remote data), the `KtorNewsRemoteDataSource` against Ktor's
@@ -344,12 +353,14 @@ required to see live data.
   cancellation propagation, no cache corruption on failure, country isolation,
   typed local failures). They run both on the JVM (`:shared:testAndroidHostTest`)
   and on the iOS simulator (`:shared:iosSimulatorArm64Test`).
-- **Shared UI tests** (`:shared-ui`) cover the onboarding presenter (initial
-  page, paging boundaries, skip/complete, per-instance state) and the top
-  headlines presenter end to end with a fake repository (initial loading,
-  success/empty, every typed error, retry, cancellation on dispose, and
-  stale-response protection). They run on the JVM host and on the iOS simulator
-  (`:shared-ui:allTests`).
+- **Shared UI tests** (`:shared-ui`) cover the onboarding page state (initial
+  page, paging boundaries, restoring a presenter on page 2, the `rememberSaveable`
+  save/restore round trip) and the app-shell completion flow (Skip and Start
+  reading invoke the host completion exactly once; repeated taps cannot fire it
+  more than once), plus the top headlines presenter end to end with a fake
+  repository (initial loading, success/empty, every typed error, retry,
+  cancellation on dispose, and stale-response protection). They run on the JVM
+  host and on the iOS simulator (`:shared-ui:allTests`).
 - **Instrumented tests** cover the shared Top Headlines Compose screen
   (including the Android dark-mode menu), DataStore theme-preference behavior,
   and application package verification. They exist in `app/src/androidTest` but

@@ -13,8 +13,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.recipesforsoftware.mvvm.ui.onboarding.OnboardingPresenter
+import com.recipesforsoftware.mvvm.ui.onboarding.OnboardingCompletion
 import com.recipesforsoftware.mvvm.ui.onboarding.OnboardingScreen
+import com.recipesforsoftware.mvvm.ui.onboarding.rememberOnboardingPresenter
 
 /**
  * Shared application shell for SignalBrief.
@@ -28,7 +29,11 @@ import com.recipesforsoftware.mvvm.ui.onboarding.OnboardingScreen
  *
  * The shell keeps [TopHeadlinesScreen] stateless and avoids a navigation
  * framework for only two destinations. Page navigation state is owned by a
- * small [OnboardingPresenter] remembered inside this composable.
+ * small `OnboardingPresenter` whose page index is saved through
+ * `rememberSaveable`, so the flow survives host recreation (for example an
+ * Android configuration change). Both "Skip" and "Start reading" funnel through
+ * an [OnboardingCompletion] guard so [onCompleteOnboarding] fires at most once
+ * per shell instance; the host persists the outcome itself.
  */
 @Composable
 fun SignalBriefApp(
@@ -47,12 +52,13 @@ fun SignalBriefApp(
         }
 
         if (onboardingCompleted == false) {
-            val onboardingPresenter = remember { OnboardingPresenter() }
+            val onboardingPresenter = rememberOnboardingPresenter()
+            val completion = remember { OnboardingCompletion(onCompleteOnboarding) }
 
             OnboardingScreen(
                 presenter = onboardingPresenter,
-                onSkip = onCompleteOnboarding,
-                onComplete = onCompleteOnboarding,
+                onSkip = completion::complete,
+                onComplete = completion::complete,
             )
         }
 

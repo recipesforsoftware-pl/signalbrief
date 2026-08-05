@@ -46,11 +46,18 @@ private const val BACKDROP_OFFSET_Y_RATIO = 0.85f
  * Draws a stylised newspaper page made of simple rectangles and lines. It
  * contains no copyrighted artwork and adapts automatically to light and dark
  * mode through the current Material 3 color scheme.
+ *
+ * The visual is decorative by default, so it is invisible to accessibility
+ * services ([contentDescription] defaults to `null`). All onboarding meaning is
+ * carried by the visible title, body, and action labels instead.
+ *
+ * @param contentDescription Optional description for screen readers; pass a
+ *   non-null value only when the visual carries information not present in text.
  */
 @Composable
 fun OnboardingVisual(
     modifier: Modifier = Modifier,
-    contentDescription: String? = OnboardingStrings.VISUAL_DECORATIVE,
+    contentDescription: String? = null,
 ) {
     val semanticModifier =
         if (contentDescription != null) {

@@ -7,13 +7,20 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * Framework-independent state holder for the two-page onboarding flow.
  *
- * Owns only the in-memory navigation state (current page and completion). It
- * does not persist anything; the host receives [onComplete] and persists the
- * outcome via its platform mechanism (DataStore on Android, NSUserDefaults on
- * iOS). The same instance survives configuration changes / recompositions.
+ * Owns only the in-memory page navigation state. It does not persist anything
+ * and knows nothing about completion; the host receives the completion outcome
+ * through the `SignalBriefApp` callback and persists it with its platform
+ * mechanism (DataStore on Android, NSUserDefaults on iOS). The shell saves the
+ * current page index with `rememberSaveable`, so a restored instance can start
+ * on a saved page (for example page 2 after a host recreation).
+ *
+ * @param initialPageIndex Page the presenter starts on, typically 0 or a value
+ *   restored from the host's saved state.
  */
-class OnboardingPresenter {
-    private val _state = MutableStateFlow(OnboardingState())
+class OnboardingPresenter(
+    initialPageIndex: Int = 0,
+) {
+    private val _state = MutableStateFlow(OnboardingState(initialPageIndex))
     val state: StateFlow<OnboardingState> = _state.asStateFlow()
 
     /** Advances from page 1 to page 2. Has no effect on the last page. */
@@ -30,16 +37,5 @@ class OnboardingPresenter {
         if (current.pageIndex > 0) {
             _state.value = current.copy(pageIndex = current.pageIndex - 1)
         }
-    }
-
-    /**
-     * Marks onboarding as complete.
-     *
-     * Should be invoked by the host when the user taps "Skip" or
-     * "Start reading". The host is responsible for persisting the completion
-     * flag and then routing to the main content.
-     */
-    fun complete() {
-        _state.value = _state.value.copy(isComplete = true)
     }
 }

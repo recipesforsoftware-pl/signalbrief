@@ -5,14 +5,18 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -53,11 +57,29 @@ class OnboardingPreference
             val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
         }
 
-        /** `false` until the user completes or skips onboarding. */
+        /**
+         * `false` until the user completes or skips onboarding.
+         *
+         * A recoverable `IOException` while reading the DataStore (for example a
+         * corrupt or unreadable file) falls back to an empty preference set, so
+         * onboarding is treated as not completed instead of leaving the shell
+         * stuck on the loading gate. Non-IO exceptions and coroutine
+         * cancellation are rethrown unchanged.
+         */
         val isOnboardingCompleted: Flow<Boolean> =
-            dataStore.data.map { preferences ->
-                preferences[Keys.ONBOARDING_COMPLETED] ?: false
-            }
+            dataStore.data
+                .catch { throwable ->
+                    if (throwable is CancellationException) {
+                        throw throwable
+                    }
+                    if (throwable is IOException) {
+                        emit(emptyPreferences())
+                    } else {
+                        throw throwable
+                    }
+                }.map { preferences ->
+                    preferences[Keys.ONBOARDING_COMPLETED] ?: false
+                }
 
         suspend fun setOnboardingCompleted(completed: Boolean) {
             dataStore.edit { preferences ->

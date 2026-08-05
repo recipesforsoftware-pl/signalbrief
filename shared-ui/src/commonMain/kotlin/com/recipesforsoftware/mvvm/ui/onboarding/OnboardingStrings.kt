@@ -22,5 +22,4 @@ object OnboardingStrings {
 
     const val PAGE_1_ACCESSIBILITY_LABEL: String = "Onboarding page one"
     const val PAGE_2_ACCESSIBILITY_LABEL: String = "Onboarding page two"
-    const val VISUAL_DECORATIVE: String = "Decorative onboarding illustration"
 }

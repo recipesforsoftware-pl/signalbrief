@@ -5,15 +5,20 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import app.cash.turbine.test
+import io.mockk.every
+import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -23,6 +28,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import java.io.File
+import java.io.IOException
 import java.util.UUID
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -82,5 +88,43 @@ class OnboardingPreferenceTest {
                 assertTrue(awaitItem())
                 cancelAndIgnoreRemainingEvents()
             }
+        }
+
+    @Test
+    fun `IOException during read falls back to false`() =
+        runTest(testDispatcher) {
+            val failingDataStore = mockk<DataStore<Preferences>>()
+            every { failingDataStore.data } returns flow { throw IOException("corrupt") }
+
+            val preference = OnboardingPreference(failingDataStore)
+
+            assertFalse(preference.isOnboardingCompleted.first())
+        }
+
+    @Test
+    fun `non-IO exception during read is not hidden`() =
+        runTest(testDispatcher) {
+            val failingDataStore = mockk<DataStore<Preferences>>()
+            every { failingDataStore.data } returns flow { throw IllegalStateException("boom") }
+
+            val preference = OnboardingPreference(failingDataStore)
+
+            val thrown = runCatching { preference.isOnboardingCompleted.first() }.exceptionOrNull()
+
+            assertTrue(thrown is IllegalStateException)
+            assertEquals("boom", thrown?.message)
+        }
+
+    @Test
+    fun `cancellation during read is not swallowed as a recoverable failure`() =
+        runTest(testDispatcher) {
+            val failingDataStore = mockk<DataStore<Preferences>>()
+            every { failingDataStore.data } returns flow { throw CancellationException("cancelled") }
+
+            val preference = OnboardingPreference(failingDataStore)
+
+            val thrown = runCatching { preference.isOnboardingCompleted.first() }.exceptionOrNull()
+
+            assertTrue(thrown is CancellationException)
         }
 }

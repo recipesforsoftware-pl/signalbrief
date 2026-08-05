@@ -9,62 +9,63 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import com.recipesforsoftware.mvvm.ui.designsystem.tokens.SignalBriefColors
 import com.recipesforsoftware.mvvm.ui.designsystem.tokens.SignalBriefTypography
 
 private val LightColorScheme =
     lightColorScheme(
-        primary = PrimaryLight,
-        onPrimary = OnPrimaryLight,
-        primaryContainer = PrimaryContainerLight,
-        onPrimaryContainer = OnPrimaryContainerLight,
-        secondary = SecondaryLight,
-        onSecondary = OnSecondaryLight,
-        secondaryContainer = SecondaryContainerLight,
-        onSecondaryContainer = OnSecondaryContainerLight,
-        tertiary = TertiaryLight,
-        onTertiary = OnTertiaryLight,
-        tertiaryContainer = TertiaryContainerLight,
-        onTertiaryContainer = OnTertiaryContainerLight,
-        error = ErrorLight,
-        onError = OnErrorLight,
-        errorContainer = ErrorContainerLight,
-        onErrorContainer = OnErrorContainerLight,
-        background = BackgroundLight,
-        onBackground = OnBackgroundLight,
-        surface = SurfaceLight,
-        onSurface = OnSurfaceLight,
-        surfaceVariant = SurfaceVariantLight,
-        onSurfaceVariant = OnSurfaceVariantLight,
-        surfaceContainerLow = SurfaceContainerLowLight,
-        surfaceContainer = SurfaceContainerLight,
+        primary = SignalBriefColors.primaryLight,
+        onPrimary = SignalBriefColors.onPrimaryLight,
+        primaryContainer = SignalBriefColors.primaryContainerLight,
+        onPrimaryContainer = SignalBriefColors.onPrimaryContainerLight,
+        secondary = SignalBriefColors.secondaryLight,
+        onSecondary = SignalBriefColors.onSecondaryLight,
+        secondaryContainer = SignalBriefColors.secondaryContainerLight,
+        onSecondaryContainer = SignalBriefColors.onSecondaryContainerLight,
+        tertiary = SignalBriefColors.tertiaryLight,
+        onTertiary = SignalBriefColors.onTertiaryLight,
+        tertiaryContainer = SignalBriefColors.tertiaryContainerLight,
+        onTertiaryContainer = SignalBriefColors.onTertiaryContainerLight,
+        error = SignalBriefColors.errorLight,
+        onError = SignalBriefColors.onErrorLight,
+        errorContainer = SignalBriefColors.errorContainerLight,
+        onErrorContainer = SignalBriefColors.onErrorContainerLight,
+        background = SignalBriefColors.backgroundLight,
+        onBackground = SignalBriefColors.onBackgroundLight,
+        surface = SignalBriefColors.surfaceLight,
+        onSurface = SignalBriefColors.onSurfaceLight,
+        surfaceVariant = SignalBriefColors.surfaceVariantLight,
+        onSurfaceVariant = SignalBriefColors.onSurfaceVariantLight,
+        surfaceContainerLow = SignalBriefColors.surfaceContainerLowLight,
+        surfaceContainer = SignalBriefColors.surfaceContainerLight,
     )
 
 private val DarkColorScheme =
     darkColorScheme(
-        primary = PrimaryDark,
-        onPrimary = OnPrimaryDark,
-        primaryContainer = PrimaryContainerDark,
-        onPrimaryContainer = OnPrimaryContainerDark,
-        secondary = SecondaryDark,
-        onSecondary = OnSecondaryDark,
-        secondaryContainer = SecondaryContainerDark,
-        onSecondaryContainer = OnSecondaryContainerDark,
-        tertiary = TertiaryDark,
-        onTertiary = OnTertiaryDark,
-        tertiaryContainer = TertiaryContainerDark,
-        onTertiaryContainer = OnTertiaryContainerDark,
-        error = ErrorDark,
-        onError = OnErrorDark,
-        errorContainer = ErrorContainerDark,
-        onErrorContainer = OnErrorContainerDark,
-        background = BackgroundDark,
-        onBackground = OnBackgroundDark,
-        surface = SurfaceDark,
-        onSurface = OnSurfaceDark,
-        surfaceVariant = SurfaceVariantDark,
-        onSurfaceVariant = OnSurfaceVariantDark,
-        surfaceContainerLow = SurfaceContainerLowDark,
-        surfaceContainer = SurfaceContainerDark,
+        primary = SignalBriefColors.primaryDark,
+        onPrimary = SignalBriefColors.onPrimaryDark,
+        primaryContainer = SignalBriefColors.primaryContainerDark,
+        onPrimaryContainer = SignalBriefColors.onPrimaryContainerDark,
+        secondary = SignalBriefColors.secondaryDark,
+        onSecondary = SignalBriefColors.onSecondaryDark,
+        secondaryContainer = SignalBriefColors.secondaryContainerDark,
+        onSecondaryContainer = SignalBriefColors.onSecondaryContainerDark,
+        tertiary = SignalBriefColors.tertiaryDark,
+        onTertiary = SignalBriefColors.onTertiaryDark,
+        tertiaryContainer = SignalBriefColors.tertiaryContainerDark,
+        onTertiaryContainer = SignalBriefColors.onTertiaryContainerDark,
+        error = SignalBriefColors.errorDark,
+        onError = SignalBriefColors.onErrorDark,
+        errorContainer = SignalBriefColors.errorContainerDark,
+        onErrorContainer = SignalBriefColors.onErrorContainerDark,
+        background = SignalBriefColors.backgroundDark,
+        onBackground = SignalBriefColors.onBackgroundDark,
+        surface = SignalBriefColors.surfaceDark,
+        onSurface = SignalBriefColors.onSurfaceDark,
+        surfaceVariant = SignalBriefColors.surfaceVariantDark,
+        onSurfaceVariant = SignalBriefColors.onSurfaceVariantDark,
+        surfaceContainerLow = SignalBriefColors.surfaceContainerLowDark,
+        surfaceContainer = SignalBriefColors.surfaceContainerDark,
     )
 
 /**
@@ -74,6 +75,10 @@ private val DarkColorScheme =
  * is the consistent brand experience on both Android and iOS. Consumers can still
  * opt in to dynamic color by passing `dynamicColor = true`; on Android 12+ this
  * will override the shared palette with the system wallpaper-derived colors.
+ *
+ * Both static schemes consume the shared [SignalBriefColors] tokens directly, so
+ * there is a single source of truth for the editorial palette across the app and
+ * the shared UI.
  */
 @Composable
 fun NewsAppTheme(
