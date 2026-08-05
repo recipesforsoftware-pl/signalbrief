@@ -318,7 +318,7 @@
 					"-framework",
 					SignalBriefSharedUi,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.recipesforsoftware.mvvm.SignalBrief;
+				PRODUCT_BUNDLE_IDENTIFIER = pl.recipesforsoftware.signalbrief;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -351,7 +351,7 @@
 					"-framework",
 					SignalBriefSharedUi,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.recipesforsoftware.mvvm.SignalBrief;
+				PRODUCT_BUNDLE_IDENTIFIER = pl.recipesforsoftware.signalbrief;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";

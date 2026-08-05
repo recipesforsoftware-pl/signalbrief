@@ -5,7 +5,7 @@
       and set on the launcher Activity in the manifest; the SplashScreen library
       swaps to this theme immediately after the first frame is drawn.
     -->
-    <style name="Theme.MVVMNews" parent="android:Theme.Material.Light.NoActionBar">
+    <style name="Theme.SignalBrief" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
@@ -15,11 +15,11 @@
       androidx.core:core-splashscreen). Uses the SignalBrief blue brand color
       and the white Sigby silhouette icon centered on the splash window.
     -->
-    <style name="Theme.MVVMNews.Starting" parent="Theme.SplashScreen">
+    <style name="Theme.SignalBrief.Starting" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">#1E5ABE</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground_silhouette</item>
         <item name="windowSplashScreenAnimationDuration">0</item>
-        <item name="postSplashScreenTheme">@style/Theme.MVVMNews</item>
+        <item name="postSplashScreenTheme">@style/Theme.SignalBrief</item>
         <item name="android:statusBarColor">#1E5ABE</item>
         <item name="android:navigationBarColor">#1E5ABE</item>
     </style>

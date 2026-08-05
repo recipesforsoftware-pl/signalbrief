@@ -140,7 +140,7 @@ iOS UI (iosApp) ────┘                                                 
 - `TopHeadlinesPresenter` (`:shared-ui`) is framework-independent: it owns its
   `CoroutineScope`, exposes a `StateFlow<TopHeadlinesUiState>`, guards against
   stale responses with a request-generation counter, and must be disposed by the
-  host. Both `TopHeadlineViewModel` (Android, Hilt) and `MainViewController`
+  host. Both `TopHeadlinesViewModel` (Android, Hilt) and `MainViewController`
   (iOS) delegate to it.
 - `NewsRepository` (domain contract), `Article`/`Source`/`TopHeadlinesFeed`/
   `FeedSource` (domain models), and `NewsFailure` (typed failures) live in
@@ -210,20 +210,20 @@ presentation and UI for Android and iOS) is described in the
 app/
 ├── build.gradle.kts
 └── src/
-    ├── main/java/com/recipesforsoftware/mvvm/
-    │   ├── NewsApplication.kt            # @HiltAndroidApp
-    │   ├── di/                           # Hilt composition root (news config + repository binding)
+    ├── main/java/pl/recipesforsoftware/signalbrief/
+    │   ├── SignalBriefApplication.kt      # @HiltAndroidApp
+    │   ├── di/                            # Hilt composition root (news config + repository binding)
     │   ├── ui/
-    │   │   ├── theme/                    # Color, Theme, Type, ThemePreference, ThemeViewModel
-    │   │   ├── onboarding/               # OnboardingPreference (DataStore), OnboardingViewModel (Hilt)
-    │   │   └── topheadline/              # TopHeadlineActivity, TopHeadlineViewModel, DarkModeMenu
-    │   └── utils/AppConstant.kt
-    ├── test/                             # JVM unit tests
-    └── androidTest/                      # Instrumented (device) tests
+    │   │   ├── main/MainActivity.kt       # App host: theme, splash, onboarding, Top Headlines feed
+    │   │   ├── theme/                     # SignalBriefAndroidTheme, ThemePreference, ThemeViewModel
+    │   │   ├── onboarding/                # OnboardingPreference (DataStore), OnboardingViewModel (Hilt)
+    │   │   └── topheadlines/              # TopHeadlinesViewModel (Hilt), DarkModeMenu, TopHeadlinesConfig
+    ├── test/                              # JVM unit tests
+    └── androidTest/                       # Instrumented (device) tests
 shared/
 ├── build.gradle.kts                      # KMP: android + iosArm64 + iosSimulatorArm64 + iosX64
 └── src/
-    ├── commonMain/kotlin/com/recipesforsoftware/mvvm/
+    ├── commonMain/kotlin/pl/recipesforsoftware/signalbrief/
     │   ├── data/
     │   │   ├── remote/
     │   │   │   ├── NewsApiConfig.kt, HttpClientFactory.kt, NewsRemoteDataSource.kt, KtorNewsRemoteDataSource.kt
@@ -242,13 +242,13 @@ shared/
     │       └── repository/NewsRepository.kt  # Domain contract
     ├── androidMain/kotlin/.../data/      # HttpClientFactory.android.kt (OkHttp engine), SignalBriefDatabase androidActual
     ├── iosMain/kotlin/.../data/          # HttpClientFactory.ios.kt (Darwin engine), SignalBriefDatabase iosActual
-    └── commonTest/kotlin/com/recipesforsoftware/mvvm/
+    └── commonTest/kotlin/pl/recipesforsoftware/signalbrief/
         ├── data/                         # Common tests: remote (MockEngine), local (Room test DB), repository (offline-first policy)
         └── domain/                       # Common tests (models, failures, repository contract)
 shared-ui/
 ├── build.gradle.kts                      # KMP: android + iosArm64 + iosSimulatorArm64; framework SignalBriefSharedUi
 └── src/
-    ├── commonMain/kotlin/com/recipesforsoftware/mvvm/ui/
+    ├── commonMain/kotlin/pl/recipesforsoftware/signalbrief/ui/
     │   ├── app/SignalBriefApp.kt         # Shared shell: onboarding vs. Top Headlines, loading gate
     │   ├── designsystem/                 # Tokens (colors, typography, shapes, spacing) + shared components
     │   ├── onboarding/                   # Two-page onboarding: state, presenter, screen, page, visual, strings

@@ -14,8 +14,8 @@
 
 # Gson
 -keep class com.google.gson.** { *; }
--keep class com.recipesforsoftware.mvvm.data.model.** { *; }
--keepclassmembers class com.recipesforsoftware.mvvm.data.model.** { *; }
+-keep class pl.recipesforsoftware.signalbrief.data.model.** { *; }
+-keepclassmembers class pl.recipesforsoftware.signalbrief.data.model.** { *; }
 
 # OkHttp
 -dontwarn okhttp3.**

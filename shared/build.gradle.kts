@@ -13,7 +13,7 @@ plugins {
 
 kotlin {
     android {
-        namespace = "com.recipesforsoftware.mvvm.shared"
+        namespace = "pl.recipesforsoftware.signalbrief.shared"
         compileSdk = 37
         minSdk = 24
 
