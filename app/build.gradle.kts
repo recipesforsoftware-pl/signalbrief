@@ -21,11 +21,11 @@ plugins {
 }
 
 android {
-    namespace = "com.recipesforsoftware.mvvm"
+    namespace = "pl.recipesforsoftware.signalbrief"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.recipesforsoftware.mvvm"
+        applicationId = "pl.recipesforsoftware.signalbrief"
         minSdk = 24
         targetSdk = 35
         versionCode = 1

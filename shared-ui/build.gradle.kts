@@ -12,7 +12,7 @@ plugins {
 
 kotlin {
     android {
-        namespace = "com.recipesforsoftware.mvvm.sharedui"
+        namespace = "pl.recipesforsoftware.signalbrief.sharedui"
         compileSdk = 37
         minSdk = 24
 
