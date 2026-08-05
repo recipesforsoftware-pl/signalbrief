@@ -16,7 +16,11 @@ object TopHeadlinesStrings {
 
     const val LOADING: String = "Loading headlines..."
 
-    const val EMPTY_TITLE: String = "No headlines right now"
+    const val CACHE_NOTICE_TITLE: String = "Showing saved headlines"
+    const val CACHE_NOTICE_BODY: String =
+        "The latest online update is unavailable. You are reading the most recent saved copy."
+
+    const val EMPTY_TITLE: String = "No headlines available"
     const val EMPTY_SUBTITLE: String = "Check back later or use the refresh button to try again."
 
     const val ERROR_TITLE: String = "Something went wrong"

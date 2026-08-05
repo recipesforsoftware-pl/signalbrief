@@ -4,6 +4,8 @@ import com.recipesforsoftware.mvvm.data.local.NewsLocalDataSource
 import com.recipesforsoftware.mvvm.data.remote.NewsRemoteDataSource
 import com.recipesforsoftware.mvvm.domain.failure.NewsFailure
 import com.recipesforsoftware.mvvm.domain.model.Article
+import com.recipesforsoftware.mvvm.domain.model.FeedSource
+import com.recipesforsoftware.mvvm.domain.model.TopHeadlinesFeed
 import com.recipesforsoftware.mvvm.domain.repository.NewsRepository
 
 /**
@@ -17,10 +19,13 @@ import com.recipesforsoftware.mvvm.domain.repository.NewsRepository
  * response is available.
  *
  * Policy:
- * - remote success replaces the cached country/feed transactionally and returns
- *   the fresh articles (an empty remote list clears that country's cache);
- * - a typed [NewsFailure.Network] falls back to the cached country/feed when it
- *   is non-empty, otherwise the original network failure is preserved;
+ * - remote success is deduplicated by URL (first occurrence wins, original order
+ *   preserved), the unique list replaces the cached country/feed transactionally,
+ *   and the fresh articles are returned typed as [FeedSource.NETWORK] (an empty
+ *   remote list clears that country's cache);
+ * - a typed [NewsFailure.Network] falls back to the cached country/feed typed
+ *   as [FeedSource.CACHE] when it is non-empty, otherwise the original network
+ *   failure is preserved;
  * - invalid-data, unknown and other non-network failures are never hidden by
  *   cache;
  * - coroutine cancellation propagates and never reads cache;
@@ -31,7 +36,7 @@ class OfflineFirstNewsRepository(
     private val remoteDataSource: NewsRemoteDataSource,
     private val localDataSource: NewsLocalDataSource,
 ) : NewsRepository {
-    override suspend fun getTopHeadlines(country: String): Result<List<Article>> {
+    override suspend fun getTopHeadlines(country: String): Result<TopHeadlinesFeed> {
         val remoteResult = remoteDataSource.getTopHeadlines(country)
         return if (remoteResult.isSuccess) {
             storeRemoteSuccess(country, remoteResult.getOrThrow())
@@ -43,20 +48,43 @@ class OfflineFirstNewsRepository(
     private suspend fun storeRemoteSuccess(
         country: String,
         articles: List<Article>,
-    ): Result<List<Article>> = localDataSource.saveTopHeadlines(country, articles).map { articles }
+    ): Result<TopHeadlinesFeed> {
+        val uniqueArticles = articles.distinctByUrl()
+        val saved = localDataSource.saveTopHeadlines(country, uniqueArticles)
+        return saved.map { TopHeadlinesFeed(uniqueArticles, FeedSource.NETWORK) }
+    }
 
     private suspend fun fallBackToCacheWhenOffline(
         country: String,
         remoteResult: Result<List<Article>>,
-    ): Result<List<Article>> {
-        if (remoteResult.exceptionOrNull() !is NewsFailure.Network) {
-            return remoteResult
+    ): Result<TopHeadlinesFeed> {
+        val failure = remoteResult.exceptionOrNull()
+        return when {
+            failure == null -> {
+                remoteResult.map { TopHeadlinesFeed(it.distinctByUrl(), FeedSource.NETWORK) }
+            }
+
+            failure !is NewsFailure.Network -> {
+                Result.failure(failure)
+            }
+
+            else -> {
+                cachedFeedOrOriginalFailure(country, failure)
+            }
         }
+    }
+
+    private suspend fun cachedFeedOrOriginalFailure(
+        country: String,
+        failure: NewsFailure.Network,
+    ): Result<TopHeadlinesFeed> {
         val cached = localDataSource.getTopHeadlines(country)
         return if (cached.isSuccess && cached.getOrThrow().isNotEmpty()) {
-            cached
+            cached.map { TopHeadlinesFeed(it.distinctByUrl(), FeedSource.CACHE) }
         } else {
-            remoteResult
+            Result.failure(failure)
         }
     }
 }
+
+private fun List<Article>.distinctByUrl(): List<Article> = distinctBy { it.url }

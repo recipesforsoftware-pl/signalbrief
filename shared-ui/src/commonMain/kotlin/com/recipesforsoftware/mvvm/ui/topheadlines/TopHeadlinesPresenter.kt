@@ -53,12 +53,12 @@ class TopHeadlinesPresenter(
                 return@launch
             }
             result.fold(
-                onSuccess = { articles ->
+                onSuccess = { feed ->
                     _uiState.value =
-                        if (articles.isEmpty()) {
+                        if (feed.articles.isEmpty()) {
                             TopHeadlinesUiState.Empty
                         } else {
-                            TopHeadlinesUiState.Success(articles)
+                            TopHeadlinesUiState.Success(feed.articles, feed.source)
                         }
                 },
                 onFailure = { failure ->

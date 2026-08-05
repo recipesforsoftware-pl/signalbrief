@@ -2,7 +2,9 @@ package com.recipesforsoftware.mvvm.ui.topheadline
 
 import com.recipesforsoftware.mvvm.domain.failure.NewsFailure
 import com.recipesforsoftware.mvvm.domain.model.Article
+import com.recipesforsoftware.mvvm.domain.model.FeedSource
 import com.recipesforsoftware.mvvm.domain.model.Source
+import com.recipesforsoftware.mvvm.domain.model.TopHeadlinesFeed
 import com.recipesforsoftware.mvvm.domain.repository.NewsRepository
 import com.recipesforsoftware.mvvm.ui.topheadlines.TopHeadlinesError
 import com.recipesforsoftware.mvvm.ui.topheadlines.TopHeadlinesStrings
@@ -41,11 +43,16 @@ class TopHeadlineViewModelTest {
         Dispatchers.resetMain()
     }
 
+    private fun fakeFeed(
+        count: Int = 0,
+        source: FeedSource = FeedSource.NETWORK,
+    ): Result<TopHeadlinesFeed> = Result.success(TopHeadlinesFeed(createFakeArticles(count), source))
+
     @Test
     fun `initial state is Loading`() =
         runTest {
             // Given
-            coEvery { repository.getTopHeadlines(any()) } returns Result.success(emptyList())
+            coEvery { repository.getTopHeadlines(any()) } returns fakeFeed()
 
             // When
             viewModel = TopHeadlineViewModel(repository)
@@ -58,7 +65,7 @@ class TopHeadlineViewModelTest {
     fun `success updates state to Success`() =
         runTest {
             // Given
-            coEvery { repository.getTopHeadlines(any()) } returns Result.success(createFakeArticles(3))
+            coEvery { repository.getTopHeadlines(any()) } returns fakeFeed(count = 3)
 
             // When
             viewModel = TopHeadlineViewModel(repository)
@@ -68,13 +75,30 @@ class TopHeadlineViewModelTest {
             val state = viewModel.uiState.value
             assertTrue(state is TopHeadlinesUiState.Success)
             assertEquals(3, (state as TopHeadlinesUiState.Success).articles.size)
+            assertEquals(FeedSource.NETWORK, state.source)
+        }
+
+    @Test
+    fun `cached feed keeps the cache provenance in the success state`() =
+        runTest {
+            // Given
+            coEvery { repository.getTopHeadlines(any()) } returns fakeFeed(count = 1, source = FeedSource.CACHE)
+
+            // When
+            viewModel = TopHeadlineViewModel(repository)
+            advanceUntilIdle()
+
+            // Then
+            val state = viewModel.uiState.value
+            assertTrue(state is TopHeadlinesUiState.Success)
+            assertEquals(FeedSource.CACHE, (state as TopHeadlinesUiState.Success).source)
         }
 
     @Test
     fun `empty list updates state to Empty`() =
         runTest {
             // Given
-            coEvery { repository.getTopHeadlines(any()) } returns Result.success(emptyList())
+            coEvery { repository.getTopHeadlines(any()) } returns fakeFeed()
 
             // When
             viewModel = TopHeadlineViewModel(repository)
@@ -146,7 +170,7 @@ class TopHeadlineViewModelTest {
     fun `loads headlines for the configured country`() =
         runTest {
             // Given
-            coEvery { repository.getTopHeadlines("us") } returns Result.success(emptyList())
+            coEvery { repository.getTopHeadlines("us") } returns fakeFeed()
 
             // When
             viewModel = TopHeadlineViewModel(repository)
@@ -160,7 +184,7 @@ class TopHeadlineViewModelTest {
     fun `refresh after success resets state to Loading before applying new result`() =
         runTest {
             // Given
-            coEvery { repository.getTopHeadlines(any()) } returns Result.success(createFakeArticles(1))
+            coEvery { repository.getTopHeadlines(any()) } returns fakeFeed(count = 1)
             viewModel = TopHeadlineViewModel(repository)
             advanceUntilIdle()
             assertTrue(viewModel.uiState.value is TopHeadlinesUiState.Success)

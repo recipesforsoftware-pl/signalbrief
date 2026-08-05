@@ -1,14 +1,18 @@
 package com.recipesforsoftware.mvvm.ui.topheadlines.components
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -17,18 +21,26 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.painter.ColorPainter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import com.recipesforsoftware.mvvm.domain.model.Article
+import com.recipesforsoftware.mvvm.ui.designsystem.tokens.SignalBriefShapes
+import com.recipesforsoftware.mvvm.ui.designsystem.tokens.SignalBriefSpacing
 
 /**
- * Compact text-first article card shared between Android and iOS.
+ * Feed card shared between Android and iOS.
  *
- * Kept intentionally media-free (no image loading, no in-app browser): it shows
- * the source, headline and excerpt so both platforms render the exact same feed.
- * Optional [onClick] is a host-provided navigation hook (e.g. opening [Article.url]
- * in an external browser).
+ * Visual hierarchy: source badge and open-arrow on the first line, then the
+ * headline (two lines), then the excerpt (three lines), then a fixed-size
+ * thumbnail on the right when the article carries an image. Optional fields
+ * are dropped rather than filled with placeholders, and [onClick] is a
+ * host-provided navigation hook (for example opening [Article.url] in an
+ * external browser).
  */
 @Composable
 fun ArticleCard(
@@ -47,68 +59,111 @@ fun ArticleCard(
                         Modifier
                     },
                 ),
+        shape = SignalBriefShapes.large,
         colors =
             CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
             ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            ArticleSource(sourceName = article.source?.name)
-            Text(
-                text = article.title.orEmpty(),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-            )
-            ArticleExcerpt(description = article.description)
-            OpenArticleIndicator()
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                article.source?.name?.let { sourceName ->
+                    ArticleHeader(sourceName = sourceName)
+                }
+                Text(
+                    text = article.title.orEmpty(),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                article.description?.let { description ->
+                    Text(
+                        text = description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            val imageUrl = article.imageUrl
+            if (imageUrl != null) {
+                ArticleThumbnail(imageUrl = imageUrl)
+            }
         }
     }
 }
 
 @Composable
-private fun ArticleSource(sourceName: String?) {
-    sourceName?.let {
-        Text(
-            text = it,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-@Composable
-private fun ArticleExcerpt(description: String?) {
-    description?.let {
-        Text(
-            text = it,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 3,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-@Composable
-private fun OpenArticleIndicator() {
+private fun ArticleHeader(sourceName: String) {
+    val initials = sourceInitials(sourceName)
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.End,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (initials != null) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(18.dp)
+                        .clip(RoundedCornerShape(5.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = initials,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
+        }
+        Text(
+            text = sourceName,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
         Icon(
-            imageVector = Icons.Filled.ArrowForward,
+            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
             contentDescription = null,
-            modifier = Modifier.size(18.dp),
+            modifier = Modifier.size(16.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
+}
+
+@Composable
+private fun ArticleThumbnail(imageUrl: String) {
+    val placeholderPainter =
+        ColorPainter(
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        )
+    AsyncImage(
+        model = imageUrl,
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        placeholder = placeholderPainter,
+        error = placeholderPainter,
+        modifier =
+            Modifier
+                .size(88.dp, 72.dp)
+                .clip(SignalBriefShapes.small)
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+    )
 }

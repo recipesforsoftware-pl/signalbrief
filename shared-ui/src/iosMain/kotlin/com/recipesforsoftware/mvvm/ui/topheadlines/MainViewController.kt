@@ -7,6 +7,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.window.ComposeUIViewController
 import com.recipesforsoftware.mvvm.data.local.RoomNewsLocalDataSource
 import com.recipesforsoftware.mvvm.data.local.db.SignalBriefDatabase
@@ -15,6 +17,7 @@ import com.recipesforsoftware.mvvm.data.remote.KtorNewsRemoteDataSource
 import com.recipesforsoftware.mvvm.data.remote.NewsApiConfig
 import com.recipesforsoftware.mvvm.data.remote.createHttpClient
 import com.recipesforsoftware.mvvm.data.repository.OfflineFirstNewsRepository
+import com.recipesforsoftware.mvvm.domain.model.Article
 import com.recipesforsoftware.mvvm.ui.app.SignalBriefApp
 import io.ktor.client.HttpClient
 import platform.Foundation.NSBundle
@@ -55,6 +58,8 @@ private fun TopHeadlinesRoute() {
     val composition = remember { createIosTopHeadlinesComposition() }
     val presenter = composition.presenter
     val uiState by presenter.uiState.collectAsState()
+    val uriHandler = LocalUriHandler.current
+    val openArticle = rememberOpenArticleAction(uriHandler)
 
     DisposableEffect(composition) {
         onDispose { composition.dispose() }
@@ -63,8 +68,19 @@ private fun TopHeadlinesRoute() {
     TopHeadlinesScreen(
         uiState = uiState,
         onRefresh = presenter::refresh,
+        onArticleClick = openArticle,
     )
 }
+
+@Composable
+private fun rememberOpenArticleAction(uriHandler: UriHandler): (Article) -> Unit =
+    remember(uriHandler) {
+        { article ->
+            if (article.hasActionableUrl()) {
+                uriHandler.openUri(article.url)
+            }
+        }
+    }
 
 /**
  * Holds the iOS composition root and its externally owned resources. The shared

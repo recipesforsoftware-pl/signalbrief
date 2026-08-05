@@ -2,6 +2,8 @@ package com.recipesforsoftware.mvvm.domain
 
 import com.recipesforsoftware.mvvm.domain.failure.NewsFailure
 import com.recipesforsoftware.mvvm.domain.model.Article
+import com.recipesforsoftware.mvvm.domain.model.FeedSource
+import com.recipesforsoftware.mvvm.domain.model.TopHeadlinesFeed
 import com.recipesforsoftware.mvvm.domain.repository.NewsRepository
 import kotlinx.coroutines.test.runTest
 import kotlin.coroutines.cancellation.CancellationException
@@ -11,7 +13,8 @@ import kotlin.test.assertTrue
 
 /**
  * Proves a plain fake can satisfy the shared [NewsRepository] contract and that
- * the suspend API is exercisable from common test code on every target.
+ * the suspend API — including the typed feed provenance — is exercisable from
+ * common test code on every target.
  */
 class NewsRepositoryContractTest {
     @Test
@@ -27,13 +30,37 @@ class NewsRepositoryContractTest {
                         source = null,
                     ),
                 )
-            val repository = FakeNewsRepository(configuredResult = Result.success(articles))
+            val repository =
+                FakeNewsRepository(
+                    configuredResult = Result.success(TopHeadlinesFeed(articles, FeedSource.NETWORK)),
+                )
 
             val result = repository.getTopHeadlines("us")
 
             assertTrue(result.isSuccess)
-            assertEquals(articles, result.getOrNull())
+            assertEquals(articles, result.getOrNull()?.articles)
+            assertEquals(FeedSource.NETWORK, result.getOrNull()?.source)
             assertEquals(listOf("us"), repository.requestedCountries)
+        }
+
+    @Test
+    fun fakeExposesTheCacheProvenanceOfTheFeed() =
+        runTest {
+            val repository =
+                FakeNewsRepository(
+                    configuredResult =
+                        Result.success(
+                            TopHeadlinesFeed(
+                                articles = emptyList(),
+                                source = FeedSource.CACHE,
+                            ),
+                        ),
+                )
+
+            val result = repository.getTopHeadlines("us")
+
+            assertTrue(result.isSuccess)
+            assertEquals(FeedSource.CACHE, result.getOrNull()?.source)
         }
 
     @Test
@@ -58,7 +85,10 @@ class NewsRepositoryContractTest {
         runTest {
             val repository =
                 FakeNewsRepository(
-                    configuredResult = Result.success(emptyList()),
+                    configuredResult =
+                        Result.success(
+                            TopHeadlinesFeed(articles = emptyList(), source = FeedSource.NETWORK),
+                        ),
                     throwOnCall = CancellationException("cancelled"),
                 )
 
@@ -74,7 +104,8 @@ class NewsRepositoryContractTest {
         }
 
     private class FakeNewsRepository(
-        private val configuredResult: Result<List<Article>> = Result.success(emptyList()),
+        private val configuredResult: Result<TopHeadlinesFeed> =
+            Result.success(TopHeadlinesFeed(articles = emptyList(), source = FeedSource.NETWORK)),
         private val throwOnCall: Throwable? = null,
     ) : NewsRepository {
         private val _requestedCountries = mutableListOf<String>()
@@ -82,7 +113,7 @@ class NewsRepositoryContractTest {
         val requestedCountries: List<String>
             get() = _requestedCountries.toList()
 
-        override suspend fun getTopHeadlines(country: String): Result<List<Article>> {
+        override suspend fun getTopHeadlines(country: String): Result<TopHeadlinesFeed> {
             _requestedCountries += country
             throwOnCall?.let { throw it }
             return configuredResult

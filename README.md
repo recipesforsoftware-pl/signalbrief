@@ -31,6 +31,10 @@ a Daily Brief — is defined in the
 - Offline-first top headlines: the latest successful remote response per country
   is cached in a shared Room database (KMP, `:shared`) and served when the
   network fails, on both Android and iOS.
+- Typed feed provenance: the repository returns a `TopHeadlinesFeed` tagged with
+  `FeedSource.NETWORK` or `FeedSource.CACHE`, so the UI knows whether the
+  articles are fresh network content or a persistent-cache fallback without
+  peeking into the data layer.
 - Two-page shared onboarding flow (`:shared-ui`): an editorial visual, page
   indicator, "Continue"/"Back" paging, and "Skip"/"Start reading" completion.
   It is shown on first launch and skipped on subsequent launches once completed.
@@ -49,7 +53,19 @@ a Daily Brief — is defined in the
   a persisted dark-mode toggle; dynamic color is opt-in and **disabled by
   default** so the editorial palette stays consistent on both platforms.
 - Shared loading state, empty state, error state with retry, and success list
-  rendering (`:shared-ui`).
+  rendering (`:shared-ui`). Loading is shown as animated skeleton cards, and the
+  empty/error states offer a retry action.
+- Saved-headlines banner: when the feed is served from the persistent cache
+  (`FeedSource.CACHE`), the shared screen shows an "Showing saved headlines"
+  banner above the list so users are never silently reading stale content.
+- Redesigned shared article card: a source badge with source initials, a
+  two-line headline, a three-line excerpt, and a fixed-size thumbnail loaded
+  with Coil 3 through the Ktor 3 network fetcher (no OkHttp). The whole card is
+  clickable and opens the article URL in the platform browser via the shared
+  `LocalUriHandler` host wiring; an AutoMirrored open-arrow indicator shows the
+  action.
+- Responsive top headlines list: content is capped at a 600dp reading measure
+  and centered on wide screens (e.g. tablets).
 - Refresh action in the shared top app bar.
 - iOS app (`iosApp`) embeds the shared `SignalBriefSharedUi.framework` and reads
   its NewsAPI key from a git-ignored `Secrets.xcconfig`.
@@ -93,7 +109,11 @@ iOS UI (iosApp) ────┘                                                 
   the host completion callback fires at most once per shell instance.
 - The shared `TopHeadlinesScreen` (Compose Multiplatform, `:shared-ui`) is a
   stateless composable that receives `TopHeadlinesUiState` (sealed
-  `Loading` / `Success` / `Empty` / `Error`) and callbacks from the host. A
+  `Loading` / `Success` / `Empty` / `Error`) and callbacks from the host. Its
+  `Success` state carries the typed feed provenance (`FeedSource`), and the
+  screen renders an animated skeleton list while loading, a saved-headlines
+  banner above the list when the feed comes from the cache, and centered,
+  capped-width content (600dp reading measure) on wide screens. A
   `topBarActions` slot lets Android inject its dark-mode menu while iOS renders
   the same core screen.
 - Onboarding completion is persisted per platform: Android uses a dedicated
@@ -106,10 +126,12 @@ iOS UI (iosApp) ────┘                                                 
   stale responses with a request-generation counter, and must be disposed by the
   host. Both `TopHeadlineViewModel` (Android, Hilt) and `MainViewController`
   (iOS) delegate to it.
-- `NewsRepository` (domain contract), `Article`/`Source` (domain models), and
-  `NewsFailure` (typed failures) live in `:shared:commonMain`. They are
-  framework-independent: no Ktor, serialization, Android, Hilt, or transport DTO
-  imports.
+- `NewsRepository` (domain contract), `Article`/`Source`/`TopHeadlinesFeed`/
+  `FeedSource` (domain models), and `NewsFailure` (typed failures) live in
+  `:shared:commonMain`. They are framework-independent: no Ktor, serialization,
+  Android, Hilt, or transport DTO imports. `getTopHeadlines` returns
+  `Result<TopHeadlinesFeed>` so callers see both the articles and whether they
+  came from the network or the cache.
 - The data layer (`:shared:commonMain`) splits network and storage behind two
   interfaces. `KtorNewsRemoteDataSource` (the only code touching Ktor and
   kotlinx.serialization) maps `ArticleDto` to the domain `Article` and
@@ -119,12 +141,15 @@ iOS UI (iosApp) ────┘                                                 
   `CachedArticleEntity`) and translates database failures into
   `NewsFailure.Unknown`. Cancellation is always rethrown in both.
 - `OfflineFirstNewsRepository` implements `NewsRepository` with a network-first
-  policy: on remote success it transactionally replaces that country's cache
-  (remote `emptyList` clears it); on `NewsFailure.Network` it falls back to the
-  non-empty cache, keeping the original network failure when the cache is empty;
-  invalid-data, unknown, and cancellation failures are never hidden by the
-  cache, and a failed remote request never mutates the cache. Country caches are
-  isolated (one `country` + `top-headlines` feed key pair each).
+  policy: on remote success it deduplicates articles by URL (first occurrence
+  wins, original order preserved), returns a `FeedSource.NETWORK` feed, and
+  transactionally replaces that country's cache with the unique list (remote
+  `emptyList` clears it);
+  on `NewsFailure.Network` it falls back to the non-empty cache and returns a
+  `FeedSource.CACHE` feed, keeping the original network failure when the cache
+  is empty; invalid-data, unknown, and cancellation failures are never hidden by
+  the cache, and a failed remote request never mutates the cache. Country caches
+  are isolated (one `country` + `top-headlines` feed key pair each).
 - The HTTP client is created by an `expect`/`actual` factory: the Android engine
   is wired on Android, the Darwin engine on iOS, and `MockEngine` in common
   tests. Client configuration (content negotiation, timeouts, response
@@ -155,7 +180,7 @@ presentation and UI for Android and iOS) is described in the
 | Architecture | MVVM with StateFlow + shared presenter |
 | Dependency injection | Dagger/Hilt (Android only) |
 | Networking | Ktor 3 client + kotlinx.serialization (Android + iOS engines) |
-| Image loading | Coil 3 |
+| Image loading | Coil 3 (Ktor 3 network fetcher, no OkHttp) |
 | Persistence | Room (KMP), DataStore Preferences (Android), NSUserDefaults (iOS onboarding) |
 | Async | Coroutines + Flow |
 | Browser | Chrome Custom Tabs (Android article opening) |
@@ -194,10 +219,10 @@ shared/
     │   │   │   ├── db/                    # SignalBriefDatabase, SignalBriefDatabaseConstructor
     │   │   │   ├── entity/                # CachedArticleEntity (composite key country/feed/url)
     │   │   │   └── mapper/                # domain <-> entity mapping (CachedArticleMapper)
-    │   │   └── repository/OfflineFirstNewsRepository.kt  # NewsRepository implementation (network-first + cache fallback)
+    │   │   └── repository/OfflineFirstNewsRepository.kt  # NewsRepository implementation (network-first + cache fallback, typed provenance)
     │   └── domain/
     │       ├── failure/NewsFailure.kt    # Typed failures: Network, InvalidData, Unknown
-    │       ├── model/                    # Domain models (Article, Source)
+    │       ├── model/                    # Domain models (Article, Source, TopHeadlinesFeed, FeedSource)
     │       └── repository/NewsRepository.kt  # Domain contract
     ├── androidMain/kotlin/.../data/      # HttpClientFactory.android.kt (OkHttp engine), SignalBriefDatabase androidActual
     ├── iosMain/kotlin/.../data/          # HttpClientFactory.ios.kt (Darwin engine), SignalBriefDatabase iosActual
@@ -218,12 +243,18 @@ shared-ui/
     │       ├── TopHeadlinesStrings.kt        # Centralized user-facing strings + error bodies
     │       ├── SignalBriefTheme.kt           # Shared light/dark Material 3 theme (design tokens)
     │       ├── TopHeadlinesScreen.kt         # Shared stateless screen (topBarActions slot)
-    │       └── components/ArticleCard.kt     # Text-first shared article card
+    │       ├── images/SignalBriefImageLoader.kt  # Coil singleton + shared Ktor fetcher
+    │       └── components/
+    │           ├── ArticleCard.kt            # Image + source badge + headline card (Coil thumbnail)
+    │           ├── ArticleCardFormatting.kt  # Pure formatting helpers (sourceInitials)
+    │           ├── CacheNoticeBanner.kt      # "Showing saved headlines" banner (CACHE provenance)
+    │           └── SkeletonArticleCard.kt    # Animated loading placeholder
     ├── commonTest/.../ui/
     │   ├── onboarding/OnboardingPresenterTest.kt    # Page-state tests (6)
     │   ├── onboarding/OnboardingCompletionTest.kt   # At-most-once host completion (4)
     │   ├── onboarding/OnboardingSaverTest.kt        # rememberSaveable save/restore round trip (3)
-    │   └── topheadlines/TopHeadlinesPresenterTest.kt  # 11 presenter tests (JVM + iOS simulator)
+    │   ├── topheadlines/TopHeadlinesPresenterTest.kt  # 12 presenter tests (JVM + iOS simulator)
+    │   └── topheadlines/components/ArticleCardFormattingTest.kt  # Pure formatting helpers (7)
     └── iosMain/kotlin/.../ui/topheadlines/MainViewController.kt  # ComposeUIViewController + iOS wiring + NSUserDefaults onboarding
 iosApp/
 ├── iosApp.xcodeproj/                     # Xcode project; "Compile Kotlin Framework" = embedAndSignAppleFrameworkForXcode
@@ -348,24 +379,30 @@ required to see live data.
   `RoomNewsLocalDataSource` against a real Room test database (round-trip in
   stable order, replacement, empty-list clearing, country isolation, typed
   failures after close), and the `OfflineFirstNewsRepository` offline-first
-  policy (cache write-through, replacement, empty-cache clearing, fallback to a
+  policy (cache write-through, replacement, empty-cache clearing, stable first-
+  occurrence URL deduplication for both remote and cached feeds, fallback to a
   non-empty cache on network failure, never hiding non-network failures,
   cancellation propagation, no cache corruption on failure, country isolation,
-  typed local failures). They run both on the JVM (`:shared:testAndroidHostTest`)
-  and on the iOS simulator (`:shared:iosSimulatorArm64Test`).
+  typed local failures, and typed feed provenance: fresh remote results are
+  tagged `FeedSource.NETWORK` — including empty remote responses — while a
+  network failure falls back to `FeedSource.CACHE`). They run both on the JVM
+  (`:shared:testAndroidHostTest`) and on the iOS simulator
+  (`:shared:iosSimulatorArm64Test`).
 - **Shared UI tests** (`:shared-ui`) cover the onboarding page state (initial
   page, paging boundaries, restoring a presenter on page 2, the `rememberSaveable`
   save/restore round trip) and the app-shell completion flow (Skip and Start
   reading invoke the host completion exactly once; repeated taps cannot fire it
   more than once), plus the top headlines presenter end to end with a fake
   repository (initial loading, success/empty, every typed error, retry,
-  cancellation on dispose, and stale-response protection). They run on the JVM
-  host and on the iOS simulator (`:shared-ui:allTests`).
+  cancellation on dispose, stale-response protection, and cache-provenance
+  exposure). Pure formatting helpers (`ArticleCardFormatting`) and the article
+  URL validation helper (`hasActionableUrl`) are covered by dedicated common tests.
+  They run on the JVM host and on the iOS simulator (`:shared-ui:allTests`).
 - **Instrumented tests** cover the shared Top Headlines Compose screen
-  (including the Android dark-mode menu), DataStore theme-preference behavior,
-  and application package verification. They exist in `app/src/androidTest` but
-  are **not** part of the CI workflow yet; executing them requires a device or
-  emulator.
+  (including the Android dark-mode menu, article-card click callback wiring, and
+  the refresh/retry actions), DataStore theme-preference behavior, and application
+  package verification. They exist in `app/src/androidTest` but are **not** part of
+  the CI workflow yet; executing them requires a device or emulator.
 
 ## Quality gates
 

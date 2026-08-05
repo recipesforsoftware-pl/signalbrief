@@ -13,6 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.recipesforsoftware.mvvm.ui.images.installSignalBriefImageLoader
 import com.recipesforsoftware.mvvm.ui.onboarding.OnboardingCompletion
 import com.recipesforsoftware.mvvm.ui.onboarding.OnboardingScreen
 import com.recipesforsoftware.mvvm.ui.onboarding.rememberOnboardingPresenter
@@ -26,6 +27,12 @@ import com.recipesforsoftware.mvvm.ui.onboarding.rememberOnboardingPresenter
  *              is shown to avoid an onboarding flash.
  * - `false` -> onboarding is shown.
  * - `true`  -> the host-provided [topHeadlinesContent] is shown.
+ *
+ * The shell also installs the shared Coil image-loader singleton once for the
+ * app composition root. Coil uses the Ktor 3 network fetcher and avoids the
+ * previous OkHttp dependency; it does **not** automatically share the exact
+ * [io.ktor.client.HttpClient] instance owned by the news repository unless one is
+ * explicitly injected.
  *
  * The shell keeps [TopHeadlinesScreen] stateless and avoids a navigation
  * framework for only two destinations. Page navigation state is owned by a
@@ -42,6 +49,7 @@ fun SignalBriefApp(
     topHeadlinesContent: @Composable () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    installSignalBriefImageLoader()
     Box(modifier = modifier.fillMaxSize()) {
         AnimatedVisibility(
             visible = onboardingCompleted == null,

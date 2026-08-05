@@ -4,6 +4,7 @@ import com.recipesforsoftware.mvvm.data.local.NewsLocalDataSource
 import com.recipesforsoftware.mvvm.data.remote.NewsRemoteDataSource
 import com.recipesforsoftware.mvvm.domain.failure.NewsFailure
 import com.recipesforsoftware.mvvm.domain.model.Article
+import com.recipesforsoftware.mvvm.domain.model.FeedSource
 import com.recipesforsoftware.mvvm.domain.model.Source
 import kotlinx.coroutines.test.runTest
 import kotlin.coroutines.cancellation.CancellationException
@@ -32,9 +33,41 @@ class OfflineFirstNewsRepositoryTest {
             val result = repository.getTopHeadlines("us")
 
             assertTrue(result.isSuccess)
-            assertEquals(fresh, result.getOrNull())
+            assertEquals(fresh, result.getOrNull()?.articles)
+            assertEquals(FeedSource.NETWORK, result.getOrNull()?.source)
             assertEquals(fresh, local.cached("us"))
             assertEquals(listOf("us" to fresh), local.saveCalls)
+        }
+
+    @Test
+    fun remoteSuccessDeduplicatesByUrlAndPreservesFirstOccurrenceAndOrder() =
+        runTest {
+            val first = article(url = "https://example.com/1", title = "First")
+            val second = article(url = "https://example.com/2", title = "Second")
+            val duplicate = article(url = "https://example.com/1", title = "Duplicate")
+            val remoteArticles = listOf(first, second, duplicate)
+            remote.nextResult = Result.success(remoteArticles)
+
+            val result = repository.getTopHeadlines("us")
+
+            val expected = listOf(first, second)
+            assertTrue(result.isSuccess)
+            assertEquals(expected, result.getOrNull()?.articles)
+            assertEquals(FeedSource.NETWORK, result.getOrNull()?.source)
+            assertEquals(expected, local.cached("us"))
+            assertEquals(listOf("us" to expected), local.saveCalls)
+        }
+
+    @Test
+    fun remoteSuccessDeduplicationRemovesOnlyDuplicatesAndKeepsEmptyList() =
+        runTest {
+            remote.nextResult = Result.success(emptyList())
+
+            val result = repository.getTopHeadlines("us")
+
+            assertTrue(result.isSuccess)
+            assertTrue(result.getOrNull()?.articles?.isEmpty() == true)
+            assertTrue(local.cached("us").isEmpty())
         }
 
     @Test
@@ -47,7 +80,8 @@ class OfflineFirstNewsRepositoryTest {
             val result = repository.getTopHeadlines("us")
 
             assertTrue(result.isSuccess)
-            assertEquals(newer, result.getOrNull())
+            assertEquals(newer, result.getOrNull()?.articles)
+            assertEquals(FeedSource.NETWORK, result.getOrNull()?.source)
             assertEquals(newer, local.cached("us"))
         }
 
@@ -60,7 +94,12 @@ class OfflineFirstNewsRepositoryTest {
             val result = repository.getTopHeadlines("us")
 
             assertTrue(result.isSuccess)
-            assertTrue(result.getOrNull()?.isEmpty() == true)
+            assertTrue(result.getOrNull()?.articles?.isEmpty() == true)
+            assertEquals(
+                FeedSource.NETWORK,
+                result.getOrNull()?.source,
+                "An empty remote success is still a fresh network feed",
+            )
             assertTrue(local.cached("us").isEmpty())
         }
 
@@ -74,7 +113,26 @@ class OfflineFirstNewsRepositoryTest {
             val result = repository.getTopHeadlines("us")
 
             assertTrue(result.isSuccess)
-            assertEquals(cached, result.getOrNull())
+            assertEquals(cached, result.getOrNull()?.articles)
+            assertEquals(FeedSource.CACHE, result.getOrNull()?.source)
+            assertTrue(local.saveCalls.isEmpty(), "A failed remote request must not touch the cache")
+        }
+
+    @Test
+    fun networkFailureWithDuplicateCacheReturnsUniqueFirstOccurrenceAndPreservesOrder() =
+        runTest {
+            val first = article(url = "https://example.com/1", title = "First")
+            val second = article(url = "https://example.com/2", title = "Second")
+            val duplicate = article(url = "https://example.com/1", title = "Duplicate")
+            local.seed("us", listOf(first, second, duplicate))
+            remote.nextResult = Result.failure(NewsFailure.Network)
+
+            val result = repository.getTopHeadlines("us")
+
+            val expected = listOf(first, second)
+            assertTrue(result.isSuccess)
+            assertEquals(expected, result.getOrNull()?.articles)
+            assertEquals(FeedSource.CACHE, result.getOrNull()?.source)
             assertTrue(local.saveCalls.isEmpty(), "A failed remote request must not touch the cache")
         }
 
@@ -159,8 +217,8 @@ class OfflineFirstNewsRepositoryTest {
 
             assertTrue(usResult.isSuccess)
             assertTrue(plResult.isSuccess)
-            assertEquals(usArticles, usResult.getOrNull())
-            assertEquals(plArticles, plResult.getOrNull())
+            assertEquals(usArticles, usResult.getOrNull()?.articles)
+            assertEquals(plArticles, plResult.getOrNull()?.articles)
 
             local.seed("us", articles("https://example.com/us-refreshed"))
             assertEquals(plArticles, local.cached("pl"))
@@ -243,14 +301,23 @@ class OfflineFirstNewsRepositoryTest {
     private companion object {
         private val source = Source(id = "test", name = "Test News")
 
+        fun article(
+            url: String,
+            title: String = "Headline",
+        ): Article =
+            Article(
+                title = title,
+                description = "Description",
+                url = url,
+                imageUrl = null,
+                source = source,
+            )
+
         fun articles(vararg urls: String): List<Article> =
             urls.mapIndexed { index, url ->
-                Article(
-                    title = "Headline $index",
-                    description = "Description $index",
+                article(
                     url = url,
-                    imageUrl = null,
-                    source = source,
+                    title = "Headline $index",
                 )
             }
     }
