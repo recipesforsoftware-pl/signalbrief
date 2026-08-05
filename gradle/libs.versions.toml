@@ -25,6 +25,7 @@ coroutinesTest = "1.9.0"
 turbine = "1.2.0"
 robolectric = "4.16.1"
 datastorePreferences = "1.1.7"
+coreSplashscreen = "1.0.1"
 ktlint = "14.2.0"
 ktlintCore = "1.8.0"
 detekt = "2.0.0-alpha.3"
@@ -86,6 +87,9 @@ junit-test-ext = { group = "androidx.test.ext", name = "junit", version.ref = "j
 espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
+
+# Splash screen (backport of Android 12 platform API)
+core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
 
 # DataStore
 datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastorePreferences" }

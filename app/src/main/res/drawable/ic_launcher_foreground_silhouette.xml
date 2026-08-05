@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Bitmap wrapper for the SignalBrief/Sigby mascot silhouette used as the adaptive
+  icon foreground and as the splash-screen icon. Density-specific assets live
+  in drawable-*/ic_launcher_foreground_silhouette_asset.webp.
+-->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:gravity="center"
+    android:src="@drawable/ic_launcher_foreground_silhouette_asset" />

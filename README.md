@@ -69,6 +69,22 @@ a Daily Brief — is defined in the
 - Refresh action in the shared top app bar.
 - iOS app (`iosApp`) embeds the shared `SignalBriefSharedUi.framework` and reads
   its NewsAPI key from a git-ignored `Secrets.xcconfig`.
+- Branded app icons and splash/launch screens on both platforms: Android uses
+  the Android 12+ platform splash (backported via
+  `androidx.core:core-splashscreen`) with adaptive and monochrome launcher
+  icons; iOS uses `Assets.xcassets` app icon and a `UILaunchScreen` launch
+  image on the SignalBrief blue background.
+
+## Screenshots
+
+Captured on an Android emulator (1080×2340) and an iPhone 17 Pro simulator
+(1206×2622) with a valid NewsAPI key. The files in `docs/screenshots/` are
+downscaled to a display-friendly resolution for this document.
+
+| | Onboarding | Top Headlines — light | Top Headlines — dark |
+| --- | --- | --- | --- |
+| Android | <img src="docs/screenshots/android/01_onboarding.png" alt="Android onboarding" width="160"/> | <img src="docs/screenshots/android/02_feed_light.png" alt="Android feed in light theme" width="160"/> | <img src="docs/screenshots/android/03_feed_dark.png" alt="Android feed in dark theme" width="160"/> |
+| iOS | <img src="docs/screenshots/ios/01_onboarding.png" alt="iOS onboarding" width="160"/> | <img src="docs/screenshots/ios/02_feed_light.png" alt="iOS feed in light theme" width="160"/> | <img src="docs/screenshots/ios/03_feed_dark.png" alt="iOS feed in dark theme" width="160"/> |
 
 ## Architecture
 
@@ -434,8 +450,9 @@ Notes:
   (`testDebugUnitTest`). It does not include Android instrumented tests or the
   shared iOS tests. Coverage is aggregated into a custom Kover variant named
   `all` (`:app` debug variant plus the `:shared` and `:shared-ui` Android/KMP
-  projects); the 9% LINE threshold is verified against that aggregated report
-  via `:app:koverVerifyAll`.
+  projects). **Kover verification passes with the existing 9% line-coverage
+  threshold**, checked against that aggregated report via
+  `:app:koverVerifyAll`.
 - `:shared:allTests` and `:shared-ui:allTests` run the common tests on the JVM
   host and on the `iosSimulatorArm64` simulator. The framework link tasks verify
   the iOS exports (`SignalBriefShared.framework`,
