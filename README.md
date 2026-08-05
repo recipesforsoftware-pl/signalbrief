@@ -12,6 +12,18 @@ baseline, not a store publication and not a production backend. NewsAPI is used
 **directly for local development only** with a developer-supplied key (see
 [Local setup](#local-setup)).
 
+## Engineering case study
+
+[From Android MVVM to Kotlin Multiplatform: Evolving SignalBrief for Android
+and iOS](https://medium.com/@recipesforsoftware/from-android-mvvm-to-kotlin-multiplatform-evolving-signalbrief-for-android-and-ios-3386b85ebc6c)
+
+A detailed walkthrough of how the original Android application evolved into an
+offline-first Kotlin Multiplatform project with shared domain, data,
+presentation, and Compose Multiplatform UI.
+
+[Read the original Android architecture article](https://medium.com/@recipesforsoftware/building-a-modern-android-news-app-with-jetpack-compose-best-practices-without-overengineering-89442c895de9) —
+this documents the earlier Android-only stage of the project.
+
 ## Screenshots
 
 | | Onboarding | Top Headlines — light | Top Headlines — dark |
