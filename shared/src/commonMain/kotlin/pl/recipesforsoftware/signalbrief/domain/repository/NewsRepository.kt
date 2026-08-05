@@ -7,7 +7,7 @@ import pl.recipesforsoftware.signalbrief.domain.model.TopHeadlinesFeed
  * Domain-facing contract for reading the top-headlines feed.
  *
  * Implementations live in the data layer and are the only code allowed to touch
- * transport DTOs and Retrofit. Domain and UI code consume domain models through
+ * transport DTOs and Ktor. Domain and UI code consume domain models through
  * this boundary only.
  */
 interface NewsRepository {
