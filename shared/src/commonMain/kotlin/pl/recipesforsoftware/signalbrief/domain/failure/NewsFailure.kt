@@ -6,7 +6,7 @@ import pl.recipesforsoftware.signalbrief.domain.repository.NewsRepository
  * Typed failures reported by [NewsRepository].
  *
  * Kept small and explicit so that UI and domain code switch on these types
- * instead of leaking raw Retrofit or Gson exceptions. Cancellation is never
+ * instead of leaking raw Ktor or serialization exceptions. Cancellation is never
  * represented as a [NewsFailure]: it is always rethrown by the data layer.
  */
 sealed class NewsFailure : Exception() {

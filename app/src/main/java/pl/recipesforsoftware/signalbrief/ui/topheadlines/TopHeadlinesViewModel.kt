@@ -29,6 +29,5 @@ class TopHeadlinesViewModel
 
         override fun onCleared() {
             presenter.dispose()
-            super.onCleared()
         }
     }
