@@ -4,7 +4,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.ComposeUIViewController
 import com.recipesforsoftware.mvvm.data.local.RoomNewsLocalDataSource
 import com.recipesforsoftware.mvvm.data.local.db.SignalBriefDatabase
@@ -13,30 +15,44 @@ import com.recipesforsoftware.mvvm.data.remote.KtorNewsRemoteDataSource
 import com.recipesforsoftware.mvvm.data.remote.NewsApiConfig
 import com.recipesforsoftware.mvvm.data.remote.createHttpClient
 import com.recipesforsoftware.mvvm.data.repository.OfflineFirstNewsRepository
+import com.recipesforsoftware.mvvm.ui.app.SignalBriefApp
 import io.ktor.client.HttpClient
 import platform.Foundation.NSBundle
+import platform.Foundation.NSUserDefaults
 import platform.UIKit.UIViewController
+
+private const val ONBOARDING_KEY = "com.recipesforsoftware.signalbrief.onboarding.completed"
 
 /**
  * iOS composition root, invoked from SwiftUI as `MainViewControllerKt.mainViewController()`.
  *
- * Assembles the shared data layer and [TopHeadlinesPresenter] without any
- * platform dependency injection framework, mirroring the Android wiring:
- * `NewsApiConfig` + [createHttpClient] + [KtorNewsRemoteDataSource] on the
- * remote side, `SignalBriefDatabase` + [RoomNewsLocalDataSource] on the local
- * side, combined into an [OfflineFirstNewsRepository] that implements the
- * `NewsRepository` contract consumed by the shared screen.
+ * Assembles the shared data layer and the shared app shell. Onboarding completion
+ * is read synchronously from [NSUserDefaults] before Compose starts, so returning
+ * users never see an onboarding flash. The shared HTTP client and the Room database
+ * are created here and closed together when the view controller disappears.
  */
-fun mainViewController(): UIViewController =
-    ComposeUIViewController {
+fun mainViewController(): UIViewController {
+    val onboardingCompleted = readOnboardingCompleted()
+
+    return ComposeUIViewController {
         SignalBriefTheme {
-            TopHeadlinesRoute()
+            var completed by remember { mutableStateOf(onboardingCompleted) }
+
+            SignalBriefApp(
+                onboardingCompleted = completed,
+                onCompleteOnboarding = {
+                    setOnboardingCompleted(true)
+                    completed = true
+                },
+                topHeadlinesContent = { TopHeadlinesRoute() },
+            )
         }
     }
+}
 
 @Composable
 private fun TopHeadlinesRoute() {
-    val composition = remember { createIosTopHeadlinesPresenter() }
+    val composition = remember { createIosTopHeadlinesComposition() }
     val presenter = composition.presenter
     val uiState by presenter.uiState.collectAsState()
 
@@ -52,8 +68,8 @@ private fun TopHeadlinesRoute() {
 
 /**
  * Holds the iOS composition root and its externally owned resources. The shared
- * HTTP client and the Room database are created here and closed here, so the
- * view controller teardown leaves no client or database instance behind.
+ * HTTP client and the Room database are created here and closed here, so the view
+ * controller teardown leaves no client or database instance behind.
  */
 private class IosTopHeadlinesComposition(
     val presenter: TopHeadlinesPresenter,
@@ -67,7 +83,7 @@ private class IosTopHeadlinesComposition(
     }
 }
 
-private fun createIosTopHeadlinesPresenter(): IosTopHeadlinesComposition {
+private fun createIosTopHeadlinesComposition(): IosTopHeadlinesComposition {
     val apiKey =
         readNewsApiKeyFromBundle()
             ?: error(
@@ -95,3 +111,9 @@ private fun readNewsApiKeyFromBundle(): String? =
     (NSBundle.mainBundle.objectForInfoDictionaryKey("NEWS_API_KEY") as? String)
         ?.trim()
         ?.takeIf { it.isNotEmpty() }
+
+private fun readOnboardingCompleted(): Boolean = NSUserDefaults.standardUserDefaults.boolForKey(ONBOARDING_KEY)
+
+private fun setOnboardingCompleted(completed: Boolean) {
+    NSUserDefaults.standardUserDefaults.setBool(completed, ONBOARDING_KEY)
+}

@@ -9,6 +9,7 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import com.recipesforsoftware.mvvm.ui.designsystem.tokens.SignalBriefTypography
 
 private val LightColorScheme =
     lightColorScheme(
@@ -66,10 +67,18 @@ private val DarkColorScheme =
         surfaceContainer = SurfaceContainerDark,
     )
 
+/**
+ * Android host theme for SignalBrief.
+ *
+ * By default dynamic color is **disabled** so the editorial SignalBrief palette
+ * is the consistent brand experience on both Android and iOS. Consumers can still
+ * opt in to dynamic color by passing `dynamicColor = true`; on Android 12+ this
+ * will override the shared palette with the system wallpaper-derived colors.
+ */
 @Composable
 fun NewsAppTheme(
     isDarkMode: Boolean? = null,
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val darkTheme = isDarkMode ?: isSystemInDarkTheme()
@@ -92,7 +101,7 @@ fun NewsAppTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
+        typography = SignalBriefTypography.materialTypography,
         content = content,
     )
 }

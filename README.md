@@ -4,9 +4,10 @@ SignalBrief is a production-oriented news reader for Android and iOS that is
 being migrated incrementally to Kotlin Multiplatform. This repository currently
 contains a verified **Android app and an iOS app that share both a Kotlin
 Multiplatform domain/network module** (`:shared`) **and a Compose Multiplatform
-UI module** (`:shared-ui`) that renders the same "Top Headlines" screen on both
-platforms. The product direction — offline-first reading, saved articles,
-search, topic monitoring, and a Daily Brief — is defined in the
+UI module** (`:shared-ui`) that renders the two-page onboarding flow and the
+"Top Headlines" screen through a shared app shell on both platforms. The product
+direction — offline-first reading, saved articles, search, topic monitoring, and
+a Daily Brief — is defined in the
 [implementation roadmap](IMPLEMENTATION_ROADMAP.md) and is **future work**.
 
 ## Current status
@@ -15,13 +16,14 @@ search, topic monitoring, and a Daily Brief — is defined in the
   Multiplatform shared modules: `:shared` (domain boundary + Ktor network data
   layer) and `:shared-ui` (framework-independent presenter + Compose
   Multiplatform UI, targets Android and iOS).
-- **Scope:** a "Top Headlines" feed from NewsAPI rendered in one shared Compose
-  screen with light and dark theme support. `:app` keeps only the Hilt
-  composition root and the Android dark-mode menu; the rest of the screen
-  (presenter, strings, theme, composables) is shared with iOS.
-- **Not yet implemented:** navigation, search, saved articles, topic monitoring,
-  the Daily Brief, payments, synchronization, and a production backend. See the
-  roadmap for the planned work.
+- **Scope:** a shared `SignalBriefApp` shell that shows a two-page onboarding
+  flow on first launch and then the "Top Headlines" feed from NewsAPI rendered
+  in one shared Compose screen with light and dark theme support. `:app` keeps
+  only the Hilt composition root and the Android dark-mode menu; the rest of the
+  screen (presenter, strings, theme, composables) is shared with iOS.
+- **Not yet implemented:** navigation framework, search, saved articles, topic
+  monitoring, the Daily Brief, payments, synchronization, and a production
+  backend. See the roadmap for the planned work.
 
 ## Implemented features
 
@@ -29,12 +31,26 @@ search, topic monitoring, and a Daily Brief — is defined in the
 - Offline-first top headlines: the latest successful remote response per country
   is cached in a shared Room database (KMP, `:shared`) and served when the
   network fails, on both Android and iOS.
+- Two-page shared onboarding flow (`:shared-ui`): an editorial visual, page
+  indicator, "Continue"/"Back" paging, and "Skip"/"Start reading" completion.
+  It is shown on first launch and skipped on subsequent launches once completed.
+- Shared `SignalBriefApp` shell (`:shared-ui`) that decides between the
+  onboarding flow and the Top Headlines screen based on the persisted onboarding
+  flag, with a brief loading state while the flag is being read so returning
+  users never see an onboarding flash.
+- Onboarding completion persistence: **DataStore Preferences on Android**
+  (`OnboardingPreference` + `OnboardingViewModel`, Hilt-provided) and
+  **NSUserDefaults on iOS** (read synchronously before Compose starts in
+  `MainViewController`).
+- Shared design tokens (`:shared-ui`): editorial color palette, typography
+  scale, shapes, and spacing, plus the `SignalBriefPrimaryButton` and
+  `OnboardingPageIndicator` components.
+- Light and dark theme support shared between platforms. The Android host keeps
+  a persisted dark-mode toggle; dynamic color is opt-in and **disabled by
+  default** so the editorial palette stays consistent on both platforms.
 - Shared loading state, empty state, error state with retry, and success list
   rendering (`:shared-ui`).
 - Refresh action in the shared top app bar.
-- Material 3 theme shared between platforms; Android additionally has dynamic
-  color support (Android 12+) and a persisted dark-mode toggle backed by
-  DataStore rendered through the shared screen's `topBarActions` slot.
 - iOS app (`iosApp`) embeds the shared `SignalBriefSharedUi.framework` and reads
   its NewsAPI key from a git-ignored `Secrets.xcconfig`.
 
@@ -64,11 +80,22 @@ iOS UI (iosApp) ────┘                                                 
                                                        Ktor + kotlinx.serialization (NewsAPI)     SignalBriefDatabase (CachedArticleDao)
 ```
 
+- The shared `SignalBriefApp` shell (`:shared-ui`) owns the top-level decision
+  between onboarding and the main screen. It keeps `TopHeadlinesScreen`
+  stateless, avoids a navigation framework for the two destinations, and lets
+  each host supply the onboarding flag plus its own Top Headlines content. The
+  two-page paging state is owned by a small `OnboardingPresenter`
+  (`:shared-ui`, `StateFlow`-based) remembered inside the shell.
 - The shared `TopHeadlinesScreen` (Compose Multiplatform, `:shared-ui`) is a
   stateless composable that receives `TopHeadlinesUiState` (sealed
   `Loading` / `Success` / `Empty` / `Error`) and callbacks from the host. A
   `topBarActions` slot lets Android inject its dark-mode menu while iOS renders
   the same core screen.
+- Onboarding completion is persisted per platform: Android uses a dedicated
+  DataStore Preferences file (`OnboardingPreference` via Hilt) exposed through
+  `OnboardingViewModel`; iOS reads and writes NSUserDefaults synchronously in
+  `MainViewController`. In both cases the host flips the shell flag
+  optimistically on completion so the switch is immediate.
 - `TopHeadlinesPresenter` (`:shared-ui`) is framework-independent: it owns its
   `CoroutineScope`, exposes a `StateFlow<TopHeadlinesUiState>`, guards against
   stale responses with a request-generation counter, and must be disposed by the
@@ -124,7 +151,7 @@ presentation and UI for Android and iOS) is described in the
 | Dependency injection | Dagger/Hilt (Android only) |
 | Networking | Ktor 3 client + kotlinx.serialization (Android + iOS engines) |
 | Image loading | Coil 3 |
-| Persistence | Room (KMP), DataStore Preferences |
+| Persistence | Room (KMP), DataStore Preferences (Android), NSUserDefaults (iOS onboarding) |
 | Async | Coroutines + Flow |
 | Browser | Chrome Custom Tabs (Android article opening) |
 | Build | Gradle wrapper, AGP, Xcode (iosApp) |
@@ -142,6 +169,7 @@ app/
     │   ├── di/                           # Hilt composition root (news config + repository binding)
     │   ├── ui/
     │   │   ├── theme/                    # Color, Theme, Type, ThemePreference, ThemeViewModel
+    │   │   ├── onboarding/               # OnboardingPreference (DataStore), OnboardingViewModel (Hilt)
     │   │   └── topheadline/              # TopHeadlineActivity, TopHeadlineViewModel, DarkModeMenu
     │   └── utils/AppConstant.kt
     ├── test/                             # JVM unit tests
@@ -174,16 +202,22 @@ shared/
 shared-ui/
 ├── build.gradle.kts                      # KMP: android + iosArm64 + iosSimulatorArm64; framework SignalBriefSharedUi
 └── src/
-    ├── commonMain/kotlin/com/recipesforsoftware/mvvm/ui/topheadlines/
-    │   ├── TopHeadlinesPresenter.kt      # Framework-independent StateFlow presenter (dispose() contract)
-    │   ├── TopHeadlinesUiState.kt        # Sealed Loading / Success / Empty / Error
-    │   ├── TopHeadlinesError.kt          # Typed errors + Throwable mapping (CancellationException rethrown)
-    │   ├── TopHeadlinesStrings.kt        # Centralized user-facing strings + error bodies
-    │   ├── SignalBriefTheme.kt           # Shared light/dark Material 3 theme
-    │   ├── TopHeadlinesScreen.kt         # Shared stateless screen (topBarActions slot)
-    │   └── components/ArticleCard.kt     # Text-first shared article card
-    ├── commonTest/.../TopHeadlinesPresenterTest.kt   # 11 presenter tests (JVM + iOS simulator)
-    └── iosMain/kotlin/.../MainViewController.kt      # ComposeUIViewController + iOS repository wiring
+    ├── commonMain/kotlin/com/recipesforsoftware/mvvm/ui/
+    │   ├── app/SignalBriefApp.kt         # Shared shell: onboarding vs. Top Headlines, loading gate
+    │   ├── designsystem/                 # Tokens (colors, typography, shapes, spacing) + shared components
+    │   ├── onboarding/                   # Two-page onboarding: state, presenter, screen, page, visual, strings
+    │   └── topheadlines/
+    │       ├── TopHeadlinesPresenter.kt      # Framework-independent StateFlow presenter (dispose() contract)
+    │       ├── TopHeadlinesUiState.kt        # Sealed Loading / Success / Empty / Error
+    │       ├── TopHeadlinesError.kt          # Typed errors + Throwable mapping (CancellationException rethrown)
+    │       ├── TopHeadlinesStrings.kt        # Centralized user-facing strings + error bodies
+    │       ├── SignalBriefTheme.kt           # Shared light/dark Material 3 theme (design tokens)
+    │       ├── TopHeadlinesScreen.kt         # Shared stateless screen (topBarActions slot)
+    │       └── components/ArticleCard.kt     # Text-first shared article card
+    ├── commonTest/.../ui/
+    │   ├── onboarding/OnboardingPresenterTest.kt   # 10 presenter tests (JVM + iOS simulator)
+    │   └── topheadlines/TopHeadlinesPresenterTest.kt  # 11 presenter tests (JVM + iOS simulator)
+    └── iosMain/kotlin/.../ui/topheadlines/MainViewController.kt  # ComposeUIViewController + iOS wiring + NSUserDefaults onboarding
 iosApp/
 ├── iosApp.xcodeproj/                     # Xcode project; "Compile Kotlin Framework" = embedAndSignAppleFrameworkForXcode
 ├── iosApp/                               # SwiftUI host: iosApp.swift, ContentView.swift, Info.plist, Assets.xcassets
@@ -293,9 +327,11 @@ required to see live data.
 ```
 
 - **Android unit tests** cover the top-headlines ViewModel
-  (loading/success/typed-error flows) and the theme ViewModel (dark-mode
-  persistence). Data-layer behavior is covered by the shared common tests
-  instead.
+  (loading/success/typed-error flows), the theme ViewModel (dark-mode
+  persistence), and onboarding: the DataStore-backed `OnboardingPreference`
+  (default value, persistence, cross-instance reads) and `OnboardingViewModel`
+  (null-until-loaded, state reflection, completion persistence). Data-layer
+  behavior is covered by the shared common tests instead.
 - **Shared common tests** cover the domain models (`Article` value semantics),
   the typed failures (`NewsFailure`), the DTO-to-domain mapper (happy path and
   missing/invalid remote data), the `KtorNewsRemoteDataSource` against Ktor's
@@ -308,10 +344,12 @@ required to see live data.
   cancellation propagation, no cache corruption on failure, country isolation,
   typed local failures). They run both on the JVM (`:shared:testAndroidHostTest`)
   and on the iOS simulator (`:shared:iosSimulatorArm64Test`).
-- **Shared UI tests** (`:shared-ui`) cover the presenter end to end with a fake
-  repository: initial loading, success/empty, every typed error, retry,
-  cancellation on dispose, and stale-response protection. They run on the JVM
-  host and on the iOS simulator (`:shared-ui:allTests`).
+- **Shared UI tests** (`:shared-ui`) cover the onboarding presenter (initial
+  page, paging boundaries, skip/complete, per-instance state) and the top
+  headlines presenter end to end with a fake repository (initial loading,
+  success/empty, every typed error, retry, cancellation on dispose, and
+  stale-response protection). They run on the JVM host and on the iOS simulator
+  (`:shared-ui:allTests`).
 - **Instrumented tests** cover the shared Top Headlines Compose screen
   (including the Android dark-mode menu), DataStore theme-preference behavior,
   and application package verification. They exist in `app/src/androidTest` but
