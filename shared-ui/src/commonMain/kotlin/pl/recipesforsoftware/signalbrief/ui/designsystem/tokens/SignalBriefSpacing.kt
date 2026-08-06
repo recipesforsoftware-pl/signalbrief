@@ -21,8 +21,8 @@ object SignalBriefSpacing {
     val xxxl: Dp = 48.dp
     val xxxxl: Dp = 64.dp
 
-    /** Standard horizontal page padding used by full-width screens. */
-    val pageHorizontal: Dp = l
+    /** Standard horizontal page padding used by full-width screens (prototype pad-x: 20px). */
+    val pageHorizontal: Dp = 20.dp
 
     /** Maximum content width for large screens; content stays centered beyond it. */
     val maxContentWidth: Dp = 600.dp

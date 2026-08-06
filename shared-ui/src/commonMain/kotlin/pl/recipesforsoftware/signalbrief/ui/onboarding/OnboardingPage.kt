@@ -32,8 +32,6 @@ import pl.recipesforsoftware.signalbrief.ui.designsystem.tokens.SignalBriefSpaci
 private val visualMaxHeight = 320.dp
 private val visualMinHeight = 180.dp
 private val touchTargetMinHeight = 48.dp
-private const val TEXT_ALPHA_PRIMARY = 0.8f
-private const val TEXT_ALPHA_SECONDARY = 0.7f
 private const val VISUAL_FILL_WIDTH_RATIO = 0.85f
 
 /**
@@ -126,7 +124,7 @@ private fun PageContent(
         Text(
             text = body,
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = TEXT_ALPHA_PRIMARY),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -171,7 +169,7 @@ private fun ActionArea(
                     text = secondaryActionLabel,
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = TEXT_ALPHA_SECONDARY),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

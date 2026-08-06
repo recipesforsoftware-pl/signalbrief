@@ -20,6 +20,11 @@ kotlin {
             jvmTarget.set(JvmTarget.JVM_17)
         }
 
+        @Suppress("UnstableApiUsage")
+        androidResources {
+            enable = true
+        }
+
         withHostTest {}
     }
 
@@ -41,6 +46,7 @@ kotlin {
             implementation(compose.material3)
             implementation(compose.ui)
             implementation(libs.compose.material.icons.core)
+            implementation(libs.compose.multiplatform.resources)
             implementation(libs.coil.compose)
             implementation(libs.coil.network.ktor3)
         }
@@ -54,13 +60,25 @@ kotlin {
 
 ktlint {
     version.set(libs.versions.ktlintCore)
+    filter {
+        exclude("**/generated/**")
+    }
 }
 
 detekt {
     toolVersion = libs.versions.detekt.get()
     buildUponDefaultConfig = true
     config.setFrom(rootProject.layout.projectDirectory.file("config/detekt/detekt.yml"))
-    source.setFrom(kotlin.sourceSets.flatMap { it.kotlin.srcDirs })
+    source.setFrom(
+        kotlin.sourceSets
+            .flatMap { it.kotlin.srcDirs }
+            .filterNot { it.path.contains("build/generated") },
+    )
+}
+
+compose.resources {
+    publicResClass = true
+    packageOfResClass = "pl.recipesforsoftware.signalbrief.sharedui.generated.resources"
 }
 
 kover {

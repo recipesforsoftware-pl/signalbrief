@@ -71,6 +71,7 @@ coil-network-ktor3 = { group = "io.coil-kt.coil3", name = "coil-network-ktor3", 
 
 # Compose Multiplatform (shared-ui)
 compose-material-icons-core = { group = "org.jetbrains.compose.material", name = "material-icons-core", version = "1.7.3" }
+compose-multiplatform-resources = { group = "org.jetbrains.compose.components", name = "components-resources", version.ref = "composeMultiplatform" }
 
 # Browser
 browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
