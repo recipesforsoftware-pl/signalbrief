@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- SignalBrief primary blue, taken from the shared design-token source of truth (tokens.css accent -> #1162B8). -->
+    <color name="signal_brief_primary">#1162B8</color>
+</resources>

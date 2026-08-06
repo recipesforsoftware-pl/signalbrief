@@ -16,11 +16,11 @@
       and the white Sigby silhouette icon centered on the splash window.
     -->
     <style name="Theme.SignalBrief.Starting" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">#1E5ABE</item>
+        <item name="windowSplashScreenBackground">@color/signal_brief_primary</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground_silhouette</item>
         <item name="windowSplashScreenAnimationDuration">0</item>
         <item name="postSplashScreenTheme">@style/Theme.SignalBrief</item>
-        <item name="android:statusBarColor">#1E5ABE</item>
-        <item name="android:navigationBarColor">#1E5ABE</item>
+        <item name="android:statusBarColor">@color/signal_brief_primary</item>
+        <item name="android:navigationBarColor">@color/signal_brief_primary</item>
     </style>
 </resources>

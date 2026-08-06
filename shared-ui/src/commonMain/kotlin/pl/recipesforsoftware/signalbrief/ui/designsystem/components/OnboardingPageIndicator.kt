@@ -18,7 +18,8 @@ import androidx.compose.ui.unit.dp
  * Two-dot page indicator for the onboarding pager.
  *
  * The active page uses the primary color; the inactive page uses a muted
- * surface-variant tone. A content description is provided for screen readers.
+ * on-surface-variant tone so it stays visible on both light and dark
+ * backgrounds. A content description is provided for screen readers.
  */
 @Composable
 fun OnboardingPageIndicator(
@@ -44,7 +45,7 @@ fun OnboardingPageIndicator(
                                 if (isActive) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
-                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                                    MaterialTheme.colorScheme.onSurfaceVariant
                                 },
                         ),
             )

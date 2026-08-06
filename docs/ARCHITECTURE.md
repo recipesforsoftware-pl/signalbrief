@@ -55,8 +55,9 @@ iosApp               | Xcode project (SwiftUI)      | iOS host embedding SignalB
   the sealed `TopHeadlinesUiState`, `TopHeadlinesScreen` (stateless), shared
   strings, error mapping, `ArticleUrlValidator`, the Coil-backed `ArticleCard`,
   cache banner, and skeleton cards.
-- `designsystem/` — color, typography, shape, and spacing tokens plus the shared
-  `SignalBriefPrimaryButton` and `OnboardingPageIndicator`.
+- `designsystem/` — color, typography, shape, and spacing tokens; the shared
+  `SignalBriefPrimaryButton` and `OnboardingPageIndicator`; and the `Sigby` mascot
+  composable with its production artwork in `commonMain/composeResources`.
 - `iosMain/.../MainViewController.kt` — the iOS composition root (see below).
 
 ### `:app`
