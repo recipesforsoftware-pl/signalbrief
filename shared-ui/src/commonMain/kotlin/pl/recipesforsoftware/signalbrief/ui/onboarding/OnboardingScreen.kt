@@ -12,14 +12,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import pl.recipesforsoftware.signalbrief.ui.designsystem.components.SigbyVariant
 
 /**
  * Two-page onboarding flow shared between Android and iOS.
  *
- * Displays an editorial visual, title, body, a page indicator, and a primary CTA.
- * Page 1 offers "Continue" and "Skip"; page 2 offers "Start reading" and
- * "Back". Both [onSkip] and [onComplete] finish the flow and trigger the host's
- * completion callback.
+ * Displays the Sigby mascot, an editorial title and body, a page indicator,
+ * and a primary CTA. Page 1 uses [SigbyVariant.Full] and offers "Continue"
+ * and "Skip"; page 2 uses [SigbyVariant.Compact] and offers "Start reading"
+ * and "Back". Both [onSkip] and [onComplete] finish the flow and trigger the
+ * host's completion callback.
  *
  * @param pageIndex Zero-based page index (0 or 1).
  * @param onContinue Called when the user presses "Continue" on page 1.
@@ -55,6 +57,7 @@ fun OnboardingScreen(
                 0 -> {
                     OnboardingPage(
                         pageIndex = 0,
+                        sigbyVariant = SigbyVariant.Full,
                         title = OnboardingStrings.PAGE_1_TITLE,
                         body = OnboardingStrings.PAGE_1_BODY,
                         primaryActionLabel = OnboardingStrings.CONTINUE,
@@ -67,6 +70,7 @@ fun OnboardingScreen(
                 1 -> {
                     OnboardingPage(
                         pageIndex = 1,
+                        sigbyVariant = SigbyVariant.Compact,
                         title = OnboardingStrings.PAGE_2_TITLE,
                         body = OnboardingStrings.PAGE_2_BODY,
                         primaryActionLabel = OnboardingStrings.START_READING,
