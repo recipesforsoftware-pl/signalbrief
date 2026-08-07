@@ -1,10 +1,13 @@
 package pl.recipesforsoftware.signalbrief.ui.main
 
+import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,6 +41,19 @@ class MainActivity : ComponentActivity() {
 
             val onboardingViewModel: OnboardingViewModel = hiltViewModel()
             val onboardingCompleted by onboardingViewModel.isOnboardingCompleted.collectAsState()
+
+            // Keep system-bar icon appearance in sync with SignalBrief's own dark
+            // mode preference instead of the Android system theme, so the icons
+            // always contrast with the app's edge-to-edge, transparent bars.
+            SideEffect {
+                val barStyle =
+                    if (isDarkMode) {
+                        SystemBarStyle.dark(Color.TRANSPARENT)
+                    } else {
+                        SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+                    }
+                enableEdgeToEdge(statusBarStyle = barStyle, navigationBarStyle = barStyle)
+            }
 
             // Keep a local optimistic copy so the UI switches immediately after
             // the user completes onboarding while DataStore propagates the value.
