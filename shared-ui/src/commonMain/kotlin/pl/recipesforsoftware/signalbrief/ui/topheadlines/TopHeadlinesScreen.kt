@@ -15,9 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -36,12 +34,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.FeedSource
+import pl.recipesforsoftware.signalbrief.ui.designsystem.components.Sigby
+import pl.recipesforsoftware.signalbrief.ui.designsystem.components.SigbyVariant
 import pl.recipesforsoftware.signalbrief.ui.designsystem.tokens.SignalBriefSpacing
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.components.ArticleCard
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.components.CacheNoticeBanner
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.components.SkeletonArticleCard
 
 private const val SKELETON_CARD_COUNT = 5
+
+private val SigbyStateSize = 120.dp
 
 /**
  * Shared Top Headlines screen rendered identically on Android and iOS.
@@ -75,11 +77,11 @@ fun TopHeadlinesScreen(
                         Text(
                             text = TopHeadlinesStrings.TOP_BAR_TITLE,
                             style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.SemiBold,
                         )
                         Text(
                             text = TopHeadlinesStrings.TOP_BAR_SUBTITLE,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -179,12 +181,7 @@ private fun EmptyContent(onRetry: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(SignalBriefSpacing.m, Alignment.CenterVertically),
     ) {
-        Icon(
-            imageVector = Icons.Filled.Info,
-            contentDescription = null,
-            modifier = Modifier.size(48.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        SigbyStateArtwork()
         Text(
             text = TopHeadlinesStrings.EMPTY_TITLE,
             style = MaterialTheme.typography.titleMedium,
@@ -218,14 +215,9 @@ private fun ErrorContent(
     Column(
         modifier = Modifier.fillMaxSize().padding(SignalBriefSpacing.xxl),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(SignalBriefSpacing.l, Alignment.CenterVertically),
+        verticalArrangement = Arrangement.spacedBy(SignalBriefSpacing.m, Alignment.CenterVertically),
     ) {
-        Icon(
-            imageVector = Icons.Filled.Warning,
-            contentDescription = null,
-            modifier = Modifier.size(64.dp),
-            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
-        )
+        SigbyStateArtwork()
         Text(
             text = TopHeadlinesStrings.ERROR_TITLE,
             style = MaterialTheme.typography.titleLarge,
@@ -249,4 +241,18 @@ private fun ErrorContent(
             Text(TopHeadlinesStrings.RETRY)
         }
     }
+}
+
+/**
+ * Decorative Sigby mascot used in the emotional product states (empty and
+ * error). It carries no meaning beyond the adjacent text, so it is hidden from
+ * accessibility services.
+ */
+@Composable
+private fun SigbyStateArtwork(modifier: Modifier = Modifier) {
+    Sigby(
+        variant = SigbyVariant.Compact,
+        contentDescription = null,
+        modifier = modifier.size(SigbyStateSize),
+    )
 }

@@ -11,11 +11,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,17 +27,18 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.ui.designsystem.tokens.SignalBriefShapes
-import pl.recipesforsoftware.signalbrief.ui.designsystem.tokens.SignalBriefSpacing
 
 /**
  * Feed card shared between Android and iOS.
  *
- * Visual hierarchy: source badge and open-arrow on the first line, then the
- * headline (two lines), then the excerpt (three lines), then a fixed-size
- * thumbnail on the right when the article carries an image. Optional fields
- * are dropped rather than filled with placeholders, and [onClick] is a
- * host-provided navigation hook (for example opening [Article.url] in an
- * external browser).
+ * Editorial hierarchy: source badge on the first line, then the headline
+ * (two lines), then the excerpt (two lines), then a fixed-size thumbnail on
+ * the right when the article carries an image. Optional fields are dropped
+ * rather than filled with placeholders, and [onClick] is a host-provided
+ * navigation hook (for example opening [Article.url] in an external browser).
+ *
+ * The card is a calm surface with a hairline border and no elevation, so it
+ * stays dense and readable in both light and dark modes.
  */
 @Composable
 fun ArticleCard(
@@ -62,7 +60,7 @@ fun ArticleCard(
         shape = SignalBriefShapes.large,
         colors =
             CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                containerColor = MaterialTheme.colorScheme.surface,
             ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
@@ -92,7 +90,7 @@ fun ArticleCard(
                         text = description,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 3,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
@@ -139,12 +137,6 @@ private fun ArticleHeader(sourceName: String) {
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-            contentDescription = null,
-            modifier = Modifier.size(16.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
 
@@ -152,7 +144,7 @@ private fun ArticleHeader(sourceName: String) {
 private fun ArticleThumbnail(imageUrl: String) {
     val placeholderPainter =
         ColorPainter(
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            color = MaterialTheme.colorScheme.surfaceContainer,
         )
     AsyncImage(
         model = imageUrl,
@@ -164,6 +156,6 @@ private fun ArticleThumbnail(imageUrl: String) {
             Modifier
                 .size(88.dp, 72.dp)
                 .clip(SignalBriefShapes.small)
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                .background(MaterialTheme.colorScheme.surfaceContainer),
     )
 }
