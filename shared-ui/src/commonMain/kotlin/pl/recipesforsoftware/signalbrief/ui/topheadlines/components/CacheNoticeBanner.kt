@@ -1,6 +1,7 @@
 package pl.recipesforsoftware.signalbrief.ui.topheadlines.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -43,7 +44,8 @@ fun CacheNoticeBanner(modifier: Modifier = Modifier) {
                 .fillMaxWidth()
                 .clip(SignalBriefShapes.small)
                 .background(MaterialTheme.colorScheme.secondaryContainer)
-                .padding(horizontal = 12.dp, vertical = 10.dp)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, SignalBriefShapes.small)
+                .padding(horizontal = SignalBriefSpacing.m, vertical = SignalBriefSpacing.s)
                 .clearAndSetSemantics {
                     liveRegion = LiveRegionMode.Polite
                     text =
