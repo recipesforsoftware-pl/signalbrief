@@ -68,8 +68,10 @@ Planned outcome:
 > KMP phases below (shared domain and network layer, Compose Multiplatform UI,
 > offline-first Room cache, Android and iOS CI); see the README and
 > `docs/ARCHITECTURE.md` for the current status. What remains **not implemented**
-> today: navigation framework, search, saved articles, topic monitoring, the
+> today: navigation framework, search, saved articles UI, topic monitoring, the
 > Daily Brief, payments, synchronization, and a production backend.
+> Saved articles persistence foundation (entity, DAO, repository, migration) is
+> implemented; the bookmark UI, Saved screen, and Article Details remain future.
 
 The original Android-only baseline was:
 
