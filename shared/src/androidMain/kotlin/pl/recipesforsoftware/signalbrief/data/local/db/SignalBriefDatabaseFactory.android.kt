@@ -10,7 +10,8 @@ import pl.recipesforsoftware.signalbrief.data.local.DATABASE_FILE_NAME
  * Creates the [SignalBriefDatabase] for Android.
  *
  * The supplied [context] is switched to its application context, main-thread
- * queries are disallowed, and the bundled SQLite driver is used.
+ * queries are disallowed, and the bundled SQLite driver is used. The explicit
+ * additive migration ensures existing cached headline data is preserved.
  */
 fun createSignalBriefDatabase(context: Context): SignalBriefDatabase {
     val applicationContext = context.applicationContext
@@ -21,5 +22,6 @@ fun createSignalBriefDatabase(context: Context): SignalBriefDatabase {
             factory = { SignalBriefDatabaseConstructor.initialize() },
         ).setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
+        .addMigrations(MIGRATION_1_2)
         .build()
 }
