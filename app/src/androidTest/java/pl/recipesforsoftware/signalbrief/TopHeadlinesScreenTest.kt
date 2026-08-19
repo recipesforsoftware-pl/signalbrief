@@ -45,6 +45,7 @@ class TopHeadlinesScreenTest {
             TopHeadlinesUiState.Success(fakeArticles, FeedSource.NETWORK),
         onRefresh: () -> Unit = {},
         onArticleClick: (Article) -> Unit = {},
+        onBookmarkClick: ((Article) -> Unit)? = null,
         onToggleDarkMode: () -> Unit = {},
     ) {
         composeTestRule.setContent {
@@ -53,6 +54,7 @@ class TopHeadlinesScreenTest {
                     uiState = uiState,
                     onRefresh = onRefresh,
                     onArticleClick = onArticleClick,
+                    onBookmarkClick = onBookmarkClick,
                     topBarActions = {
                         DarkModeMenu(
                             isDarkMode = isDarkMode,
@@ -244,5 +246,70 @@ class TopHeadlinesScreenTest {
     fun darkModeTrue_rendersWithoutError() {
         setContent(isDarkMode = true)
         composeTestRule.onNodeWithText("Top Headlines").assertIsDisplayed()
+    }
+
+    // --- Bookmark action ---
+
+    @Test
+    fun bookmarkAction_unsaved_showsSaveSemantics() {
+        setContent(
+            onBookmarkClick = {},
+        )
+        composeTestRule.onNodeWithContentDescription("Save article").assertIsDisplayed()
+    }
+
+    @Test
+    fun bookmarkAction_saved_showsRemoveSemantics() {
+        setContent(
+            uiState =
+                TopHeadlinesUiState.Success(
+                    fakeArticles,
+                    FeedSource.NETWORK,
+                    savedUrls = setOf("https://example.com/1"),
+                ),
+            onBookmarkClick = {},
+        )
+        composeTestRule.onNodeWithContentDescription("Remove from saved").assertIsDisplayed()
+    }
+
+    @Test
+    fun bookmarkAction_clickInvokesCallback() {
+        var bookmarkedArticle: Article? = null
+        setContent(
+            onBookmarkClick = { bookmarkedArticle = it },
+        )
+        composeTestRule.onNodeWithContentDescription("Save article").performClick()
+
+        assert(bookmarkedArticle == fakeArticles[0]) {
+            "onBookmarkClick should receive the article"
+        }
+    }
+
+    @Test
+    fun bookmarkAction_clickDoesNotOpenArticle() {
+        var clickedArticle: Article? = null
+        setContent(
+            onArticleClick = { clickedArticle = it },
+            onBookmarkClick = {},
+        )
+        composeTestRule.onNodeWithContentDescription("Save article").performClick()
+
+        assert(clickedArticle == null) {
+            "Bookmark click must not trigger article open"
+        }
+    }
+
+    @Test
+    fun articleCard_clickStillOpensActionableArticle() {
+        var clickedArticle: Article? = null
+        setContent(
+            onArticleClick = { clickedArticle = it },
+            onBookmarkClick = {},
+        )
+        composeTestRule.onNodeWithText("Test Article 1").performClick()
+
+        assert(clickedArticle == fakeArticles[0]) {
+            "Card click should still open the article"
+        }
     }
 }

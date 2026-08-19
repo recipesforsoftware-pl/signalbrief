@@ -23,6 +23,9 @@ object TopHeadlinesStrings {
     const val EMPTY_TITLE: String = "No headlines available"
     const val EMPTY_SUBTITLE: String = "Check back later or use the refresh button to try again."
 
+    const val BOOKMARK_SAVE: String = "Save article"
+    const val BOOKMARK_REMOVE: String = "Remove from saved"
+
     const val ERROR_TITLE: String = "Something went wrong"
 
     /** Maps a presentation-level [TopHeadlinesError] to a user-facing message. */

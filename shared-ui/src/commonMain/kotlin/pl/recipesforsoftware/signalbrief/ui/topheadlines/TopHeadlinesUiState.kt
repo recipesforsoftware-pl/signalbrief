@@ -19,6 +19,7 @@ sealed interface TopHeadlinesUiState {
     data class Success(
         val articles: List<Article>,
         val source: FeedSource,
+        val savedUrls: Set<String> = emptySet(),
     ) : TopHeadlinesUiState
 
     /** The feed is available but returned no articles. */

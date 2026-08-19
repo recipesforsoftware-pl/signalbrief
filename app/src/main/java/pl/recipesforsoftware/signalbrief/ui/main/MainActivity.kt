@@ -78,6 +78,7 @@ class MainActivity : ComponentActivity() {
                             uiState = uiState,
                             onRefresh = viewModel::refresh,
                             onArticleClick = openArticle,
+                            onBookmarkClick = viewModel::toggleBookmark,
                             topBarActions = {
                                 DarkModeMenu(
                                     isDarkMode = isDarkMode,
