@@ -10,10 +10,12 @@ import pl.recipesforsoftware.signalbrief.data.local.NewsLocalDataSource
 import pl.recipesforsoftware.signalbrief.data.local.RoomNewsLocalDataSource
 import pl.recipesforsoftware.signalbrief.data.local.db.SignalBriefDatabase
 import pl.recipesforsoftware.signalbrief.data.local.db.createSignalBriefDatabase
+import pl.recipesforsoftware.signalbrief.data.repository.RoomSavedArticlesRepository
+import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
 import javax.inject.Singleton
 
 /**
- * Hilt module for the shared Room database and its local data source.
+ * Hilt module for the shared Room database and its local data sources.
  *
  * The database is a singleton: every request goes through the same
  * `SignalBriefDatabase` instance backed by the app's on-disk store. Room types
@@ -33,6 +35,13 @@ object DatabaseModule {
     @Singleton
     fun provideNewsLocalDataSource(database: SignalBriefDatabase): NewsLocalDataSource =
         RoomNewsLocalDataSource(
+            database,
+        )
+
+    @Provides
+    @Singleton
+    fun provideSavedArticlesRepository(database: SignalBriefDatabase): SavedArticlesRepository =
+        RoomSavedArticlesRepository(
             database,
         )
 }

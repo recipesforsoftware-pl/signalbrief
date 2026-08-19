@@ -6,6 +6,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -22,17 +23,23 @@ import pl.recipesforsoftware.signalbrief.domain.model.FeedSource
 import pl.recipesforsoftware.signalbrief.domain.model.Source
 import pl.recipesforsoftware.signalbrief.domain.model.TopHeadlinesFeed
 import pl.recipesforsoftware.signalbrief.domain.repository.NewsRepository
+import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TopHeadlinesViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var repository: NewsRepository
+    private lateinit var savedArticlesRepository: SavedArticlesRepository
     private lateinit var viewModel: TopHeadlinesViewModel
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         repository = mockk()
+        savedArticlesRepository =
+            mockk(relaxed = true) {
+                coEvery { observeAllSavedArticles() } returns flowOf(emptyList())
+            }
     }
 
     @After
@@ -52,7 +59,7 @@ class TopHeadlinesViewModelTest {
             coEvery { repository.getTopHeadlines(any()) } returns fakeFeed()
 
             // When
-            viewModel = TopHeadlinesViewModel(repository)
+            viewModel = TopHeadlinesViewModel(repository, savedArticlesRepository)
 
             // Then - initial state should be Loading before the coroutine completes
             assertTrue(viewModel.uiState.value is TopHeadlinesUiState.Loading)
@@ -65,7 +72,7 @@ class TopHeadlinesViewModelTest {
             coEvery { repository.getTopHeadlines(any()) } returns fakeFeed(count = 3)
 
             // When
-            viewModel = TopHeadlinesViewModel(repository)
+            viewModel = TopHeadlinesViewModel(repository, savedArticlesRepository)
             advanceUntilIdle()
 
             // Then
@@ -82,7 +89,7 @@ class TopHeadlinesViewModelTest {
             coEvery { repository.getTopHeadlines(any()) } returns fakeFeed(count = 1, source = FeedSource.CACHE)
 
             // When
-            viewModel = TopHeadlinesViewModel(repository)
+            viewModel = TopHeadlinesViewModel(repository, savedArticlesRepository)
             advanceUntilIdle()
 
             // Then
@@ -98,7 +105,7 @@ class TopHeadlinesViewModelTest {
             coEvery { repository.getTopHeadlines(any()) } returns fakeFeed()
 
             // When
-            viewModel = TopHeadlinesViewModel(repository)
+            viewModel = TopHeadlinesViewModel(repository, savedArticlesRepository)
             advanceUntilIdle()
 
             // Then
@@ -112,7 +119,7 @@ class TopHeadlinesViewModelTest {
             coEvery { repository.getTopHeadlines(any()) } returns Result.failure(NewsFailure.Network)
 
             // When
-            viewModel = TopHeadlinesViewModel(repository)
+            viewModel = TopHeadlinesViewModel(repository, savedArticlesRepository)
             advanceUntilIdle()
 
             // Then
@@ -131,7 +138,7 @@ class TopHeadlinesViewModelTest {
             coEvery { repository.getTopHeadlines(any()) } returns Result.failure(NewsFailure.InvalidData)
 
             // When
-            viewModel = TopHeadlinesViewModel(repository)
+            viewModel = TopHeadlinesViewModel(repository, savedArticlesRepository)
             advanceUntilIdle()
 
             // Then
@@ -151,7 +158,7 @@ class TopHeadlinesViewModelTest {
                 Result.failure(NewsFailure.Unknown(IllegalStateException("boom")))
 
             // When
-            viewModel = TopHeadlinesViewModel(repository)
+            viewModel = TopHeadlinesViewModel(repository, savedArticlesRepository)
             advanceUntilIdle()
 
             // Then
@@ -170,7 +177,7 @@ class TopHeadlinesViewModelTest {
             coEvery { repository.getTopHeadlines("us") } returns fakeFeed()
 
             // When
-            viewModel = TopHeadlinesViewModel(repository)
+            viewModel = TopHeadlinesViewModel(repository, savedArticlesRepository)
             advanceUntilIdle()
 
             // Then
@@ -182,7 +189,7 @@ class TopHeadlinesViewModelTest {
         runTest {
             // Given
             coEvery { repository.getTopHeadlines(any()) } returns fakeFeed(count = 1)
-            viewModel = TopHeadlinesViewModel(repository)
+            viewModel = TopHeadlinesViewModel(repository, savedArticlesRepository)
             advanceUntilIdle()
             assertTrue(viewModel.uiState.value is TopHeadlinesUiState.Success)
 

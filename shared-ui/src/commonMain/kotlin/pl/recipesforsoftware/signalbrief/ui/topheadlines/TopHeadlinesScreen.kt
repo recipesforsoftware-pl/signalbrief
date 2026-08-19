@@ -51,7 +51,9 @@ private val SigbyStateSize = 120.dp
  * Stateless: receives the current [TopHeadlinesUiState] and user callbacks from
  * the host, renders every state, and never fetches data itself. [onArticleClick]
  * is invoked when the user taps any article card; the host decides how to open
- * [Article.url] (for example through a platform URI handler). [topBarActions] is
+ * [Article.url] (for example through a platform URI handler). [onBookmarkClick]
+ * is invoked when the user taps the bookmark action on an article with a valid
+ * URL; the host delegates to the presenter's toggle logic. [topBarActions] is
  * an optional host-provided slot (for example the Android dark-mode menu); it
  * defaults to nothing so both platforms render the same core screen.
  *
@@ -66,6 +68,7 @@ fun TopHeadlinesScreen(
     onRefresh: () -> Unit,
     onArticleClick: (Article) -> Unit,
     modifier: Modifier = Modifier,
+    onBookmarkClick: ((Article) -> Unit)? = null,
     topBarActions: @Composable () -> Unit = {},
 ) {
     Scaffold(
@@ -103,10 +106,25 @@ fun TopHeadlinesScreen(
             contentAlignment = Alignment.TopCenter,
         ) {
             when (uiState) {
-                TopHeadlinesUiState.Loading -> LoadingContent()
-                is TopHeadlinesUiState.Success -> SuccessContent(uiState, onArticleClick)
-                TopHeadlinesUiState.Empty -> EmptyContent(onRetry = onRefresh)
-                is TopHeadlinesUiState.Error -> ErrorContent(error = uiState.error, onRetry = onRefresh)
+                TopHeadlinesUiState.Loading -> {
+                    LoadingContent()
+                }
+
+                is TopHeadlinesUiState.Success -> {
+                    SuccessContent(
+                        uiState,
+                        onArticleClick,
+                        onBookmarkClick,
+                    )
+                }
+
+                TopHeadlinesUiState.Empty -> {
+                    EmptyContent(onRetry = onRefresh)
+                }
+
+                is TopHeadlinesUiState.Error -> {
+                    ErrorContent(error = uiState.error, onRetry = onRefresh)
+                }
             }
         }
     }
@@ -137,6 +155,7 @@ private fun LoadingContent() {
 private fun SuccessContent(
     uiState: TopHeadlinesUiState.Success,
     onArticleClick: (Article) -> Unit,
+    onBookmarkClick: ((Article) -> Unit)?,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth().widthIn(max = SignalBriefSpacing.maxContentWidth),
@@ -164,6 +183,13 @@ private fun SuccessContent(
                     onClick =
                         if (article.hasActionableUrl()) {
                             { onArticleClick(article) }
+                        } else {
+                            null
+                        },
+                    isSaved = article.url in uiState.savedUrls,
+                    onBookmarkClick =
+                        if (onBookmarkClick != null && article.hasActionableUrl()) {
+                            { onBookmarkClick(article) }
                         } else {
                             null
                         },

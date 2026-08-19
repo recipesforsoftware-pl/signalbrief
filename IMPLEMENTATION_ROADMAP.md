@@ -71,7 +71,8 @@ Planned outcome:
 > today: navigation framework, search, saved articles UI, topic monitoring, the
 > Daily Brief, payments, synchronization, and a production backend.
 > Saved articles persistence foundation (entity, DAO, repository, migration) is
-> implemented; the bookmark UI, Saved screen, and Article Details remain future.
+> implemented; feed bookmark toggle is implemented; the Saved screen, navigation,
+> and Article Details remain future.
 
 The original Android-only baseline was:
 

@@ -18,6 +18,7 @@ import pl.recipesforsoftware.signalbrief.data.remote.KtorNewsRemoteDataSource
 import pl.recipesforsoftware.signalbrief.data.remote.NewsApiConfig
 import pl.recipesforsoftware.signalbrief.data.remote.createHttpClient
 import pl.recipesforsoftware.signalbrief.data.repository.OfflineFirstNewsRepository
+import pl.recipesforsoftware.signalbrief.data.repository.RoomSavedArticlesRepository
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefApp
 import platform.Foundation.NSBundle
@@ -69,6 +70,7 @@ private fun TopHeadlinesRoute() {
         uiState = uiState,
         onRefresh = presenter::refresh,
         onArticleClick = openArticle,
+        onBookmarkClick = presenter::toggleBookmark,
     )
 }
 
@@ -112,9 +114,11 @@ private fun createIosTopHeadlinesComposition(): IosTopHeadlinesComposition {
     val database = createSignalBriefDatabase()
     val remoteDataSource = KtorNewsRemoteDataSource(client)
     val localDataSource = RoomNewsLocalDataSource(database)
+    val savedArticlesRepository = RoomSavedArticlesRepository(database)
     val presenter =
         TopHeadlinesPresenter(
             repository = OfflineFirstNewsRepository(remoteDataSource, localDataSource),
+            savedArticlesRepository = savedArticlesRepository,
         )
     return IosTopHeadlinesComposition(presenter, client, database)
 }

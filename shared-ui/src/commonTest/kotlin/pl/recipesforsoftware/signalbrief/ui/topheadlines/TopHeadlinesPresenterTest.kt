@@ -3,6 +3,8 @@ package pl.recipesforsoftware.signalbrief.ui.topheadlines
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -13,6 +15,7 @@ import pl.recipesforsoftware.signalbrief.domain.model.FeedSource
 import pl.recipesforsoftware.signalbrief.domain.model.Source
 import pl.recipesforsoftware.signalbrief.domain.model.TopHeadlinesFeed
 import pl.recipesforsoftware.signalbrief.domain.repository.NewsRepository
+import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -56,6 +59,24 @@ private class FakeNewsRepository : NewsRepository {
     }
 }
 
+private class FakeSavedArticlesRepositoryForPresenterTests : SavedArticlesRepository {
+    private val savedArticles = MutableStateFlow<List<Article>>(emptyList())
+
+    override fun observeAllSavedArticles() = savedArticles
+
+    override fun isArticleSaved(url: String) = flowOf(savedArticles.value.any { it.url == url })
+
+    override suspend fun saveArticle(article: Article): Result<Unit> {
+        savedArticles.value = savedArticles.value + article
+        return Result.success(Unit)
+    }
+
+    override suspend fun removeSavedArticle(url: String): Result<Unit> {
+        savedArticles.value = savedArticles.value.filter { it.url != url }
+        return Result.success(Unit)
+    }
+}
+
 private val source = Source(id = "test", name = "Test News")
 
 private fun article(id: Int): Article =
@@ -76,10 +97,12 @@ private fun feed(
 private fun createPresenter(
     repository: NewsRepository,
     scope: TestScope,
+    savedArticlesRepository: SavedArticlesRepository = FakeSavedArticlesRepositoryForPresenterTests(),
     country: String = DEFAULT_NEWS_COUNTRY,
 ): TopHeadlinesPresenter =
     TopHeadlinesPresenter(
         repository = repository,
+        savedArticlesRepository = savedArticlesRepository,
         country = country,
         dispatcher = StandardTestDispatcher(scope.testScheduler),
     )
