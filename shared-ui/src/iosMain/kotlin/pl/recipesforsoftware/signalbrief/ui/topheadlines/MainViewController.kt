@@ -21,6 +21,8 @@ import pl.recipesforsoftware.signalbrief.data.repository.OfflineFirstNewsReposit
 import pl.recipesforsoftware.signalbrief.data.repository.RoomSavedArticlesRepository
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefApp
+import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesPresenter
+import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesScreen
 import platform.Foundation.NSBundle
 import platform.Foundation.NSUserDefaults
 import platform.UIKit.UIViewController
@@ -32,13 +34,23 @@ private const val ONBOARDING_KEY = "pl.recipesforsoftware.signalbrief.onboarding
  *
  * Assembles the shared data layer and the shared app shell. Onboarding completion
  * is read synchronously from [NSUserDefaults] before Compose starts, so returning
- * users never see an onboarding flash. The shared HTTP client and the Room database
- * are created here and closed together when the view controller disappears.
+ * users never see an onboarding flash.
+ *
+ * The iOS composition is created exactly once at the root of this controller and
+ * disposed only when the whole controller is torn down. Headlines and Saved share
+ * the same [SignalBriefDatabase], the same [RoomSavedArticlesRepository], and the
+ * same presenters, so switching tabs never closes or recreates persistence layers.
  */
 fun mainViewController(): UIViewController {
     val onboardingCompleted = readOnboardingCompleted()
 
     return ComposeUIViewController {
+        val composition = remember { createIosComposition() }
+
+        DisposableEffect(composition) {
+            onDispose { composition.dispose() }
+        }
+
         SignalBriefTheme {
             var completed by remember { mutableStateOf(onboardingCompleted) }
 
@@ -48,29 +60,55 @@ fun mainViewController(): UIViewController {
                     setOnboardingCompleted(true)
                     completed = true
                 },
-                topHeadlinesContent = { TopHeadlinesRoute() },
+                topHeadlinesContent = { bottomBar ->
+                    HeadlinesRoute(
+                        presenter = composition.headlinesPresenter,
+                        bottomBar = bottomBar,
+                    )
+                },
+                savedContent = { bottomBar ->
+                    SavedRoute(
+                        presenter = composition.savedPresenter,
+                        bottomBar = bottomBar,
+                    )
+                },
             )
         }
     }
 }
 
 @Composable
-private fun TopHeadlinesRoute() {
-    val composition = remember { createIosTopHeadlinesComposition() }
-    val presenter = composition.presenter
+private fun HeadlinesRoute(
+    presenter: TopHeadlinesPresenter,
+    bottomBar: @Composable () -> Unit,
+) {
     val uiState by presenter.uiState.collectAsState()
     val uriHandler = LocalUriHandler.current
     val openArticle = rememberOpenArticleAction(uriHandler)
-
-    DisposableEffect(composition) {
-        onDispose { composition.dispose() }
-    }
 
     TopHeadlinesScreen(
         uiState = uiState,
         onRefresh = presenter::refresh,
         onArticleClick = openArticle,
         onBookmarkClick = presenter::toggleBookmark,
+        bottomBar = bottomBar,
+    )
+}
+
+@Composable
+private fun SavedRoute(
+    presenter: SavedArticlesPresenter,
+    bottomBar: @Composable () -> Unit,
+) {
+    val uiState by presenter.uiState.collectAsState()
+    val uriHandler = LocalUriHandler.current
+    val openArticle = rememberOpenArticleAction(uriHandler)
+
+    SavedArticlesScreen(
+        uiState = uiState,
+        onArticleClick = openArticle,
+        onRemoveClick = { presenter.removeArticle(it.url) },
+        bottomBar = bottomBar,
     )
 }
 
@@ -85,23 +123,38 @@ private fun rememberOpenArticleAction(uriHandler: UriHandler): (Article) -> Unit
     }
 
 /**
- * Holds the iOS composition root and its externally owned resources. The shared
- * HTTP client and the Room database are created here and closed here, so the view
- * controller teardown leaves no client or database instance behind.
+ * Holds the single iOS composition root and its externally owned resources.
+ *
+ * The shared HTTP client, the Room database, and the single
+ * [RoomSavedArticlesRepository] instance are created once and live here. Both
+ * presenters share the same repository instance so the Saved flow synchronizes
+ * Headlines bookmark state through the same persistence layer.
+ *
+ * [dispose] must be called exactly once, when the owning composition root is
+ * torn down; it cancels both presenters and then closes the client and database.
  */
-private class IosTopHeadlinesComposition(
-    val presenter: TopHeadlinesPresenter,
+private class IosComposition(
+    val headlinesPresenter: TopHeadlinesPresenter,
+    val savedPresenter: SavedArticlesPresenter,
     private val client: HttpClient,
     private val database: SignalBriefDatabase,
 ) {
     fun dispose() {
-        presenter.dispose()
+        headlinesPresenter.dispose()
+        savedPresenter.dispose()
         client.close()
         database.close()
     }
 }
 
-private fun createIosTopHeadlinesComposition(): IosTopHeadlinesComposition {
+/**
+ * Creates the single iOS composition graph.
+ *
+ * This factory is called exactly once by [mainViewController]. It constructs one
+ * database, one repository, one HTTP client, and both presenters, then returns
+ * an [IosComposition] that owns disposal of all those resources.
+ */
+private fun createIosComposition(): IosComposition {
     val apiKey =
         readNewsApiKeyFromBundle()
             ?: error(
@@ -115,12 +168,16 @@ private fun createIosTopHeadlinesComposition(): IosTopHeadlinesComposition {
     val remoteDataSource = KtorNewsRemoteDataSource(client)
     val localDataSource = RoomNewsLocalDataSource(database)
     val savedArticlesRepository = RoomSavedArticlesRepository(database)
-    val presenter =
+    val headlinesPresenter =
         TopHeadlinesPresenter(
             repository = OfflineFirstNewsRepository(remoteDataSource, localDataSource),
             savedArticlesRepository = savedArticlesRepository,
         )
-    return IosTopHeadlinesComposition(presenter, client, database)
+    val savedPresenter =
+        SavedArticlesPresenter(
+            savedArticlesRepository = savedArticlesRepository,
+        )
+    return IosComposition(headlinesPresenter, savedPresenter, client, database)
 }
 
 /**

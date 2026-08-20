@@ -21,6 +21,8 @@ import dagger.hilt.android.AndroidEntryPoint
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefApp
 import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingViewModel
+import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesScreen
+import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesViewModel
 import pl.recipesforsoftware.signalbrief.ui.theme.SignalBriefAndroidTheme
 import pl.recipesforsoftware.signalbrief.ui.theme.ThemeViewModel
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.DarkModeMenu
@@ -70,7 +72,7 @@ class MainActivity : ComponentActivity() {
                         localOnboardingCompleted = true
                         onboardingViewModel.completeOnboarding()
                     },
-                    topHeadlinesContent = {
+                    topHeadlinesContent = { bottomBar ->
                         val viewModel: TopHeadlinesViewModel = hiltViewModel()
                         val uiState by viewModel.uiState.collectAsState()
 
@@ -85,6 +87,18 @@ class MainActivity : ComponentActivity() {
                                     onToggleDarkMode = themeViewModel::toggleDarkMode,
                                 )
                             },
+                            bottomBar = bottomBar,
+                        )
+                    },
+                    savedContent = { bottomBar ->
+                        val viewModel: SavedArticlesViewModel = hiltViewModel()
+                        val uiState by viewModel.uiState.collectAsState()
+
+                        SavedArticlesScreen(
+                            uiState = uiState,
+                            onArticleClick = openArticle,
+                            onRemoveClick = { viewModel.removeArticle(it.url) },
+                            bottomBar = bottomBar,
                         )
                     },
                 )
