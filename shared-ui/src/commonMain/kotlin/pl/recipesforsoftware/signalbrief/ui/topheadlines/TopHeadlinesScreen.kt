@@ -70,6 +70,7 @@ fun TopHeadlinesScreen(
     modifier: Modifier = Modifier,
     onBookmarkClick: ((Article) -> Unit)? = null,
     topBarActions: @Composable () -> Unit = {},
+    bottomBar: @Composable () -> Unit = {},
 ) {
     Scaffold(
         modifier = modifier,
@@ -100,6 +101,7 @@ fun TopHeadlinesScreen(
                 },
             )
         },
+        bottomBar = bottomBar,
     ) { contentPadding ->
         Box(
             modifier = Modifier.fillMaxSize().padding(contentPadding),
