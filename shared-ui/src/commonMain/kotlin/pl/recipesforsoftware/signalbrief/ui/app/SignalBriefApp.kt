@@ -23,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.ui.images.installSignalBriefImageLoader
 import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingCompletion
 import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingScreen
@@ -39,11 +40,17 @@ import pl.recipesforsoftware.signalbrief.ui.onboarding.rememberOnboardingPresent
  * - `true`  -> the host-provided destination content with a two-item bottom
  *              navigation bar (Headlines / Saved) is shown.
  *
- * The shell owns the destination navigation state. No navigation library is
- * needed for exactly two destinations; a small [AppDestination] enum and
- * `rememberSaveable` with an explicit [Saver] is the smallest coherent solution.
- * The selected destination survives host recreation (for example an Android
- * configuration change) and defaults to [AppDestination.Headlines].
+ * The shell owns both navigation levels. Top-level navigation is exactly the
+ * two [AppDestination] entries, kept in `rememberSaveable` with an explicit
+ * [Saver]; it survives host recreation and defaults to
+ * [AppDestination.Headlines]. Child navigation is a single nullable selected
+ * article: when set, Article Details replaces the destination content and the
+ * bottom bar disappears (details is a child screen, not a third tab), while
+ * [currentDestination] keeps holding the originating destination so Back
+ * returns to it exactly. Toolbar back and any host-integrated system back both
+ * funnel through the same state clear, so there is one shared transition path
+ * and no back stack. The selected article survives recreation through
+ * [SelectedArticleSaver].
  *
  * The shell also installs the shared Coil image-loader singleton once for the
  * app composition root. Both "Skip" and "Start reading" funnel through an
@@ -54,8 +61,9 @@ import pl.recipesforsoftware.signalbrief.ui.onboarding.rememberOnboardingPresent
 fun SignalBriefApp(
     onboardingCompleted: Boolean?,
     onCompleteOnboarding: () -> Unit,
-    topHeadlinesContent: @Composable (bottomBar: @Composable () -> Unit) -> Unit,
-    savedContent: @Composable (bottomBar: @Composable () -> Unit) -> Unit,
+    topHeadlinesContent: @Composable (bottomBar: @Composable () -> Unit, onArticleClick: (Article) -> Unit) -> Unit,
+    savedContent: @Composable (bottomBar: @Composable () -> Unit, onArticleClick: (Article) -> Unit) -> Unit,
+    articleDetailsContent: @Composable (article: Article, onBack: () -> Unit) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     installSignalBriefImageLoader()
@@ -83,21 +91,28 @@ fun SignalBriefApp(
             var currentDestination by rememberSaveable(stateSaver = AppDestinationSaver) {
                 mutableStateOf(AppDestination.Headlines)
             }
-
-            val bottomBar: @Composable () -> Unit = {
-                SignalBriefBottomBar(
-                    currentDestination = currentDestination,
-                    onNavigate = { currentDestination = it },
-                )
+            var selectedArticle by rememberSaveable(stateSaver = SelectedArticleSaver) {
+                mutableStateOf<Article?>(null)
             }
 
-            when (currentDestination) {
-                AppDestination.Headlines -> {
-                    topHeadlinesContent(bottomBar)
+            if (selectedArticle != null) {
+                articleDetailsContent(requireNotNull(selectedArticle)) { selectedArticle = null }
+            } else {
+                val bottomBar: @Composable () -> Unit = {
+                    SignalBriefBottomBar(
+                        currentDestination = currentDestination,
+                        onNavigate = { currentDestination = it },
+                    )
                 }
 
-                AppDestination.Saved -> {
-                    savedContent(bottomBar)
+                when (currentDestination) {
+                    AppDestination.Headlines -> {
+                        topHeadlinesContent(bottomBar) { article -> selectedArticle = article }
+                    }
+
+                    AppDestination.Saved -> {
+                        savedContent(bottomBar) { article -> selectedArticle = article }
+                    }
                 }
             }
         }

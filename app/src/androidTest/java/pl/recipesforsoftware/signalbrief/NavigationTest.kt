@@ -1,8 +1,12 @@
 package pl.recipesforsoftware.signalbrief
 
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import org.junit.Rule
@@ -34,32 +38,54 @@ class NavigationTest {
             ),
         )
 
-    private fun setContent(isDarkMode: Boolean = false) {
+    @Composable
+    private fun TestDetailsContent(
+        article: Article,
+        onBack: () -> Unit,
+    ) {
+        TextButton(onClick = onBack) {
+            Text("Back")
+        }
+        Text(article.title.orEmpty())
+    }
+
+    private fun setContent(
+        isDarkMode: Boolean = false,
+        headlineArticles: List<Article> = fakeArticles,
+        savedArticles: List<Article> = emptyList(),
+        articleDetailsContent: @Composable (article: Article, onBack: () -> Unit) -> Unit = ::TestDetailsContent,
+    ) {
         composeTestRule.setContent {
             SignalBriefAndroidTheme(isDarkMode = isDarkMode, dynamicColor = false) {
                 SignalBriefApp(
                     onboardingCompleted = true,
                     onCompleteOnboarding = {},
-                    topHeadlinesContent = { bottomBar ->
+                    topHeadlinesContent = { bottomBar, onArticleClick ->
                         TopHeadlinesScreen(
                             uiState =
                                 TopHeadlinesUiState.Success(
-                                    fakeArticles,
+                                    headlineArticles,
                                     FeedSource.NETWORK,
                                 ),
                             onRefresh = {},
-                            onArticleClick = {},
+                            onArticleClick = onArticleClick,
                             bottomBar = bottomBar,
                         )
                     },
-                    savedContent = { bottomBar ->
+                    savedContent = { bottomBar, onArticleClick ->
                         SavedArticlesScreen(
-                            uiState = SavedArticlesUiState.Empty,
-                            onArticleClick = {},
+                            uiState =
+                                if (savedArticles.isEmpty()) {
+                                    SavedArticlesUiState.Empty
+                                } else {
+                                    SavedArticlesUiState.Content(savedArticles)
+                                },
+                            onArticleClick = onArticleClick,
                             onRemoveClick = {},
                             bottomBar = bottomBar,
                         )
                     },
+                    articleDetailsContent = articleDetailsContent,
                 )
             }
         }
@@ -118,7 +144,7 @@ class NavigationTest {
                 SignalBriefApp(
                     onboardingCompleted = true,
                     onCompleteOnboarding = {},
-                    topHeadlinesContent = { bottomBar ->
+                    topHeadlinesContent = { bottomBar, onArticleClick ->
                         TopHeadlinesScreen(
                             uiState =
                                 TopHeadlinesUiState.Success(
@@ -126,18 +152,19 @@ class NavigationTest {
                                     FeedSource.NETWORK,
                                 ),
                             onRefresh = {},
-                            onArticleClick = {},
+                            onArticleClick = onArticleClick,
                             bottomBar = bottomBar,
                         )
                     },
-                    savedContent = { bottomBar ->
+                    savedContent = { bottomBar, onArticleClick ->
                         SavedArticlesScreen(
                             uiState = SavedArticlesUiState.Empty,
-                            onArticleClick = {},
+                            onArticleClick = onArticleClick,
                             onRemoveClick = {},
                             bottomBar = bottomBar,
                         )
                     },
+                    articleDetailsContent = { _, _ -> },
                 )
             }
         }
@@ -149,5 +176,92 @@ class NavigationTest {
 
         composeTestRule.onNodeWithText(SavedArticlesStrings.TOP_BAR_TITLE).assertIsDisplayed()
         composeTestRule.onNodeWithText(SavedArticlesStrings.EMPTY_TITLE).assertIsDisplayed()
+    }
+
+    @Test
+    fun headlinesArticleTapOpensDetails() {
+        setContent()
+
+        composeTestRule.onNodeWithText("Test Article").performClick()
+
+        composeTestRule.onNodeWithText("Test Article").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Back").assertIsDisplayed()
+    }
+
+    @Test
+    fun detailsBackReturnsToHeadlines() {
+        setContent()
+
+        composeTestRule.onNodeWithText("Test Article").performClick()
+        composeTestRule.onNodeWithText("Back").assertIsDisplayed()
+
+        composeTestRule.onNodeWithText("Back").performClick()
+
+        composeTestRule.onNodeWithText(TopHeadlinesStrings.TOP_BAR_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText("Headlines").assertIsDisplayed()
+    }
+
+    @Test
+    fun savedArticleTapOpensDetails() {
+        setContent(savedArticles = fakeArticles)
+
+        composeTestRule.onNodeWithText("Saved").performClick()
+        composeTestRule.onNodeWithText("Test Article").performClick()
+
+        composeTestRule.onNodeWithText("Test Article").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Back").assertIsDisplayed()
+    }
+
+    @Test
+    fun detailsBackReturnsToSaved() {
+        setContent(savedArticles = fakeArticles)
+
+        composeTestRule.onNodeWithText("Saved").performClick()
+        composeTestRule.onNodeWithText("Test Article").performClick()
+        composeTestRule.onNodeWithText("Back").assertIsDisplayed()
+
+        composeTestRule.onNodeWithText("Back").performClick()
+
+        composeTestRule.onNodeWithText(SavedArticlesStrings.TOP_BAR_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText("Saved").assertIsDisplayed()
+    }
+
+    @Test
+    fun bottomNavIsHiddenOnDetails() {
+        setContent()
+
+        composeTestRule.onNodeWithText("Test Article").performClick()
+
+        composeTestRule.onNodeWithText("Headlines").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Saved").assertDoesNotExist()
+    }
+
+    @Test
+    fun detailsIsNotAThirdTopLevelDestination() {
+        setContent()
+
+        composeTestRule.onNodeWithText("Details").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Article").assertDoesNotExist()
+    }
+
+    @Test
+    fun bookmarkClickOnHeadlinesCardDoesNotOpenDetails() {
+        setContent()
+
+        composeTestRule.onNodeWithContentDescription("Save article").performClick()
+
+        composeTestRule.onNodeWithText("Back").assertDoesNotExist()
+        composeTestRule.onNodeWithText(TopHeadlinesStrings.TOP_BAR_TITLE).assertIsDisplayed()
+    }
+
+    @Test
+    fun bookmarkClickOnSavedCardDoesNotOpenDetails() {
+        setContent(savedArticles = fakeArticles)
+
+        composeTestRule.onNodeWithText("Saved").performClick()
+        composeTestRule.onNodeWithContentDescription("Remove from saved").performClick()
+
+        composeTestRule.onNodeWithText("Back").assertDoesNotExist()
+        composeTestRule.onNodeWithText(SavedArticlesStrings.TOP_BAR_TITLE).assertIsDisplayed()
     }
 }
