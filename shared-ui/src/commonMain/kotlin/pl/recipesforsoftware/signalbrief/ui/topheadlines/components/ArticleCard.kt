@@ -171,8 +171,12 @@ private fun BookmarkAction(
     }
 }
 
+/**
+ * Source badge line shared between the feed card and Article Details: source
+ * initials on a small primary container followed by the publisher name.
+ */
 @Composable
-private fun ArticleHeader(sourceName: String) {
+internal fun ArticleHeader(sourceName: String) {
     val initials = sourceInitials(sourceName)
     Row(
         modifier = Modifier.fillMaxWidth(),

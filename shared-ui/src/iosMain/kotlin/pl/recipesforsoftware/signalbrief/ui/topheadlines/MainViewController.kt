@@ -20,7 +20,10 @@ import pl.recipesforsoftware.signalbrief.data.remote.createHttpClient
 import pl.recipesforsoftware.signalbrief.data.repository.OfflineFirstNewsRepository
 import pl.recipesforsoftware.signalbrief.data.repository.RoomSavedArticlesRepository
 import pl.recipesforsoftware.signalbrief.domain.model.Article
+import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
 import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefApp
+import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsPresenter
+import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsScreen
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesPresenter
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesScreen
 import platform.Foundation.NSBundle
@@ -37,9 +40,10 @@ private const val ONBOARDING_KEY = "pl.recipesforsoftware.signalbrief.onboarding
  * users never see an onboarding flash.
  *
  * The iOS composition is created exactly once at the root of this controller and
- * disposed only when the whole controller is torn down. Headlines and Saved share
- * the same [SignalBriefDatabase], the same [RoomSavedArticlesRepository], and the
- * same presenters, so switching tabs never closes or recreates persistence layers.
+ * disposed only when the whole controller is torn down. Headlines, Saved, and
+ * Article Details share the same [SignalBriefDatabase], the same
+ * [RoomSavedArticlesRepository], and the same presenters, so switching tabs or
+ * opening details never closes or recreates persistence layers.
  */
 fun mainViewController(): UIViewController {
     val onboardingCompleted = readOnboardingCompleted()
@@ -60,16 +64,25 @@ fun mainViewController(): UIViewController {
                     setOnboardingCompleted(true)
                     completed = true
                 },
-                topHeadlinesContent = { bottomBar ->
+                topHeadlinesContent = { bottomBar, onArticleClick ->
                     HeadlinesRoute(
                         presenter = composition.headlinesPresenter,
                         bottomBar = bottomBar,
+                        onArticleClick = onArticleClick,
                     )
                 },
-                savedContent = { bottomBar ->
+                savedContent = { bottomBar, onArticleClick ->
                     SavedRoute(
                         presenter = composition.savedPresenter,
                         bottomBar = bottomBar,
+                        onArticleClick = onArticleClick,
+                    )
+                },
+                articleDetailsContent = { article, onBack ->
+                    ArticleDetailsRoute(
+                        article = article,
+                        savedArticlesRepository = composition.savedArticlesRepository,
+                        onBack = onBack,
                     )
                 },
             )
@@ -81,15 +94,14 @@ fun mainViewController(): UIViewController {
 private fun HeadlinesRoute(
     presenter: TopHeadlinesPresenter,
     bottomBar: @Composable () -> Unit,
+    onArticleClick: (Article) -> Unit,
 ) {
     val uiState by presenter.uiState.collectAsState()
-    val uriHandler = LocalUriHandler.current
-    val openArticle = rememberOpenArticleAction(uriHandler)
 
     TopHeadlinesScreen(
         uiState = uiState,
         onRefresh = presenter::refresh,
-        onArticleClick = openArticle,
+        onArticleClick = onArticleClick,
         onBookmarkClick = presenter::toggleBookmark,
         bottomBar = bottomBar,
     )
@@ -99,23 +111,54 @@ private fun HeadlinesRoute(
 private fun SavedRoute(
     presenter: SavedArticlesPresenter,
     bottomBar: @Composable () -> Unit,
+    onArticleClick: (Article) -> Unit,
 ) {
     val uiState by presenter.uiState.collectAsState()
-    val uriHandler = LocalUriHandler.current
-    val openArticle = rememberOpenArticleAction(uriHandler)
 
     SavedArticlesScreen(
         uiState = uiState,
-        onArticleClick = openArticle,
+        onArticleClick = onArticleClick,
         onRemoveClick = { presenter.removeArticle(it.url) },
         bottomBar = bottomBar,
     )
 }
 
 @Composable
-private fun rememberOpenArticleAction(uriHandler: UriHandler): (Article) -> Unit =
-    remember(uriHandler) {
-        { article ->
+private fun ArticleDetailsRoute(
+    article: Article,
+    savedArticlesRepository: SavedArticlesRepository,
+    onBack: () -> Unit,
+) {
+    val presenter =
+        remember(article.url) {
+            ArticleDetailsPresenter(
+                savedArticlesRepository = savedArticlesRepository,
+                article = article,
+            )
+        }
+    DisposableEffect(presenter) {
+        onDispose { presenter.dispose() }
+    }
+
+    val uiState by presenter.uiState.collectAsState()
+    val uriHandler = LocalUriHandler.current
+    val openFullArticle = rememberOpenFullArticleAction(article, uriHandler)
+
+    ArticleDetailsScreen(
+        uiState = uiState,
+        onBack = onBack,
+        onBookmarkClick = presenter::toggleBookmark,
+        onOpenFullArticle = openFullArticle,
+    )
+}
+
+@Composable
+private fun rememberOpenFullArticleAction(
+    article: Article,
+    uriHandler: UriHandler,
+): () -> Unit =
+    remember(article.url, uriHandler) {
+        {
             if (article.hasActionableUrl()) {
                 uriHandler.openUri(article.url)
             }
@@ -130,12 +173,17 @@ private fun rememberOpenArticleAction(uriHandler: UriHandler): (Article) -> Unit
  * presenters share the same repository instance so the Saved flow synchronizes
  * Headlines bookmark state through the same persistence layer.
  *
+ * Article Details presenters are scoped to the details route composition and
+ * are not held here; they receive the same repository instance without creating
+ * a second database or repository.
+ *
  * [dispose] must be called exactly once, when the owning composition root is
  * torn down; it cancels both presenters and then closes the client and database.
  */
 private class IosComposition(
     val headlinesPresenter: TopHeadlinesPresenter,
     val savedPresenter: SavedArticlesPresenter,
+    val savedArticlesRepository: SavedArticlesRepository,
     private val client: HttpClient,
     private val database: SignalBriefDatabase,
 ) {
@@ -177,7 +225,7 @@ private fun createIosComposition(): IosComposition {
         SavedArticlesPresenter(
             savedArticlesRepository = savedArticlesRepository,
         )
-    return IosComposition(headlinesPresenter, savedPresenter, client, database)
+    return IosComposition(headlinesPresenter, savedPresenter, savedArticlesRepository, client, database)
 }
 
 /**

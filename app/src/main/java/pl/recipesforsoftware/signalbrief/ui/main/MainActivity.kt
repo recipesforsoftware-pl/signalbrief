@@ -4,9 +4,11 @@ import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -14,12 +16,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.platform.UriHandler
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.hilt.navigation.compose.hiltViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
 import pl.recipesforsoftware.signalbrief.domain.model.Article
+import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
 import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefApp
+import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsPresenter
+import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsScreen
 import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingViewModel
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesScreen
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesViewModel
@@ -29,90 +34,181 @@ import pl.recipesforsoftware.signalbrief.ui.topheadlines.DarkModeMenu
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesScreen
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesViewModel
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.hasActionableUrl
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @Inject
+    lateinit var savedArticlesRepository: SavedArticlesRepository
+
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         setContent {
-            val themeViewModel: ThemeViewModel = hiltViewModel()
-            val isDarkMode by themeViewModel.isDarkMode.collectAsState()
-
-            val onboardingViewModel: OnboardingViewModel = hiltViewModel()
-            val onboardingCompleted by onboardingViewModel.isOnboardingCompleted.collectAsState()
-
-            // Keep system-bar icon appearance in sync with SignalBrief's own dark
-            // mode preference instead of the Android system theme, so the icons
-            // always contrast with the app's edge-to-edge, transparent bars.
-            SideEffect {
-                val barStyle =
-                    if (isDarkMode) {
-                        SystemBarStyle.dark(Color.TRANSPARENT)
-                    } else {
-                        SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
-                    }
-                enableEdgeToEdge(statusBarStyle = barStyle, navigationBarStyle = barStyle)
-            }
-
-            // Keep a local optimistic copy so the UI switches immediately after
-            // the user completes onboarding while DataStore propagates the value.
-            var localOnboardingCompleted by remember { mutableStateOf<Boolean?>(null) }
-
-            SignalBriefAndroidTheme(isDarkMode = isDarkMode) {
-                val resolvedCompleted = localOnboardingCompleted ?: onboardingCompleted
-                val uriHandler = LocalUriHandler.current
-                val openArticle = rememberOpenArticleAction(uriHandler)
-
-                SignalBriefApp(
-                    onboardingCompleted = resolvedCompleted,
-                    onCompleteOnboarding = {
-                        localOnboardingCompleted = true
-                        onboardingViewModel.completeOnboarding()
-                    },
-                    topHeadlinesContent = { bottomBar ->
-                        val viewModel: TopHeadlinesViewModel = hiltViewModel()
-                        val uiState by viewModel.uiState.collectAsState()
-
-                        TopHeadlinesScreen(
-                            uiState = uiState,
-                            onRefresh = viewModel::refresh,
-                            onArticleClick = openArticle,
-                            onBookmarkClick = viewModel::toggleBookmark,
-                            topBarActions = {
-                                DarkModeMenu(
-                                    isDarkMode = isDarkMode,
-                                    onToggleDarkMode = themeViewModel::toggleDarkMode,
-                                )
-                            },
-                            bottomBar = bottomBar,
-                        )
-                    },
-                    savedContent = { bottomBar ->
-                        val viewModel: SavedArticlesViewModel = hiltViewModel()
-                        val uiState by viewModel.uiState.collectAsState()
-
-                        SavedArticlesScreen(
-                            uiState = uiState,
-                            onArticleClick = openArticle,
-                            onRemoveClick = { viewModel.removeArticle(it.url) },
-                            bottomBar = bottomBar,
-                        )
-                    },
-                )
-            }
+            SignalBriefContent()
         }
     }
 
     @Composable
-    private fun rememberOpenArticleAction(uriHandler: UriHandler): (Article) -> Unit =
-        remember(uriHandler) {
-            { article ->
+    private fun SignalBriefContent() {
+        val themeViewModel: ThemeViewModel = hiltViewModel()
+        val isDarkMode by themeViewModel.isDarkMode.collectAsState()
+
+        val onboardingViewModel: OnboardingViewModel = hiltViewModel()
+        val onboardingCompleted by onboardingViewModel.isOnboardingCompleted.collectAsState()
+
+        SyncSystemBars(isDarkMode)
+
+        // Keep a local optimistic copy so the UI switches immediately after
+        // the user completes onboarding while DataStore propagates the value.
+        var localOnboardingCompleted by remember { mutableStateOf<Boolean?>(null) }
+
+        SignalBriefAndroidTheme(isDarkMode = isDarkMode) {
+            val resolvedCompleted = localOnboardingCompleted ?: onboardingCompleted
+
+            SignalBriefApp(
+                onboardingCompleted = resolvedCompleted,
+                onCompleteOnboarding = {
+                    localOnboardingCompleted = true
+                    onboardingViewModel.completeOnboarding()
+                },
+                topHeadlinesContent = { bottomBar, onArticleClick ->
+                    TopHeadlinesRoute(
+                        isDarkMode = isDarkMode,
+                        onToggleDarkMode = themeViewModel::toggleDarkMode,
+                        bottomBar = bottomBar,
+                        onArticleClick = onArticleClick,
+                    )
+                },
+                savedContent = { bottomBar, onArticleClick ->
+                    SavedArticlesRoute(
+                        bottomBar = bottomBar,
+                        onArticleClick = onArticleClick,
+                    )
+                },
+                articleDetailsContent = { article, onBack ->
+                    ArticleDetailsRoute(
+                        article = article,
+                        savedArticlesRepository = savedArticlesRepository,
+                        onBack = onBack,
+                    )
+                },
+            )
+        }
+    }
+
+    @Composable
+    private fun SyncSystemBars(isDarkMode: Boolean) {
+        // Keep system-bar icon appearance in sync with SignalBrief's own dark
+        // mode preference instead of the Android system theme.
+        SideEffect {
+            val barStyle =
+                if (isDarkMode) {
+                    SystemBarStyle.dark(Color.TRANSPARENT)
+                } else {
+                    SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+                }
+
+            enableEdgeToEdge(
+                statusBarStyle = barStyle,
+                navigationBarStyle = barStyle,
+            )
+        }
+    }
+
+    @Composable
+    private fun TopHeadlinesRoute(
+        isDarkMode: Boolean,
+        onToggleDarkMode: () -> Unit,
+        bottomBar: @Composable () -> Unit,
+        onArticleClick: (Article) -> Unit,
+    ) {
+        val viewModel: TopHeadlinesViewModel = hiltViewModel()
+        val uiState by viewModel.uiState.collectAsState()
+
+        TopHeadlinesScreen(
+            uiState = uiState,
+            onRefresh = viewModel::refresh,
+            onArticleClick = onArticleClick,
+            onBookmarkClick = viewModel::toggleBookmark,
+            topBarActions = {
+                DarkModeMenu(
+                    isDarkMode = isDarkMode,
+                    onToggleDarkMode = onToggleDarkMode,
+                )
+            },
+            bottomBar = bottomBar,
+        )
+    }
+
+    @Composable
+    private fun SavedArticlesRoute(
+        bottomBar: @Composable () -> Unit,
+        onArticleClick: (Article) -> Unit,
+    ) {
+        val viewModel: SavedArticlesViewModel = hiltViewModel()
+        val uiState by viewModel.uiState.collectAsState()
+
+        SavedArticlesScreen(
+            uiState = uiState,
+            onArticleClick = onArticleClick,
+            onRemoveClick = { viewModel.removeArticle(it.url) },
+            bottomBar = bottomBar,
+        )
+    }
+}
+
+/**
+ * Android Article Details route.
+ *
+ * [BackHandler] integrates the Android system back gesture with the shared
+ * child-navigation state: while details are composed, system back clears the
+ * selected article and returns to the originating destination — exactly what
+ * the toolbar back action does. When details leave composition the handler
+ * disables itself, so back behaves normally everywhere else. No navigation
+ * library and no back stack are involved.
+ *
+ * The presenter is scoped to this route's composition (created per article URL
+ * and disposed on leave) so bookmark observation never outlives the screen;
+ * persistence itself stays in the existing Hilt singleton repository.
+ */
+@Composable
+private fun ArticleDetailsRoute(
+    article: Article,
+    savedArticlesRepository: SavedArticlesRepository,
+    onBack: () -> Unit,
+) {
+    BackHandler(onBack = onBack)
+
+    val presenter =
+        remember(article.url) {
+            ArticleDetailsPresenter(
+                savedArticlesRepository = savedArticlesRepository,
+                article = article,
+                dispatcher = Dispatchers.Main.immediate,
+            )
+        }
+    DisposableEffect(presenter) {
+        onDispose { presenter.dispose() }
+    }
+
+    val uiState by presenter.uiState.collectAsState()
+    val uriHandler = LocalUriHandler.current
+    val openFullArticle =
+        remember(article.url, uriHandler) {
+            {
                 if (article.hasActionableUrl()) {
                     uriHandler.openUri(article.url)
                 }
             }
         }
+
+    ArticleDetailsScreen(
+        uiState = uiState,
+        onBack = onBack,
+        onBookmarkClick = presenter::toggleBookmark,
+        onOpenFullArticle = openFullArticle,
+    )
 }
