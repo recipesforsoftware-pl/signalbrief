@@ -23,3 +23,5 @@ iosApp/iosApp.xcodeproj/xcuserdata/
 iosApp/iosApp.xcodeproj/project.xcworkspace/
 iosApp/iosApp.xcodeproj/xcshareddata/
 iosApp/*.xcuserstate
+
+/core/build/
