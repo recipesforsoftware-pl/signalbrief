@@ -26,6 +26,8 @@ import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesReposito
 import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefApp
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsPresenter
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsScreen
+import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefPresenter
+import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefScreen
 import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingViewModel
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesScreen
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesViewModel
@@ -94,6 +96,9 @@ class MainActivity : ComponentActivity() {
                         bottomBar = bottomBar,
                         onArticleClick = onArticleClick,
                     )
+                },
+                dailyBriefContent = { bottomBar, onArticleClick ->
+                    DailyBriefRoute(bottomBar, onArticleClick)
                 },
                 searchContent = { initialQuery, onQueryChange, onArticleClick, onBack ->
                     SearchRoute(
@@ -172,6 +177,29 @@ class MainActivity : ComponentActivity() {
             uiState = uiState,
             onArticleClick = onArticleClick,
             onRemoveClick = { viewModel.removeArticle(it.url) },
+            bottomBar = bottomBar,
+        )
+    }
+
+    @Composable
+    private fun DailyBriefRoute(
+        bottomBar: @Composable () -> Unit,
+        onArticleClick: (Article) -> Unit,
+    ) {
+        val presenter =
+            remember {
+                DailyBriefPresenter(
+                    newsRepository = newsRepository,
+                    savedArticlesRepository = savedArticlesRepository,
+                    dispatcher = Dispatchers.Main.immediate,
+                )
+            }
+        DisposableEffect(presenter) { onDispose { presenter.dispose() } }
+        val uiState by presenter.uiState.collectAsState()
+        DailyBriefScreen(
+            uiState = uiState,
+            onArticleClick = onArticleClick,
+            onBookmarkClick = presenter::toggleBookmark,
             bottomBar = bottomBar,
         )
     }

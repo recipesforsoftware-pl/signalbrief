@@ -32,16 +32,16 @@ import pl.recipesforsoftware.signalbrief.ui.onboarding.rememberOnboardingPresent
 /**
  * Shared application shell for SignalBrief.
  *
- * Decides between the two-page onboarding flow and the main two-destination
+ * Decides between the two-page onboarding flow and the main three-destination
  * app based on [onboardingCompleted]:
  * - `null`  -> the persisted value is still loading; a subtle loading indicator
  *              is shown to avoid an onboarding flash.
  * - `false` -> onboarding is shown.
- * - `true`  -> the host-provided destination content with a two-item bottom
- *              navigation bar (Headlines / Saved) is shown.
+ * - `true`  -> the host-provided destination content with a three-item bottom
+ *              navigation bar (Headlines / Brief / Saved) is shown.
  *
  * The shell owns both navigation levels. Top-level navigation is exactly the
- * two [AppDestination] entries, kept in `rememberSaveable` with an explicit
+ * three [AppDestination] entries, kept in `rememberSaveable` with an explicit
  * [Saver]; it survives host recreation and defaults to
  * [AppDestination.Headlines]. Child navigation is a single nullable selected
  * article: when set, Article Details replaces the destination content and the
@@ -53,7 +53,7 @@ import pl.recipesforsoftware.signalbrief.ui.onboarding.rememberOnboardingPresent
  * Navigation priority while the main app is visible:
  * 1. [selectedArticle] -> Article Details.
  * 2. [isSearchVisible] -> Search.
- * 3. [currentDestination] -> Headlines or Saved.
+ * 3. [currentDestination] -> Headlines, Daily Brief, or Saved.
  *
  * Toolbar back and any host-integrated system back both funnel through the
  * same state clear, so there is one shared transition path and no back stack.
@@ -72,6 +72,12 @@ typealias TopHeadlinesContent =
     ) -> Unit
 
 typealias SavedContent =
+    @Composable (
+        bottomBar: @Composable () -> Unit,
+        onArticleClick: (Article) -> Unit,
+    ) -> Unit
+
+typealias DailyBriefContent =
     @Composable (
         bottomBar: @Composable () -> Unit,
         onArticleClick: (Article) -> Unit,
@@ -99,6 +105,7 @@ fun SignalBriefApp(
     savedContent: SavedContent,
     searchContent: SearchContent,
     articleDetailsContent: ArticleDetailsContent,
+    dailyBriefContent: DailyBriefContent,
     modifier: Modifier = Modifier,
 ) {
     installSignalBriefImageLoader()
@@ -125,6 +132,7 @@ fun SignalBriefApp(
         if (onboardingCompleted == true) {
             SignalBriefMainContent(
                 topHeadlinesContent = topHeadlinesContent,
+                dailyBriefContent = dailyBriefContent,
                 savedContent = savedContent,
                 searchContent = searchContent,
                 articleDetailsContent = articleDetailsContent,
@@ -136,6 +144,7 @@ fun SignalBriefApp(
 @Composable
 private fun SignalBriefMainContent(
     topHeadlinesContent: TopHeadlinesContent,
+    dailyBriefContent: DailyBriefContent,
     savedContent: SavedContent,
     searchContent: SearchContent,
     articleDetailsContent: ArticleDetailsContent,
@@ -179,6 +188,10 @@ private fun SignalBriefMainContent(
                 )
             }
 
+            AppDestination.DailyBrief -> {
+                dailyBriefContent(bottomBar) { article -> selectedArticle = article }
+            }
+
             AppDestination.Saved -> {
                 savedContent(bottomBar) { article -> selectedArticle = article }
             }
@@ -202,6 +215,23 @@ private fun SignalBriefBottomBar(
                 )
             },
             label = { Text("Headlines") },
+            colors =
+                NavigationBarItemDefaults.colors(
+                    selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                    indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
+                ),
+        )
+        NavigationBarItem(
+            selected = currentDestination == AppDestination.DailyBrief,
+            onClick = { onNavigate(AppDestination.DailyBrief) },
+            icon = {
+                Icon(
+                    imageVector = NavigationIcons.Brief,
+                    contentDescription = "Daily Brief",
+                )
+            },
+            label = { Text("Brief") },
             colors =
                 NavigationBarItemDefaults.colors(
                     selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,

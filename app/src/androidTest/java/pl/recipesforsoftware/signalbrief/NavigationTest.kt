@@ -18,6 +18,9 @@ import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.FeedSource
 import pl.recipesforsoftware.signalbrief.domain.model.Source
 import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefApp
+import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefScreen
+import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefStrings
+import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefUiState
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesScreen
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesStrings
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesUiState
@@ -94,6 +97,14 @@ class NavigationTest {
                             bottomBar = bottomBar,
                         )
                     },
+                    dailyBriefContent = { bottomBar, onArticleClick ->
+                        DailyBriefScreen(
+                            uiState = DailyBriefUiState.Content(headlineArticles, emptySet()),
+                            onArticleClick = onArticleClick,
+                            onBookmarkClick = {},
+                            bottomBar = bottomBar,
+                        )
+                    },
                     searchContent = { initialQuery, onQueryChange, onArticleClick, onBack ->
                         SearchScreen(
                             query = initialQuery,
@@ -143,16 +154,28 @@ class NavigationTest {
     }
 
     @Test
-    fun onlyHeadlinesAndSavedDestinationsExist() {
+    fun exactlyThreeRealTopLevelDestinationsExist() {
         setContent()
 
         composeTestRule.onNodeWithText("Headlines").assertIsDisplayed()
         composeTestRule.onNodeWithText("Saved").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Brief").assertIsDisplayed()
 
         composeTestRule.onNodeWithText("Search").assertDoesNotExist()
-        composeTestRule.onNodeWithText("Daily Brief").assertDoesNotExist()
         composeTestRule.onNodeWithText("Monitor").assertDoesNotExist()
         composeTestRule.onNodeWithText("Collections").assertDoesNotExist()
+    }
+
+    @Test
+    fun dailyBriefOpensAndDetailsBackReturnsToBrief() {
+        setContent()
+
+        composeTestRule.onNodeWithText("Brief").performClick()
+        composeTestRule.onNodeWithText(DailyBriefStrings.INTRO).assertIsDisplayed()
+        composeTestRule.onNodeWithText("Test Article").performClick()
+        composeTestRule.onNodeWithText("Back").performClick()
+
+        composeTestRule.onNodeWithText(DailyBriefStrings.INTRO).assertIsDisplayed()
     }
 
     @Test
@@ -185,6 +208,14 @@ class NavigationTest {
                             bottomBar = bottomBar,
                         )
                     },
+                    dailyBriefContent = { bottomBar, onArticleClick ->
+                        DailyBriefScreen(
+                            uiState = DailyBriefUiState.Content(fakeArticles, emptySet()),
+                            onArticleClick = onArticleClick,
+                            onBookmarkClick = {},
+                            bottomBar = bottomBar,
+                        )
+                    },
                     searchContent = { initialQuery, onQueryChange, onArticleClick, onBack ->
                         SearchScreen(
                             query = initialQuery,
@@ -207,6 +238,63 @@ class NavigationTest {
 
         composeTestRule.onNodeWithText(SavedArticlesStrings.EMPTY_TITLE).assertIsDisplayed()
         composeTestRule.onNodeWithText(SavedArticlesStrings.EMPTY_TITLE).assertIsDisplayed()
+    }
+
+    @Test
+    fun dailyBriefDestinationSurvivesStateRestoration() {
+        val restorationTester = StateRestorationTester(composeTestRule)
+        restorationTester.setContent {
+            SignalBriefAndroidTheme(isDarkMode = false, dynamicColor = false) {
+                SignalBriefApp(
+                    onboardingCompleted = true,
+                    onCompleteOnboarding = {},
+                    topHeadlinesContent = { bottomBar, onArticleClick, onSearchClick ->
+                        TopHeadlinesScreen(
+                            uiState = TopHeadlinesUiState.Success(fakeArticles, FeedSource.NETWORK),
+                            onRefresh = {},
+                            onArticleClick = onArticleClick,
+                            onBookmarkClick = {},
+                            onSearchClick = onSearchClick,
+                            bottomBar = bottomBar,
+                        )
+                    },
+                    savedContent = { bottomBar, onArticleClick ->
+                        SavedArticlesScreen(
+                            uiState = SavedArticlesUiState.Empty,
+                            onArticleClick = onArticleClick,
+                            onRemoveClick = {},
+                            bottomBar = bottomBar,
+                        )
+                    },
+                    dailyBriefContent = { bottomBar, onArticleClick ->
+                        DailyBriefScreen(
+                            uiState = DailyBriefUiState.Content(fakeArticles, emptySet()),
+                            onArticleClick = onArticleClick,
+                            onBookmarkClick = {},
+                            bottomBar = bottomBar,
+                        )
+                    },
+                    searchContent = { initialQuery, onQueryChange, onArticleClick, onBack ->
+                        SearchScreen(
+                            query = initialQuery,
+                            onQueryChange = onQueryChange,
+                            uiState = SearchUiState.Idle,
+                            onArticleClick = onArticleClick,
+                            onBookmarkClick = {},
+                            onBack = onBack,
+                        )
+                    },
+                    articleDetailsContent = { _, _ -> },
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Brief").performClick()
+        composeTestRule.onNodeWithText(DailyBriefStrings.INTRO).assertIsDisplayed()
+
+        restorationTester.emulateSavedInstanceStateRestore()
+
+        composeTestRule.onNodeWithText(DailyBriefStrings.INTRO).assertIsDisplayed()
     }
 
     @Test
@@ -381,6 +469,14 @@ class NavigationTest {
                             uiState = SavedArticlesUiState.Empty,
                             onArticleClick = onArticleClick,
                             onRemoveClick = {},
+                            bottomBar = bottomBar,
+                        )
+                    },
+                    dailyBriefContent = { bottomBar, onArticleClick ->
+                        DailyBriefScreen(
+                            uiState = DailyBriefUiState.Content(fakeArticles, emptySet()),
+                            onArticleClick = onArticleClick,
+                            onBookmarkClick = {},
                             bottomBar = bottomBar,
                         )
                     },

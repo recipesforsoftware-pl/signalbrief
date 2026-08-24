@@ -9,5 +9,6 @@ package pl.recipesforsoftware.signalbrief.ui.app
  */
 internal enum class AppDestination {
     Headlines,
+    DailyBrief,
     Saved,
 }
