@@ -1,5 +1,6 @@
 package pl.recipesforsoftware.signalbrief.data.local
 
+import kotlinx.coroutines.flow.Flow
 import pl.recipesforsoftware.signalbrief.domain.failure.NewsFailure
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 
@@ -16,6 +17,14 @@ interface NewsLocalDataSource {
      * order. An absent or empty cache returns a successful empty list.
      */
     suspend fun getTopHeadlines(country: String): Result<List<Article>>
+
+    /**
+     * Observes the cached top headlines for [country] reactively.
+     *
+     * Emits the current cache immediately and again on every local change. No
+     * network request is performed. An absent or empty cache emits an empty list.
+     */
+    fun observeTopHeadlines(country: String): Flow<List<Article>>
 
     /**
      * Transactionally replaces the cached top headlines for [country]. Passing an

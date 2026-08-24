@@ -21,6 +21,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import pl.recipesforsoftware.signalbrief.domain.model.Article
+import pl.recipesforsoftware.signalbrief.domain.repository.NewsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
 import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefApp
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsPresenter
@@ -28,6 +29,8 @@ import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsScreen
 import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingViewModel
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesScreen
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesViewModel
+import pl.recipesforsoftware.signalbrief.ui.search.SearchPresenter
+import pl.recipesforsoftware.signalbrief.ui.search.SearchScreen
 import pl.recipesforsoftware.signalbrief.ui.theme.SignalBriefAndroidTheme
 import pl.recipesforsoftware.signalbrief.ui.theme.ThemeViewModel
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.DarkModeMenu
@@ -40,6 +43,9 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
     @Inject
     lateinit var savedArticlesRepository: SavedArticlesRepository
+
+    @Inject
+    lateinit var newsRepository: NewsRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
@@ -74,18 +80,27 @@ class MainActivity : ComponentActivity() {
                     localOnboardingCompleted = true
                     onboardingViewModel.completeOnboarding()
                 },
-                topHeadlinesContent = { bottomBar, onArticleClick ->
+                topHeadlinesContent = { bottomBar, onArticleClick, onSearchClick ->
                     TopHeadlinesRoute(
                         isDarkMode = isDarkMode,
                         onToggleDarkMode = themeViewModel::toggleDarkMode,
                         bottomBar = bottomBar,
                         onArticleClick = onArticleClick,
+                        onSearchClick = onSearchClick,
                     )
                 },
                 savedContent = { bottomBar, onArticleClick ->
                     SavedArticlesRoute(
                         bottomBar = bottomBar,
                         onArticleClick = onArticleClick,
+                    )
+                },
+                searchContent = { initialQuery, onQueryChange, onArticleClick, onBack ->
+                    SearchRoute(
+                        initialQuery = initialQuery,
+                        onQueryChange = onQueryChange,
+                        onArticleClick = onArticleClick,
+                        onBack = onBack,
                     )
                 },
                 articleDetailsContent = { article, onBack ->
@@ -124,6 +139,7 @@ class MainActivity : ComponentActivity() {
         onToggleDarkMode: () -> Unit,
         bottomBar: @Composable () -> Unit,
         onArticleClick: (Article) -> Unit,
+        onSearchClick: () -> Unit,
     ) {
         val viewModel: TopHeadlinesViewModel = hiltViewModel()
         val uiState by viewModel.uiState.collectAsState()
@@ -133,6 +149,7 @@ class MainActivity : ComponentActivity() {
             onRefresh = viewModel::refresh,
             onArticleClick = onArticleClick,
             onBookmarkClick = viewModel::toggleBookmark,
+            onSearchClick = onSearchClick,
             topBarActions = {
                 DarkModeMenu(
                     isDarkMode = isDarkMode,
@@ -156,6 +173,55 @@ class MainActivity : ComponentActivity() {
             onArticleClick = onArticleClick,
             onRemoveClick = { viewModel.removeArticle(it.url) },
             bottomBar = bottomBar,
+        )
+    }
+
+    /**
+     * Android Local Search route.
+     *
+     * [BackHandler] integrates the Android system back gesture with the shared
+     * child-navigation state: while Search is composed, system back closes Search
+     * and returns to Headlines. The presenter is scoped to this route's
+     * composition (created once and disposed on leave) so query state lives only
+     * as long as the screen is visible. The query itself is hoisted into
+     * [rememberSaveable] by [SignalBriefApp] so it survives configuration changes
+     * and the Search -> Details -> Search round-trip.
+     */
+    @Composable
+    private fun SearchRoute(
+        initialQuery: String,
+        onQueryChange: (String) -> Unit,
+        onArticleClick: (Article) -> Unit,
+        onBack: () -> Unit,
+    ) {
+        BackHandler(onBack = onBack)
+
+        val presenter =
+            remember {
+                SearchPresenter(
+                    newsRepository = newsRepository,
+                    savedArticlesRepository = savedArticlesRepository,
+                    initialQuery = initialQuery,
+                    dispatcher = Dispatchers.Main.immediate,
+                )
+            }
+        DisposableEffect(presenter) {
+            onDispose { presenter.dispose() }
+        }
+
+        val query by presenter.query.collectAsState()
+        val uiState by presenter.uiState.collectAsState()
+
+        SearchScreen(
+            query = query,
+            onQueryChange = {
+                presenter.setQuery(it)
+                onQueryChange(it)
+            },
+            uiState = uiState,
+            onArticleClick = onArticleClick,
+            onBookmarkClick = presenter::toggleBookmark,
+            onBack = onBack,
         )
     }
 }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -53,9 +54,10 @@ private val SigbyStateSize = 120.dp
  * is invoked when the user taps any article card; the host decides how to open
  * [Article.url] (for example through a platform URI handler). [onBookmarkClick]
  * is invoked when the user taps the bookmark action on an article with a valid
- * URL; the host delegates to the presenter's toggle logic. [topBarActions] is
- * an optional host-provided slot (for example the Android dark-mode menu); it
- * defaults to nothing so both platforms render the same core screen.
+ * URL; the host delegates to the presenter's toggle logic. [onSearchClick]
+ * opens the Local Search child screen. [topBarActions] is an optional
+ * host-provided slot (for example the Android dark-mode menu); it defaults to
+ * nothing so both platforms render the same core screen.
  *
  * Layout is responsive: content is capped at [SignalBriefSpacing.maxContentWidth]
  * and centered so wide screens (tablets, foldables) keep a comfortable reading
@@ -69,36 +71,17 @@ fun TopHeadlinesScreen(
     onArticleClick: (Article) -> Unit,
     modifier: Modifier = Modifier,
     onBookmarkClick: ((Article) -> Unit)? = null,
+    onSearchClick: () -> Unit = {},
     topBarActions: @Composable () -> Unit = {},
     bottomBar: @Composable () -> Unit = {},
 ) {
     Scaffold(
         modifier = modifier,
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = TopHeadlinesStrings.TOP_BAR_TITLE,
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = TopHeadlinesStrings.TOP_BAR_SUBTITLE,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onRefresh) {
-                        Icon(
-                            imageVector = Icons.Filled.Refresh,
-                            contentDescription = TopHeadlinesStrings.REFRESH,
-                        )
-                    }
-                    topBarActions()
-                },
+            TopHeadlinesTopBar(
+                onRefresh = onRefresh,
+                onSearchClick = onSearchClick,
+                topBarActions = topBarActions,
             )
         },
         bottomBar = bottomBar,
@@ -130,6 +113,46 @@ fun TopHeadlinesScreen(
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TopHeadlinesTopBar(
+    onRefresh: () -> Unit,
+    onSearchClick: () -> Unit,
+    topBarActions: @Composable () -> Unit,
+) {
+    TopAppBar(
+        title = {
+            Column {
+                Text(
+                    text = TopHeadlinesStrings.TOP_BAR_TITLE,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = TopHeadlinesStrings.TOP_BAR_SUBTITLE,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        actions = {
+            IconButton(onClick = onSearchClick) {
+                Icon(
+                    imageVector = Icons.Filled.Search,
+                    contentDescription = TopHeadlinesStrings.SEARCH,
+                )
+            }
+            IconButton(onClick = onRefresh) {
+                Icon(
+                    imageVector = Icons.Filled.Refresh,
+                    contentDescription = TopHeadlinesStrings.REFRESH,
+                )
+            }
+            topBarActions()
+        },
+    )
 }
 
 @Composable

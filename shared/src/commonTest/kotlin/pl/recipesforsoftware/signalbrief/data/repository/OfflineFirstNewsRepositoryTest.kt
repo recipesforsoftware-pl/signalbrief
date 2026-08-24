@@ -1,5 +1,8 @@
 package pl.recipesforsoftware.signalbrief.data.repository
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import pl.recipesforsoftware.signalbrief.data.local.NewsLocalDataSource
 import pl.recipesforsoftware.signalbrief.data.remote.NewsRemoteDataSource
@@ -225,6 +228,18 @@ class OfflineFirstNewsRepositoryTest {
         }
 
     @Test
+    fun observeCachedTopHeadlines_returnsLocalDataWithoutNetwork() =
+        runTest {
+            val cached = articles("https://example.com/cached")
+            local.seed("us", cached)
+
+            val observed = repository.observeCachedTopHeadlines("us")
+
+            assertEquals(cached, observed.first())
+            assertTrue(remote.callLog.isEmpty(), "observeCachedTopHeadlines must not touch the remote source")
+        }
+
+    @Test
     fun localReadFailureIsHandledAndTheNetworkFailureIsPreserved() =
         runTest {
             remote.nextResult = Result.failure(NewsFailure.Network)
@@ -258,8 +273,10 @@ class OfflineFirstNewsRepositoryTest {
     private class FakeRemoteDataSource : NewsRemoteDataSource {
         var nextResult: Result<List<Article>> = Result.success(emptyList())
         var throwOnCall: Throwable? = null
+        val callLog = mutableListOf<String>()
 
         override suspend fun getTopHeadlines(country: String): Result<List<Article>> {
+            callLog += country
             throwOnCall?.let { throw it }
             return nextResult
         }
@@ -277,6 +294,8 @@ class OfflineFirstNewsRepositoryTest {
             nextReadFailure?.let { return Result.failure(it) }
             return Result.success(caches[country].orEmpty())
         }
+
+        override fun observeTopHeadlines(country: String): Flow<List<Article>> = flowOf(caches[country].orEmpty())
 
         override suspend fun saveTopHeadlines(
             country: String,

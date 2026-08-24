@@ -1,5 +1,6 @@
 package pl.recipesforsoftware.signalbrief.data.repository
 
+import kotlinx.coroutines.flow.Flow
 import pl.recipesforsoftware.signalbrief.data.local.NewsLocalDataSource
 import pl.recipesforsoftware.signalbrief.data.remote.NewsRemoteDataSource
 import pl.recipesforsoftware.signalbrief.domain.failure.NewsFailure
@@ -44,6 +45,10 @@ class OfflineFirstNewsRepository(
             fallBackToCacheWhenOffline(country, remoteResult)
         }
     }
+
+    override fun observeCachedTopHeadlines(country: String): Flow<List<Article>> = cachedHeadlines(country)
+
+    private fun cachedHeadlines(country: String): Flow<List<Article>> = localDataSource.observeTopHeadlines(country)
 
     private suspend fun storeRemoteSuccess(
         country: String,

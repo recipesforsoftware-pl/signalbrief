@@ -1,5 +1,7 @@
 package pl.recipesforsoftware.signalbrief.domain
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import pl.recipesforsoftware.signalbrief.domain.failure.NewsFailure
 import pl.recipesforsoftware.signalbrief.domain.model.Article
@@ -118,5 +120,8 @@ class NewsRepositoryContractTest {
             throwOnCall?.let { throw it }
             return configuredResult
         }
+
+        override fun observeCachedTopHeadlines(country: String): Flow<List<Article>> =
+            flowOf(configuredResult.getOrNull()?.articles.orEmpty())
     }
 }

@@ -2,6 +2,7 @@ package pl.recipesforsoftware.signalbrief.data.local.db
 
 import androidx.room.Transactor
 import androidx.room.useWriterConnection
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import pl.recipesforsoftware.signalbrief.data.local.TOP_HEADLINES_FEED
 import pl.recipesforsoftware.signalbrief.data.local.mapper.toDomain
@@ -192,6 +193,50 @@ class CachedArticleDaoTest {
 
             val cached = dao.getByCountryAndFeed(COUNTRY_US, TOP_HEADLINES_FEED)
             assertEquals(listOf("https://example.com/rollback"), cached.map { it.url })
+        }
+
+    @Test
+    fun observeByCountryAndFeed_emitsCurrentArticles() =
+        runTest {
+            val articles = listOf(sampleArticle(url = "https://example.com/1"))
+            dao.replaceAll(COUNTRY_US, TOP_HEADLINES_FEED, articles.toEntities(COUNTRY_US, TOP_HEADLINES_FEED))
+
+            val observed = dao.observeByCountryAndFeed(COUNTRY_US, TOP_HEADLINES_FEED).first()
+
+            assertEquals(1, observed.size)
+            assertEquals("https://example.com/1", observed.single().url)
+        }
+
+    @Test
+    fun observeByCountryAndFeed_preservesInsertOrder() =
+        runTest {
+            val articles =
+                listOf(
+                    sampleArticle(url = "https://example.com/1"),
+                    sampleArticle(url = "https://example.com/2"),
+                    sampleArticle(url = "https://example.com/3"),
+                )
+            dao.replaceAll(COUNTRY_US, TOP_HEADLINES_FEED, articles.toEntities(COUNTRY_US, TOP_HEADLINES_FEED))
+
+            val observed = dao.observeByCountryAndFeed(COUNTRY_US, TOP_HEADLINES_FEED).first()
+
+            assertEquals(
+                listOf("https://example.com/1", "https://example.com/2", "https://example.com/3"),
+                observed.map { it.url },
+            )
+        }
+
+    @Test
+    fun observeByCountryAndFeed_isScopedToCountryAndFeed() =
+        runTest {
+            val usArticles = listOf(sampleArticle(url = "https://example.com/us"))
+            val plArticles = listOf(sampleArticle(url = "https://example.com/pl"))
+            dao.replaceAll(COUNTRY_US, TOP_HEADLINES_FEED, usArticles.toEntities(COUNTRY_US, TOP_HEADLINES_FEED))
+            dao.replaceAll(COUNTRY_PL, TOP_HEADLINES_FEED, plArticles.toEntities(COUNTRY_PL, TOP_HEADLINES_FEED))
+
+            val observed = dao.observeByCountryAndFeed(COUNTRY_US, TOP_HEADLINES_FEED).first()
+
+            assertEquals(listOf("https://example.com/us"), observed.map { it.url })
         }
 
     private companion object {

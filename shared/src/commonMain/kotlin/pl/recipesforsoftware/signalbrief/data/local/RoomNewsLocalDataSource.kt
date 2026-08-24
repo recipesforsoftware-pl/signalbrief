@@ -1,6 +1,8 @@
 package pl.recipesforsoftware.signalbrief.data.local
 
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import pl.recipesforsoftware.signalbrief.data.local.db.SignalBriefDatabase
 import pl.recipesforsoftware.signalbrief.data.local.mapper.toDomain
 import pl.recipesforsoftware.signalbrief.data.local.mapper.toEntity
@@ -27,6 +29,11 @@ class RoomNewsLocalDataSource(
     override suspend fun getTopHeadlines(country: String): Result<List<Article>> =
         guardLocal {
             dao.getByCountryAndFeed(country, TOP_HEADLINES_FEED).map { it.toDomain() }
+        }
+
+    override fun observeTopHeadlines(country: String): Flow<List<Article>> =
+        dao.observeByCountryAndFeed(country, TOP_HEADLINES_FEED).map { entities ->
+            entities.map { it.toDomain() }
         }
 
     override suspend fun saveTopHeadlines(

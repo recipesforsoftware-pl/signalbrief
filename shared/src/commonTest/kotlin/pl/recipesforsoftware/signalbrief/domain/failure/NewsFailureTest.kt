@@ -1,6 +1,9 @@
 package pl.recipesforsoftware.signalbrief.domain.failure
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
+import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.TopHeadlinesFeed
 import pl.recipesforsoftware.signalbrief.domain.repository.NewsRepository
 import kotlin.test.Test
@@ -50,6 +53,8 @@ class NewsFailureTest {
             val repository =
                 object : NewsRepository {
                     override suspend fun getTopHeadlines(country: String): Result<TopHeadlinesFeed> = expected
+
+                    override fun observeCachedTopHeadlines(country: String): Flow<List<Article>> = flowOf(emptyList())
                 }
 
             val result = repository.getTopHeadlines("us")

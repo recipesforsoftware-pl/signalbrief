@@ -1,5 +1,6 @@
 package pl.recipesforsoftware.signalbrief.data.local
 
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import pl.recipesforsoftware.signalbrief.data.local.db.SignalBriefDatabase
 import pl.recipesforsoftware.signalbrief.data.local.db.createTestDatabase
@@ -140,6 +141,40 @@ class RoomNewsLocalDataSourceTest {
 
             assertTrue(result.isFailure)
             assertIs<NewsFailure.Unknown>(result.exceptionOrNull())
+        }
+
+    @Test
+    fun observeTopHeadlines_emitsSavedArticlesInOrder() =
+        runTest {
+            val articles =
+                listOf(
+                    article("https://example.com/1"),
+                    article("https://example.com/2"),
+                )
+            dataSource.saveTopHeadlines("us", articles)
+
+            val observed = dataSource.observeTopHeadlines("us").first()
+
+            assertEquals(articles, observed)
+        }
+
+    @Test
+    fun observeTopHeadlines_emitsEmptyListForEmptyCache() =
+        runTest {
+            val observed = dataSource.observeTopHeadlines("us").first()
+
+            assertTrue(observed.isEmpty())
+        }
+
+    @Test
+    fun observeTopHeadlines_isCountryScoped() =
+        runTest {
+            dataSource.saveTopHeadlines("us", listOf(article("https://example.com/us")))
+            dataSource.saveTopHeadlines("pl", listOf(article("https://example.com/pl")))
+
+            val observed = dataSource.observeTopHeadlines("us").first()
+
+            assertEquals(listOf("https://example.com/us"), observed.map { it.url })
         }
 
     private companion object {
