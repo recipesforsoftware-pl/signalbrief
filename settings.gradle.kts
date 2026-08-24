@@ -21,5 +21,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "SignalBrief"
 include(":app")
+include(":core")
 include(":shared")
 include(":shared-ui")
