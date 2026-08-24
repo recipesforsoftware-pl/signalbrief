@@ -1,6 +1,8 @@
 package pl.recipesforsoftware.signalbrief.domain.repository
 
+import kotlinx.coroutines.flow.Flow
 import pl.recipesforsoftware.signalbrief.domain.failure.NewsFailure
+import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.TopHeadlinesFeed
 
 /**
@@ -20,4 +22,14 @@ interface NewsRepository {
      * Coroutine cancellation is always rethrown and never reported as a failure.
      */
     suspend fun getTopHeadlines(country: String): Result<TopHeadlinesFeed>
+
+    /**
+     * Observes the locally cached top headlines for [country] without ever
+     * touching the network.
+     *
+     * The returned [Flow] emits the current cache immediately and again on every
+     * local change. An empty or absent cache emits an empty list. This is the
+     * source of truth for local search.
+     */
+    fun observeCachedTopHeadlines(country: String): Flow<List<Article>>
 }

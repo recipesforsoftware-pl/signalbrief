@@ -20,12 +20,15 @@ import pl.recipesforsoftware.signalbrief.data.remote.createHttpClient
 import pl.recipesforsoftware.signalbrief.data.repository.OfflineFirstNewsRepository
 import pl.recipesforsoftware.signalbrief.data.repository.RoomSavedArticlesRepository
 import pl.recipesforsoftware.signalbrief.domain.model.Article
+import pl.recipesforsoftware.signalbrief.domain.repository.NewsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
 import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefApp
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsPresenter
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsScreen
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesPresenter
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesScreen
+import pl.recipesforsoftware.signalbrief.ui.search.SearchPresenter
+import pl.recipesforsoftware.signalbrief.ui.search.SearchScreen
 import platform.Foundation.NSBundle
 import platform.Foundation.NSUserDefaults
 import platform.UIKit.UIViewController
@@ -40,8 +43,8 @@ private const val ONBOARDING_KEY = "pl.recipesforsoftware.signalbrief.onboarding
  * users never see an onboarding flash.
  *
  * The iOS composition is created exactly once at the root of this controller and
- * disposed only when the whole controller is torn down. Headlines, Saved, and
- * Article Details share the same [SignalBriefDatabase], the same
+ * disposed only when the whole controller is torn down. Headlines, Saved, Search,
+ * and Article Details share the same [SignalBriefDatabase], the same
  * [RoomSavedArticlesRepository], and the same presenters, so switching tabs or
  * opening details never closes or recreates persistence layers.
  */
@@ -64,11 +67,12 @@ fun mainViewController(): UIViewController {
                     setOnboardingCompleted(true)
                     completed = true
                 },
-                topHeadlinesContent = { bottomBar, onArticleClick ->
+                topHeadlinesContent = { bottomBar, onArticleClick, onSearchClick ->
                     HeadlinesRoute(
                         presenter = composition.headlinesPresenter,
                         bottomBar = bottomBar,
                         onArticleClick = onArticleClick,
+                        onSearchClick = onSearchClick,
                     )
                 },
                 savedContent = { bottomBar, onArticleClick ->
@@ -76,6 +80,15 @@ fun mainViewController(): UIViewController {
                         presenter = composition.savedPresenter,
                         bottomBar = bottomBar,
                         onArticleClick = onArticleClick,
+                    )
+                },
+                searchContent = { initialQuery, onQueryChange, onArticleClick, onBack ->
+                    SearchRoute(
+                        presenterFactory = composition::searchPresenter,
+                        initialQuery = initialQuery,
+                        onQueryChange = onQueryChange,
+                        onArticleClick = onArticleClick,
+                        onBack = onBack,
                     )
                 },
                 articleDetailsContent = { article, onBack ->
@@ -95,6 +108,7 @@ private fun HeadlinesRoute(
     presenter: TopHeadlinesPresenter,
     bottomBar: @Composable () -> Unit,
     onArticleClick: (Article) -> Unit,
+    onSearchClick: () -> Unit,
 ) {
     val uiState by presenter.uiState.collectAsState()
 
@@ -103,6 +117,7 @@ private fun HeadlinesRoute(
         onRefresh = presenter::refresh,
         onArticleClick = onArticleClick,
         onBookmarkClick = presenter::toggleBookmark,
+        onSearchClick = onSearchClick,
         bottomBar = bottomBar,
     )
 }
@@ -120,6 +135,35 @@ private fun SavedRoute(
         onArticleClick = onArticleClick,
         onRemoveClick = { presenter.removeArticle(it.url) },
         bottomBar = bottomBar,
+    )
+}
+
+@Composable
+private fun SearchRoute(
+    presenterFactory: (String) -> SearchPresenter,
+    initialQuery: String,
+    onQueryChange: (String) -> Unit,
+    onArticleClick: (Article) -> Unit,
+    onBack: () -> Unit,
+) {
+    val presenter = remember { presenterFactory(initialQuery) }
+    DisposableEffect(presenter) {
+        onDispose { presenter.dispose() }
+    }
+
+    val query by presenter.query.collectAsState()
+    val uiState by presenter.uiState.collectAsState()
+
+    SearchScreen(
+        query = query,
+        onQueryChange = {
+            presenter.setQuery(it)
+            onQueryChange(it)
+        },
+        uiState = uiState,
+        onArticleClick = onArticleClick,
+        onBookmarkClick = presenter::toggleBookmark,
+        onBack = onBack,
     )
 }
 
@@ -184,9 +228,17 @@ private class IosComposition(
     val headlinesPresenter: TopHeadlinesPresenter,
     val savedPresenter: SavedArticlesPresenter,
     val savedArticlesRepository: SavedArticlesRepository,
+    private val newsRepository: NewsRepository,
     private val client: HttpClient,
     private val database: SignalBriefDatabase,
 ) {
+    fun searchPresenter(initialQuery: String): SearchPresenter =
+        SearchPresenter(
+            newsRepository = newsRepository,
+            savedArticlesRepository = savedArticlesRepository,
+            initialQuery = initialQuery,
+        )
+
     fun dispose() {
         headlinesPresenter.dispose()
         savedPresenter.dispose()
@@ -216,16 +268,24 @@ private fun createIosComposition(): IosComposition {
     val remoteDataSource = KtorNewsRemoteDataSource(client)
     val localDataSource = RoomNewsLocalDataSource(database)
     val savedArticlesRepository = RoomSavedArticlesRepository(database)
+    val newsRepository = OfflineFirstNewsRepository(remoteDataSource, localDataSource)
     val headlinesPresenter =
         TopHeadlinesPresenter(
-            repository = OfflineFirstNewsRepository(remoteDataSource, localDataSource),
+            repository = newsRepository,
             savedArticlesRepository = savedArticlesRepository,
         )
     val savedPresenter =
         SavedArticlesPresenter(
             savedArticlesRepository = savedArticlesRepository,
         )
-    return IosComposition(headlinesPresenter, savedPresenter, savedArticlesRepository, client, database)
+    return IosComposition(
+        headlinesPresenter,
+        savedPresenter,
+        savedArticlesRepository,
+        newsRepository,
+        client,
+        database,
+    )
 }
 
 /**

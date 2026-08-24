@@ -47,23 +47,58 @@ import pl.recipesforsoftware.signalbrief.ui.onboarding.rememberOnboardingPresent
  * article: when set, Article Details replaces the destination content and the
  * bottom bar disappears (details is a child screen, not a third tab), while
  * [currentDestination] keeps holding the originating destination so Back
- * returns to it exactly. Toolbar back and any host-integrated system back both
- * funnel through the same state clear, so there is one shared transition path
- * and no back stack. The selected article survives recreation through
- * [SelectedArticleSaver].
+ * returns to it exactly. Search is a child screen of Headlines and is tracked
+ * by [isSearchVisible]; it also survives recreation through `rememberSaveable`.
+ *
+ * Navigation priority while the main app is visible:
+ * 1. [selectedArticle] -> Article Details.
+ * 2. [isSearchVisible] -> Search.
+ * 3. [currentDestination] -> Headlines or Saved.
+ *
+ * Toolbar back and any host-integrated system back both funnel through the
+ * same state clear, so there is one shared transition path and no back stack.
+ * The selected article survives recreation through [SelectedArticleSaver].
  *
  * The shell also installs the shared Coil image-loader singleton once for the
  * app composition root. Both "Skip" and "Start reading" funnel through an
  * [OnboardingCompletion] guard so [onCompleteOnboarding] fires at most once
  * per shell instance; the host persists the outcome itself.
  */
+typealias TopHeadlinesContent =
+    @Composable (
+        bottomBar: @Composable () -> Unit,
+        onArticleClick: (Article) -> Unit,
+        onSearchClick: () -> Unit,
+    ) -> Unit
+
+typealias SavedContent =
+    @Composable (
+        bottomBar: @Composable () -> Unit,
+        onArticleClick: (Article) -> Unit,
+    ) -> Unit
+
+typealias SearchContent =
+    @Composable (
+        initialQuery: String,
+        onQueryChange: (String) -> Unit,
+        onArticleClick: (Article) -> Unit,
+        onBack: () -> Unit,
+    ) -> Unit
+
+typealias ArticleDetailsContent =
+    @Composable (
+        article: Article,
+        onBack: () -> Unit,
+    ) -> Unit
+
 @Composable
 fun SignalBriefApp(
     onboardingCompleted: Boolean?,
     onCompleteOnboarding: () -> Unit,
-    topHeadlinesContent: @Composable (bottomBar: @Composable () -> Unit, onArticleClick: (Article) -> Unit) -> Unit,
-    savedContent: @Composable (bottomBar: @Composable () -> Unit, onArticleClick: (Article) -> Unit) -> Unit,
-    articleDetailsContent: @Composable (article: Article, onBack: () -> Unit) -> Unit,
+    topHeadlinesContent: TopHeadlinesContent,
+    savedContent: SavedContent,
+    searchContent: SearchContent,
+    articleDetailsContent: ArticleDetailsContent,
     modifier: Modifier = Modifier,
 ) {
     installSignalBriefImageLoader()
@@ -88,32 +123,64 @@ fun SignalBriefApp(
         }
 
         if (onboardingCompleted == true) {
-            var currentDestination by rememberSaveable(stateSaver = AppDestinationSaver) {
-                mutableStateOf(AppDestination.Headlines)
+            SignalBriefMainContent(
+                topHeadlinesContent = topHeadlinesContent,
+                savedContent = savedContent,
+                searchContent = searchContent,
+                articleDetailsContent = articleDetailsContent,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SignalBriefMainContent(
+    topHeadlinesContent: TopHeadlinesContent,
+    savedContent: SavedContent,
+    searchContent: SearchContent,
+    articleDetailsContent: ArticleDetailsContent,
+) {
+    var currentDestination by rememberSaveable(stateSaver = AppDestinationSaver) {
+        mutableStateOf(AppDestination.Headlines)
+    }
+    var selectedArticle by rememberSaveable(stateSaver = SelectedArticleSaver) {
+        mutableStateOf<Article?>(null)
+    }
+    var isSearchVisible by rememberSaveable {
+        mutableStateOf(false)
+    }
+    var searchQuery by rememberSaveable {
+        mutableStateOf("")
+    }
+
+    if (selectedArticle != null) {
+        articleDetailsContent(requireNotNull(selectedArticle)) { selectedArticle = null }
+    } else if (isSearchVisible) {
+        searchContent(
+            searchQuery,
+            { searchQuery = it },
+            { selectedArticle = it },
+            { isSearchVisible = false },
+        )
+    } else {
+        val bottomBar: @Composable () -> Unit = {
+            SignalBriefBottomBar(
+                currentDestination = currentDestination,
+                onNavigate = { currentDestination = it },
+            )
+        }
+
+        when (currentDestination) {
+            AppDestination.Headlines -> {
+                topHeadlinesContent(
+                    bottomBar,
+                    { article -> selectedArticle = article },
+                    { isSearchVisible = true },
+                )
             }
-            var selectedArticle by rememberSaveable(stateSaver = SelectedArticleSaver) {
-                mutableStateOf<Article?>(null)
-            }
 
-            if (selectedArticle != null) {
-                articleDetailsContent(requireNotNull(selectedArticle)) { selectedArticle = null }
-            } else {
-                val bottomBar: @Composable () -> Unit = {
-                    SignalBriefBottomBar(
-                        currentDestination = currentDestination,
-                        onNavigate = { currentDestination = it },
-                    )
-                }
-
-                when (currentDestination) {
-                    AppDestination.Headlines -> {
-                        topHeadlinesContent(bottomBar) { article -> selectedArticle = article }
-                    }
-
-                    AppDestination.Saved -> {
-                        savedContent(bottomBar) { article -> selectedArticle = article }
-                    }
-                }
+            AppDestination.Saved -> {
+                savedContent(bottomBar) { article -> selectedArticle = article }
             }
         }
     }

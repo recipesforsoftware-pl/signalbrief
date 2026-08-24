@@ -26,6 +26,10 @@ private class FakeNewsRepositoryForBookmarks : NewsRepository {
         Result.success(TopHeadlinesFeed(emptyList(), FeedSource.NETWORK))
 
     override suspend fun getTopHeadlines(country: String): Result<TopHeadlinesFeed> = nextResult
+
+    override fun observeCachedTopHeadlines(country: String): Flow<List<Article>> = cachedArticles()
+
+    private fun cachedArticles(): Flow<List<Article>> = flowOf(nextResult.getOrNull()?.articles.orEmpty())
 }
 
 private class FakeSavedArticlesRepositoryForBookmarks : SavedArticlesRepository {

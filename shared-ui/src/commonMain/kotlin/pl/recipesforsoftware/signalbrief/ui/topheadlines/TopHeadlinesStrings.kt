@@ -11,6 +11,7 @@ object TopHeadlinesStrings {
     const val TOP_BAR_TITLE: String = "Top Headlines"
     const val TOP_BAR_SUBTITLE: String = "Latest news from around the world"
 
+    const val SEARCH: String = "Search"
     const val REFRESH: String = "Refresh"
     const val RETRY: String = "Try Again"
 

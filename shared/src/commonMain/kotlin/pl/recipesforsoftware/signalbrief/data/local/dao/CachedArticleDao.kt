@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import kotlinx.coroutines.flow.Flow
 import pl.recipesforsoftware.signalbrief.data.local.entity.CachedArticleEntity
 
 /**
@@ -30,6 +31,24 @@ internal interface CachedArticleDao {
         country: String,
         feed: String,
     ): List<CachedArticleEntity>
+
+    /**
+     * Observes cached articles for [country] and [feed] reactively.
+     *
+     * Emits the current rows immediately on collection and again whenever the
+     * table changes, preserving the original feed order.
+     */
+    @Query(
+        """
+        SELECT * FROM cached_articles
+        WHERE country = :country AND feed = :feed
+        ORDER BY position_in_feed ASC
+        """,
+    )
+    fun observeByCountryAndFeed(
+        country: String,
+        feed: String,
+    ): Flow<List<CachedArticleEntity>>
 
     /**
      * Removes every cached article for [country] and [feed].

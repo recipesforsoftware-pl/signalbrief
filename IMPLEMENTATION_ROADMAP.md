@@ -1,6 +1,6 @@
 # SignalBrief Implementation Roadmap
 
-_Last updated: 2026-08-04_
+_Last updated: 2026-08-24_
 
 ## 1. Executive summary
 
@@ -68,12 +68,12 @@ Planned outcome:
 > KMP phases below (shared domain and network layer, Compose Multiplatform UI,
 > offline-first Room cache, Android and iOS CI); see the README and
 > `docs/ARCHITECTURE.md` for the current status. What remains **not implemented**
-> today: search, topic monitoring, the Daily Brief, payments, synchronization,
-> and a production backend.
+> today: topic monitoring, the Daily Brief, payments, synchronization, and a
+> production backend.
 > Saved articles persistence foundation (entity, DAO, repository, migration) is
 > implemented; feed bookmark toggle is implemented; the Saved screen and minimal
 > two-destination navigation (Headlines / Saved) are implemented; Article Details
-> remains future.
+> and local search over cached headlines are implemented.
 
 The original Android-only baseline was:
 

@@ -3,6 +3,7 @@ package pl.recipesforsoftware.signalbrief.ui.topheadlines
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -52,6 +53,10 @@ private class FakeNewsRepository : NewsRepository {
         }
         return nextResult
     }
+
+    override fun observeCachedTopHeadlines(country: String): Flow<List<Article>> = cachedArticles()
+
+    private fun cachedArticles(): Flow<List<Article>> = flowOf(nextResult.getOrNull()?.articles.orEmpty())
 
     /** Lets the N-th (0-based) pending call return [nextResult]. */
     fun releaseCall(index: Int) {
