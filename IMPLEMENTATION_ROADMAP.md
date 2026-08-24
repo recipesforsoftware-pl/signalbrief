@@ -68,12 +68,20 @@ Planned outcome:
 > KMP phases below (shared domain and network layer, Compose Multiplatform UI,
 > offline-first Room cache, Android and iOS CI); see the README and
 > `docs/ARCHITECTURE.md` for the current status. What remains **not implemented**
-> today: topic monitoring, the Daily Brief, payments, synchronization, and a
-> production backend.
+> today: topic monitoring, the Daily Brief reader, payments, synchronization,
+> and a production backend.
 > Saved articles persistence foundation (entity, DAO, repository, migration) is
 > implemented; feed bookmark toggle is implemented; the Saved screen and minimal
 > two-destination navigation (Headlines / Saved) are implemented; Article Details
-> and local search over cached headlines are implemented.
+> and local search over cached headlines are implemented. The Daily Brief
+> foundation is implemented; its reader remains the next increment.
+
+Current delivery status:
+
+- Local Search: implemented
+- Daily Brief foundation: implemented
+- Daily Brief reader: next
+- Remote Search: future/optional
 
 The original Android-only baseline was:
 
