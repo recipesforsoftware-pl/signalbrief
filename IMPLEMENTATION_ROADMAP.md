@@ -81,12 +81,10 @@ Current delivery status:
 - Local Search: implemented
 - Daily Brief foundation: implemented
 - Daily Brief reader: implemented
-- Web-safe core extraction: implemented prerequisite
-- Web / Cloudflare demo: next — a Compose Multiplatform Web/Wasm demo
-  with deterministic browser-safe demo data (or another credential-safe approach),
-  never exposing `NEWS_API_KEY` in browser artifacts; deploy the static build to
-  Cloudflare Pages and add a Live Demo link to the README/portfolio after deployment.
-- README + screenshots + product showcase refresh: planned after the Web demo
+- Web-safe core extraction: implemented
+- Web demo: implemented
+- Cloudflare Pages deployment: next manual step
+- README + screenshots + product showcase refresh: after live demo URL exists
 - Remote Search: future/optional
 - Collections: future
 - Topic Monitoring: future

@@ -40,7 +40,9 @@ kotlin {
         }
     }
 
-    wasmJs()
+    wasmJs {
+        browser()
+    }
 
     sourceSets {
         commonMain.dependencies {
@@ -52,10 +54,13 @@ kotlin {
             implementation(libs.compose.material.icons.core)
             implementation(libs.compose.multiplatform.resources)
             implementation(libs.coil.compose)
+        }
+        androidMain.dependencies {
             implementation(libs.coil.network.ktor3)
         }
         iosMain.dependencies {
             implementation(project(":shared"))
+            implementation(libs.coil.network.ktor3)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

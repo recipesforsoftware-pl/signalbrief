@@ -34,7 +34,9 @@ kotlin {
         }
     }
 
-    wasmJs()
+    wasmJs {
+        browser()
+    }
 
     sourceSets {
         commonMain.dependencies {
