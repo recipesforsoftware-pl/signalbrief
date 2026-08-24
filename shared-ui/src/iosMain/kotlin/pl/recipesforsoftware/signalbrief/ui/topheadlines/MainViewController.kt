@@ -25,6 +25,8 @@ import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesReposito
 import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefApp
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsPresenter
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsScreen
+import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefPresenter
+import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefScreen
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesPresenter
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesScreen
 import pl.recipesforsoftware.signalbrief.ui.search.SearchPresenter
@@ -82,6 +84,13 @@ fun mainViewController(): UIViewController {
                         onArticleClick = onArticleClick,
                     )
                 },
+                dailyBriefContent = { bottomBar, onArticleClick ->
+                    DailyBriefRoute(
+                        presenter = composition.dailyBriefPresenter,
+                        bottomBar = bottomBar,
+                        onArticleClick = onArticleClick,
+                    )
+                },
                 searchContent = { initialQuery, onQueryChange, onArticleClick, onBack ->
                     SearchRoute(
                         presenterFactory = composition::searchPresenter,
@@ -134,6 +143,21 @@ private fun SavedRoute(
         uiState = uiState,
         onArticleClick = onArticleClick,
         onRemoveClick = { presenter.removeArticle(it.url) },
+        bottomBar = bottomBar,
+    )
+}
+
+@Composable
+private fun DailyBriefRoute(
+    presenter: DailyBriefPresenter,
+    bottomBar: @Composable () -> Unit,
+    onArticleClick: (Article) -> Unit,
+) {
+    val uiState by presenter.uiState.collectAsState()
+    DailyBriefScreen(
+        uiState = uiState,
+        onArticleClick = onArticleClick,
+        onBookmarkClick = presenter::toggleBookmark,
         bottomBar = bottomBar,
     )
 }
@@ -227,6 +251,7 @@ private fun rememberOpenFullArticleAction(
 private class IosComposition(
     val headlinesPresenter: TopHeadlinesPresenter,
     val savedPresenter: SavedArticlesPresenter,
+    val dailyBriefPresenter: DailyBriefPresenter,
     val savedArticlesRepository: SavedArticlesRepository,
     private val newsRepository: NewsRepository,
     private val client: HttpClient,
@@ -242,6 +267,7 @@ private class IosComposition(
     fun dispose() {
         headlinesPresenter.dispose()
         savedPresenter.dispose()
+        dailyBriefPresenter.dispose()
         client.close()
         database.close()
     }
@@ -278,9 +304,15 @@ private fun createIosComposition(): IosComposition {
         SavedArticlesPresenter(
             savedArticlesRepository = savedArticlesRepository,
         )
+    val dailyBriefPresenter =
+        DailyBriefPresenter(
+            newsRepository = newsRepository,
+            savedArticlesRepository = savedArticlesRepository,
+        )
     return IosComposition(
         headlinesPresenter,
         savedPresenter,
+        dailyBriefPresenter,
         savedArticlesRepository,
         newsRepository,
         client,

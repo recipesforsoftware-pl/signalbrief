@@ -57,4 +57,25 @@ internal object NavigationIcons {
                 close()
             }
         }
+
+    val Brief: ImageVector =
+        materialIcon(name = "DailyBrief") {
+            materialPath {
+                moveTo(5f, 4f)
+                horizontalLineToRelative(14f)
+                verticalLineToRelative(16f)
+                horizontalLineTo(5f)
+                close()
+                moveTo(8f, 8f)
+                horizontalLineToRelative(8f)
+                verticalLineToRelative(2f)
+                horizontalLineTo(8f)
+                close()
+                moveTo(8f, 12f)
+                horizontalLineToRelative(8f)
+                verticalLineToRelative(2f)
+                horizontalLineTo(8f)
+                close()
+            }
+        }
 }
