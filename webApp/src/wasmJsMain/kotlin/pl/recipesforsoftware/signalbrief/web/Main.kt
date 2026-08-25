@@ -9,7 +9,7 @@ import pl.recipesforsoftware.signalbrief.ui.topheadlines.SignalBriefTheme
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
     ComposeViewport(viewportContainerId = "ComposeTarget") {
-        val newsRepository = remember { DemoNewsRepository() }
+        val newsRepository = remember { WebNewsRepository() }
         val savedRepository = remember { WebSavedArticlesRepository() }
         SignalBriefTheme { SignalBriefAppHost(newsRepository, savedRepository) }
     }

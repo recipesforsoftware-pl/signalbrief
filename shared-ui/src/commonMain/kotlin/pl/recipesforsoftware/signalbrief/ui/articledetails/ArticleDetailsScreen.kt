@@ -25,17 +25,16 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import pl.recipesforsoftware.signalbrief.ui.designsystem.components.SignalBriefPrimaryButton
 import pl.recipesforsoftware.signalbrief.ui.designsystem.tokens.SignalBriefShapes
 import pl.recipesforsoftware.signalbrief.ui.designsystem.tokens.SignalBriefSpacing
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesStrings
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.components.ArticleHeader
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.components.BookmarkIcons
+import pl.recipesforsoftware.signalbrief.ui.topheadlines.components.SignalBriefArticleThumbnail
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.hasActionableUrl
 
 private val DetailsImageHeight = 220.dp
@@ -102,16 +101,10 @@ fun ArticleDetailsScreen(
 
 @Composable
 private fun DetailsImage(imageUrl: String) {
-    val placeholderPainter =
-        ColorPainter(
-            color = MaterialTheme.colorScheme.surfaceContainer,
-        )
-    AsyncImage(
-        model = imageUrl,
+    SignalBriefArticleThumbnail(
+        imageReference = imageUrl,
         contentDescription = null,
         contentScale = ContentScale.Crop,
-        placeholder = placeholderPainter,
-        error = placeholderPainter,
         modifier =
             Modifier
                 .fillMaxWidth()
