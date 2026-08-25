@@ -1,268 +1,400 @@
 # SignalBrief — Architecture
 
-This document describes the actual architecture of the SignalBrief repository as
-of the release-readiness baseline: what each module owns, how the platforms are
-composed, how a request flows through the offline-first chain, and the trade-offs
-that were made. It describes the code that exists — it is not a generic Clean
-Architecture template.
+This document describes the architecture that exists in the repository today. SignalBrief is a Kotlin Multiplatform news reader with Android, iOS, and browser/Wasm hosts. It shares framework-free domain contracts and common presentation/UI while keeping mobile persistence/networking and browser backend responsibilities explicit.
+
+## Design principle
+
+The project does **not** optimize for the highest possible shared-code percentage.
+
+Code is shared when duplication would create maintenance risk or inconsistent behavior. Platform-specific responsibilities stay explicit when the runtime, security model, lifecycle, persistence, or deployment boundary is materially different.
+
+That gives SignalBrief three useful layers:
+
+1. **`:core`** — web-safe, framework-free domain contracts and models.
+2. **`:shared-ui`** — shared presenters and Compose Multiplatform UI.
+3. Platform/data implementations:
+   - **`:shared` + `:app` / `iosApp`** for the mobile offline-first path.
+   - **`:webApp` + Cloudflare Pages Functions** for the public browser path.
 
 ## Module overview
 
 ```text
-Gradle module        | Kotlin targets               | Responsibility
----------------------|------------------------------|----------------------------------------------
-:app                 | Android application          | Hilt composition root, MainActivity, Android
-                     |                              | theme/persistence hosts, Android tests
-:shared              | android, iosArm64,           | Domain contracts and models, typed failures,
-                     | iosSimulatorArm64, iosX64    | Ktor networking, Room KMP cache, offline-first
-                     |                              | repository. Framework-free (no UI, no DI).
-:shared-ui           | android, iosArm64,           | Compose Multiplatform UI: SignalBriefApp shell,
-                     | iosSimulatorArm64            | onboarding, stateless TopHeadlinesScreen,
-                     |                              | StateFlow presenter, design tokens, theme.
-iosApp               | Xcode project (SwiftUI)      | iOS host embedding SignalBriefSharedUi.framework;
-                     |                              | manual composition root in MainViewController.kt.
+Unit / module       Targets / runtime                   Responsibility
+------------------  ----------------------------------  -----------------------------------------------
+:core               Android, iOS, Wasm                  Pure domain models, repository contracts,
+                                                        typed failures, web-safe behavior.
+
+:shared             Android, iOS                        Mobile data implementations: Ktor networking,
+                                                        kotlinx.serialization, Room KMP cache,
+                                                        offline-first repositories.
+
+:shared-ui          Android, iOS, Wasm                  Compose Multiplatform UI, presenters,
+                                                        navigation/screen shell, design system.
+
+:app                Android application                 Android host, Hilt composition root,
+                                                        Android persistence/theme integration.
+
+iosApp              SwiftUI/Xcode                       iOS host. Embeds the shared UI framework;
+                                                        mobile composition is assembled explicitly.
+
+:webApp             Browser/Wasm                        Browser executable, WebNewsRepository,
+                                                        session-only WebSavedArticlesRepository.
+
+functions/           Cloudflare Pages Functions         Public Web backend boundary:
+                                                        /api/headlines and /api/image.
 ```
-
-### `:shared`
-
-- `domain/` — `NewsRepository` contract, `Article`/`Source`/`TopHeadlinesFeed`/
-  `FeedSource` models, and the sealed `NewsFailure` hierarchy. This code has no
-  Ktor, serialization, Room, Android, UIKit, DI, or Compose imports.
-- `data/remote/` — `NewsRemoteDataSource` interface; `KtorNewsRemoteDataSource`
-  (the only class touching Ktor and kotlinx.serialization), which maps DTOs to
-  domain models and translates transport exceptions into typed `NewsFailure`
-  values. `HttpClientFactory` is an `expect`/`actual` seam: the Android engine is
-  provided in `androidMain`, the Darwin engine in `iosMain`, and `MockEngine` in
-  common tests; all shared client configuration (content negotiation, timeouts,
-  response validation, base URL, `X-Api-Key` header) is applied through the same
-  internal config function.
-- `data/local/` — `NewsLocalDataSource` interface; `RoomNewsLocalDataSource`
-  backed by `SignalBriefDatabase` (`CachedArticleDao` + `CachedArticleEntity`).
-  Operations are country/feed-scoped, ordering is preserved via
-  `position_in_feed`, and `replaceAll` swaps a country's cache transactionally.
-- `data/repository/OfflineFirstNewsRepository.kt` — the `NewsRepository`
-  implementation with the network-first + cache-fallback policy.
-
-### `:shared-ui`
-
-- `app/SignalBriefApp.kt` — shared shell that decides between onboarding, the
-  main screen, and a brief loading gate while the persisted onboarding flag is
-  read. Installs the shared Coil image-loader once.
-- `onboarding/` — `OnboardingPresenter` (StateFlow), `OnboardingScreen`, page
-  visuals/strings, a `rememberSaveable` `Saver`, and an `OnboardingCompletion`
-  guard that makes the host callback fire at most once per shell instance.
-- `topheadlines/` — `TopHeadlinesPresenter` (framework-independent state holder),
-  the sealed `TopHeadlinesUiState`, `TopHeadlinesScreen` (stateless), shared
-  strings, error mapping, `ArticleUrlValidator`, the Coil-backed `ArticleCard`,
-  cache banner, and skeleton cards.
-- `designsystem/` — color, typography, shape, and spacing tokens; the shared
-  `SignalBriefPrimaryButton` and `OnboardingPageIndicator`; and the `Sigby` mascot
-  composable with its production artwork in `commonMain/composeResources`.
-- `iosMain/.../MainViewController.kt` — the iOS composition root (see below).
-
-### `:app`
-
-- `SignalBriefApplication` (`@HiltAndroidApp`).
-- `di/` — `NetworkModule` (config + `HttpClient`), `DatabaseModule` (database +
-  local data source), `RepositoryModule` (remote data source + repository
-  binding).
-- `ui/main/MainActivity.kt` — host that provides theme, onboarding persistence,
-  and the Top Headlines screen (including the dark-mode menu via the
-  `topBarActions` slot).
-- `ui/theme`, `ui/onboarding`, `ui/topheadlines` — Android-specific persistence
-  (DataStore `ThemePreference`/`OnboardingPreference`), Hilt ViewModels, and the
-  `DarkModeMenu`.
-
-### `iosApp`
-
-- SwiftUI host (`iosApp.swift`, `ContentView.swift`) embedding
-  `MainViewControllerKt.mainViewController()` from
-  `SignalBriefSharedUi.framework`.
-- Xcode build phase `embedAndSignAppleFrameworkForXcode` compiles the KMP
-  framework as part of the app build.
-- `Info.plist` receives `NEWS_API_KEY = $(NEWS_API_KEY)` from the git-ignored
-  `Secrets.xcconfig`.
 
 ## Dependency direction
 
-All dependencies point inward: hosts and UI depend on the domain contract, and
-data implementations are plugged in behind it. Domain code never depends on a
-framework.
-
 ```mermaid
 flowchart LR
-    app[":app — Android host<br/>Hilt composition root"]
-    ios["iosApp — SwiftUI host<br/>manual composition root"]
-    sharedui[":shared-ui — shared Compose UI<br/>presenters, shell, design system"]
-    shared[":shared — domain models,<br/>repository contract, data layer"]
-    api["NewsAPI (HTTPS)"]
-    db[("Room KMP database<br/>per-country cache")]
+    core[":core<br/>pure domain"]
+    shared[":shared<br/>mobile data"]
+    sharedui[":shared-ui<br/>Compose + presenters"]
+    app[":app<br/>Android / Hilt"]
+    ios["iosApp<br/>SwiftUI host"]
+    web[":webApp<br/>Wasm host"]
+    pages["Cloudflare Pages Functions"]
+    newsapi["NewsAPI"]
+    newsdata["NewsData.io"]
+    room[("Room KMP")]
+
+    shared --> core
+    sharedui --> core
 
     app --> sharedui
+    app --> shared
+
     ios --> sharedui
-    sharedui --> shared
-    shared --> api
-    shared --> db
+    shared --> newsapi
+    shared --> room
+
+    web --> core
+    web --> sharedui
+    web --> pages
+    pages --> newsdata
 ```
 
-The Android host also depends directly on `:shared` (Hilt needs the Ktor
-`HttpClient` and Room types at its composition boundary). `commonMain` in
-`:shared` has no Android, UIKit, or DI-framework dependencies; Room types are
-kept inside `:shared`'s data layer and only surface at the Android composition
-boundary.
+`:webApp` intentionally does **not** depend on the mobile `:shared` data/network layer.
 
-## Composition
+The iOS-specific composition source set in `:shared-ui` may depend on `:shared` to preserve the current single-framework Xcode integration. Common UI/presentation code still depends on `:core`, not on mobile data implementations.
 
-### Android — Dagger/Hilt
+## `:core`
 
-The Android graph is built once by Hilt (`SingletonComponent`):
+`:core` contains the portable domain boundary:
+
+- `Article`, `Source`, `TopHeadlinesFeed`, and `FeedSource`.
+- `NewsRepository` and `SavedArticlesRepository` contracts.
+- `NewsFailure` typed failures.
+- Business logic that does not require Room, Ktor, Compose, Coil, UIKit, Android, or browser APIs.
+
+This module is the architectural seam that allows both the mobile repository and the browser repository to satisfy the same UI-facing contracts.
+
+## `:shared` — mobile data layer
+
+`:shared` depends on `:core` and contains the mobile data implementation.
+
+### Remote
+
+- Ktor 3 client.
+- kotlinx.serialization DTOs and mapping.
+- Android and Darwin engines.
+- response validation and timeout configuration.
+- NewsAPI request configuration.
+
+### Local
+
+- Room KMP database.
+- country-scoped cached headline entities/DAO.
+- transactional feed replacement.
+- persistent mobile Saved Articles storage.
+
+### Repository
+
+`OfflineFirstNewsRepository` implements `NewsRepository` with an explicit network-first/cache-fallback policy.
 
 ```text
-NetworkModule  -> NewsApiConfig(BuildConfig.NEWS_API_KEY) -> HttpClient (Android engine)
-DatabaseModule -> SignalBriefDatabase (singleton) -> NewsLocalDataSource
-RepositoryModule -> NewsRemoteDataSource(KtorNewsRemoteDataSource) + NewsLocalDataSource
-                   -> NewsRepository(OfflineFirstNewsRepository)
+request
+  -> remote NewsAPI
+
+success
+  -> validate/map/deduplicate
+  -> transactionally replace country cache
+  -> FeedSource.NETWORK
+
+NewsFailure.Network
+  -> read Room cache
+  -> if non-empty: FeedSource.CACHE
+  -> otherwise preserve original network failure
+
+InvalidData / Unknown
+  -> do not hide with cached content
 ```
 
-`TopHeadlinesViewModel` (`@HiltViewModel`) receives the `NewsRepository` and
-wraps `TopHeadlinesPresenter` on `Dispatchers.Main.immediate`; `OnboardingViewModel`
-and `ThemeViewModel` provide DataStore-backed persistence. `MainActivity`
-(`@AndroidEntryPoint`) reads all three through `hiltViewModel()` and hands the
-shared `SignalBriefApp` shell its state and callbacks.
+Cancellation is rethrown rather than converted into a domain failure.
 
-### iOS — manual composition
+## `:shared-ui` — presentation and Compose UI
 
-`MainViewController.kt` builds the identical graph by hand: it reads the
-onboarding flag synchronously from `NSUserDefaults` and the NewsAPI key from the
-app bundle, then creates the `HttpClient` (Darwin engine), the Room database, the
-data sources, the repository, and the presenter. The `IosTopHeadlinesComposition`
-owns the externally acquired `HttpClient` and database and closes all three
-together when the view controller disappears, so teardown leaves nothing behind.
+`:shared-ui` contains the application presentation surface shared across targets:
 
-Both platforms therefore assemble the same shared constructors; only the
-composition root differs (`Hilt` vs. explicit Swift/Kotlin calls).
+- app shell and main destinations;
+- Top Headlines presenter/screen;
+- Search presenter/screen;
+- Saved Articles;
+- Article Details;
+- Daily Brief;
+- mobile onboarding;
+- theme and design tokens;
+- article cards and shared actions;
+- platform image-loading boundary.
 
-## Presentation / UI relationship
+Presenters depend on repository contracts from `:core`, not on concrete data implementations.
 
-- `TopHeadlinesPresenter` is framework-independent: it owns its `CoroutineScope`
-  (`dispatcher + SupervisorJob`), exposes a read-only
-  `StateFlow<TopHeadlinesUiState>`, guards against stale responses with a
-  monotonically increasing request-generation counter, and must be disposed by
-  the host. It calls the `NewsRepository` contract — never a concrete
-  implementation.
-- `TopHeadlinesScreen` is a stateless composable. It receives `TopHeadlinesUiState`
-  and callbacks (`onRefresh`, `onArticleClick`) and renders Loading (animated
-  skeletons), Success (with the `FeedSource`-driven cache banner), Empty, and
-  Error-with-retry. A `topBarActions` slot lets the Android host inject its
-  dark-mode menu without coupling the shared screen to Android.
-- The host owns the presenter's lifecycle: `TopHeadlinesViewModel.onCleared()`
-  disposes it on Android; a `DisposableEffect` disposes it on iOS.
+The UI uses `StateFlow` and explicit callbacks. Repository state is observed by multiple features so Headlines, Search, Saved, Details, and Daily Brief stay consistent without each screen owning a separate network implementation.
 
-## Request and data flow
+## Android composition
 
-```mermaid
-flowchart TD
-    ui["TopHeadlinesScreen (shared, stateless)"]
-    pres["TopHeadlinesPresenter<br/>(StateFlow + generation guard)"]
-    repo["NewsRepository<br/>(domain contract)"]
-    impl["OfflineFirstNewsRepository"]
-    remote["NewsRemoteDataSource"]
-    ktor["KtorNewsRemoteDataSource"]
-    api["NewsAPI /v2/top-headlines"]
-    local["NewsLocalDataSource"]
-    room["RoomNewsLocalDataSource"]
-    db[("SignalBriefDatabase<br/>CachedArticleDao")]
+Android uses Dagger/Hilt at the host boundary.
 
-    ui -->|"refresh()"| pres
-    pres --> repo
-    repo --> impl
-    impl --> remote --> ktor --> api
-    impl --> local --> room --> db
-    impl -. "on NewsFailure.Network: read cache" .-> local
+```text
+BuildConfig.NEWS_API_KEY
+        ↓
+NewsApiConfig
+        ↓
+Ktor Android HttpClient
+
+Room database
+        ↓
+mobile local data sources
+
+remote + local
+        ↓
+OfflineFirstNewsRepository
+        ↓
+shared presenters / UI
 ```
 
-`getTopHeadlines(country)`:
+Android additionally owns DataStore-backed theme/onboarding preferences and Android-specific host behavior.
 
-1. **Network success** — the response is deserialized, mapped, and deduplicated
-   by URL (first occurrence wins, original order preserved). The unique list
-   replaces that country's cache transactionally, and a `FeedSource.NETWORK` feed
-   is returned. An empty remote list clears the country's cache.
-2. **`NewsFailure.Network`** — the repository falls back to the country's cache.
-   If the cache is non-empty, a `FeedSource.CACHE` feed is returned and the UI
-   shows the "Showing saved headlines" banner; if the cache is empty, the
-   original network failure is preserved.
-3. **`InvalidData` / `Unknown` / other failures** — never hidden by the cache;
-   the failure is returned as-is.
-4. **Cancellation** — always rethrown by the data sources and the repository;
-   it is never converted into a failure and never reads the cache.
+## iOS composition
 
-The policy is deliberately **not** stale-while-revalidate: the UI keeps showing
-the current content until the next explicit refresh, and a refresh never serves
-cache while a newer remote response is available. A failed remote request never
-mutates the cache.
+The iOS host is SwiftUI embedding the shared Compose framework.
 
-## Why external article URLs are validated
+The Kotlin iOS composition root creates the Darwin Ktor client, Room database, repositories, and presenters explicitly. The NewsAPI key is injected through the git-ignored Xcode configuration and read from the app bundle.
 
-The DTO→domain mapper guarantees `Article.url` is non-blank, but handing an
-arbitrary string to a platform URI handler is still risky: an unexpected scheme
-(e.g. `javascript:`, `file:`, a malformed URI) could crash the host app. Both
-platforms therefore route article opening through
-`Article.hasActionableUrl()`, which restricts the open action to `http://` and
-`https://` schemes before delegating to the platform handler (Chrome Custom Tabs
-on Android, `LocalUriHandler` on iOS).
+This keeps the dependency graph equivalent to Android while avoiding a DI framework in the iOS host.
 
-## Local secret handling
+## Browser/Wasm composition
 
-- Android: `NEWS_API_KEY` is read from the git-ignored `local.properties` into
-  `BuildConfig.NEWS_API_KEY` (empty when absent), then injected via Hilt into
-  `NewsApiConfig` and sent as the `X-Api-Key` header.
-- iOS: `NEWS_API_KEY` is injected into `Info.plist` from the git-ignored
-  `Secrets.xcconfig` (tracked template: `Secrets.example.xcconfig` with a
-  placeholder) and read by `MainViewController.kt` before the client is built.
-- CI uses no real key: the macOS workflow writes an obvious fake value into a
-  temporary `Secrets.xcconfig` for the unsigned build; the Android workflow needs
-  no key.
-- A key embedded in `BuildConfig` or a bundle is extractable from the APK/IPA,
-  so this is a **local-development-only** setup, not a production secret
-  architecture.
+`webApp` is a browser executable and depends on `:core` and `:shared-ui`.
 
-## Key test boundaries
+```text
+ComposeViewport
+  -> WebNewsRepository
+  -> WebSavedArticlesRepository
+  -> SignalBriefAppHost
+```
 
-- **Common (`commonTest`, run on JVM and iOS simulator)**: Ktor `MockEngine`
-  against the exact production client configuration; Room tests against a real
-  (JVM JDBC / iOS SQLite) database; `OfflineFirstNewsRepository` policy tests
-  (write-through, replacement, empty-list clearing, deduplication, fallback,
-  never-hiding non-network failures, cancellation, country isolation); DTO
-  mapper; domain models and failures; presenter tests; formatting helpers; URL
-  validator; onboarding presenter/completion/saver tests.
-- **Android JVM (`app/src/test`)**: Hilt ViewModels (Top Headlines, Theme,
-  Onboarding) with MockK and Robolectric, DataStore preference behavior.
-- **Android instrumented (`app/src/androidTest`)**: shared Top Headlines Compose
-  screen, dark-mode menu, article-card click wiring, DataStore theme behavior,
-  application package verification. Present but not part of CI yet.
-- **Kover** aggregates JVM unit-test coverage from `:app`, `:shared`, and
-  `:shared-ui` into an `all` variant and enforces the configured line-coverage
-  threshold; it does not measure native iOS coverage.
+The Web host skips mobile onboarding.
+
+### `WebNewsRepository`
+
+`WebNewsRepository` satisfies the same `NewsRepository` contract as the mobile offline-first implementation.
+
+It:
+
+- requests `/api/headlines?country=...` with browser `fetch`;
+- maps the normalized Pages Function response into domain `Article` objects;
+- updates an in-memory `MutableStateFlow`;
+- exposes that flow through `observeCachedTopHeadlines()` so Search and Daily Brief see the same article set;
+- maps transport/data failures into the shared `NewsFailure` hierarchy.
+
+The browser client does not contain the NewsData API key.
+
+### `WebSavedArticlesRepository`
+
+Web Saved Articles are intentionally session-only. The repository uses in-memory `StateFlow` state and resets when the Web application reloads.
+
+This is intentionally different from the persistent mobile implementation.
+
+## Cloudflare Pages Functions
+
+The public Web deployment has two server-side endpoints.
+
+### `/api/headlines`
+
+```text
+browser
+  -> /api/headlines?country=us
+  -> Cloudflare Pages Function
+  -> NewsData.io
+```
+
+Responsibilities:
+
+- keep `NEWSDATA_API_KEY` server-side;
+- request the English top-headlines feed;
+- normalize provider fields into the small payload required by SignalBrief;
+- normalize source names;
+- generate signed image-proxy references;
+- edge-cache responses to reduce upstream requests.
+
+### `/api/image`
+
+Article images come from many unrelated publisher/CDN origins. Fetching them directly from browser Wasm would make rendering depend on every publisher's CORS policy.
+
+The image endpoint therefore provides a same-origin boundary:
+
+```text
+normalized headline image URL
+  -> HMAC-signed /api/image reference
+  -> validate signature
+  -> accept HTTPS only
+  -> reject obvious local/private targets
+  -> fetch publisher/CDN image
+  -> validate image content type and size
+  -> cache at the edge
+  -> return same-origin bytes to the browser
+```
+
+`IMAGE_PROXY_SIGNING_KEY` is a Cloudflare secret and is not stored in the repository.
+
+The browser converts the response from `ArrayBuffer` to `ByteArray`, decodes it to `ImageBitmap`, and renders it through the shared article-image component.
+
+## Image-loading boundary
+
+The shared UI does not force one image stack onto every runtime.
+
+- **Android/iOS**: Coil 3 with the mobile network setup.
+- **Web/Wasm**: signed same-origin proxy + browser `fetch` + `ImageBitmap`.
+
+`Article Details` and list cards reuse the same platform image boundary, avoiding a separate Web-only Details implementation.
+
+## External article opening
+
+`Article.url` is validated before it is opened. Only `http://` and `https://` destinations are actionable.
+
+The shared UI delegates valid URLs to the platform URI handler:
+
+- Android host / Chrome Custom Tabs where applicable.
+- iOS / browser through the platform URI handler.
+
+## Secret handling
+
+### Mobile local development
+
+Android:
+
+```text
+local.properties
+NEWS_API_KEY=...
+```
+
+iOS:
+
+```text
+iosApp/Configuration/Secrets.xcconfig
+NEWS_API_KEY=...
+```
+
+Both files are ignored and must never be committed.
+
+These keys are still client-side at runtime and are therefore explicitly a local-development configuration, not a production mobile credential design.
+
+### Public Web
+
+Cloudflare production secrets:
+
+- `NEWSDATA_API_KEY`
+- `IMAGE_PROXY_SIGNING_KEY`
+
+Neither value is embedded in JavaScript/Wasm or committed to Git.
+
+## Test boundaries
+
+### `:core`
+
+Pure repository-contract/model/failure tests.
+
+### `:shared`
+
+- Ktor remote/data mapping tests.
+- Room-backed local tests.
+- offline-first repository policy tests.
+- cancellation and failure classification.
+
+### `:shared-ui`
+
+- presenter tests for Headlines, Search, Saved, Details, and Daily Brief;
+- shared UI/component behavior;
+- Android/iOS/Wasm compilation of the shared UI boundary.
+
+### `:webApp`
+
+- `WebNewsRepository` behavior through an injected loader;
+- browser-session Saved repository behavior;
+- Wasm tests and production browser distribution.
+
+## CI
+
+Four pull-request checks protect `main`.
+
+### Android CI
+
+- Gradle wrapper validation
+- `ktlintCheck`
+- `detekt`
+- JVM tests
+- Android lint
+- debug assembly
+- Kover verification
+
+### KMP and iOS CI
+
+- shared tests
+- iOS framework linking
+- formatting/static analysis
+- unsigned iOS simulator host build
+
+### Web CI
+
+- supported JDK/Node environment
+- Binaryen toolchain
+- Wasm tests/build validation
+- production browser distribution
+
+### Dependency Review
+
+Fails pull requests introducing moderate-or-higher vulnerable dependencies.
+
+The Web dependency lock deliberately remains free of the Ktor/Coil network dependencies that previously pulled `ws` into the Wasm dependency graph.
 
 ## Trade-offs and current limitations
 
-- **No navigation framework**: the shell switches between two destinations
-  (onboarding and the feed) without a router; a framework is only justified once
-  there are more screens.
-- **Network-first, not stale-while-revalidate**: the cache is a fallback, and
-  the UI never silently mixes cached and fresh content — provenance is explicit
-  via `FeedSource`.
-- **Single default country feed** (`us`); country-scoped caches keep future
-  multi-country use safe, but only one feed is surfaced today.
-- **Coil singleton does not share the repository's `HttpClient`**: images load
-  through Coil's Ktor fetcher with its own client, so the repository client is
-  not reused for image traffic.
-- **iOS onboarding is read synchronously from NSUserDefaults** before Compose
-  starts; acceptable for a single small flag.
-- **Coverage threshold is intentionally low (9% line)** and measures JVM tests
-  only; instrumented and iOS tests are not part of the Kover aggregate.
-- **Direct NewsAPI key in the client** is a documented local-development mode,
-  not a production secret architecture.
-- Not implemented: navigation framework, search, saved articles, topics, Daily
-  Brief, payments, synchronization, production backend, deterministic demo
-  fixtures.
+- Mobile networking/storage and browser networking are separate implementations behind shared contracts.
+- The Web host has session-only Saved Articles and no cross-device synchronization.
+- Search operates over locally available headlines rather than a dedicated backend index.
+- The public Web feed currently uses an English/US top-headlines configuration.
+- Android and iOS use a developer-supplied NewsAPI key for local development and are not store-published from this repository.
+- No account system, cloud Saved synchronization, payments, or analytics backend is included in the public portfolio scope.
+- The Web Wasm bundle is larger than a conventional DOM application because it includes the Compose/Skia runtime; current CI reports this as a performance warning rather than a build failure.
+
+## Why this architecture
+
+SignalBrief started as an Android application and evolved into a KMP project. The current structure demonstrates that evolution without pretending every runtime has identical constraints.
+
+The reusable part is the stable product behavior:
+
+- domain models/contracts;
+- presenter behavior;
+- navigation/screen flow;
+- design system and Compose UI.
+
+The replaceable part is infrastructure:
+
+- Android/iOS mobile networking and persistence;
+- browser fetch/backend boundary;
+- platform image loading;
+- host lifecycle and dependency composition.
+
+That separation is the central architectural goal of the project.
