@@ -21,7 +21,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -29,7 +28,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.ui.designsystem.tokens.SignalBriefShapes
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesStrings
@@ -130,7 +128,16 @@ private fun ArticleCardContent(article: Article) {
         }
         val imageUrl = article.imageUrl
         if (imageUrl != null) {
-            ArticleThumbnail(imageUrl = imageUrl)
+            SignalBriefArticleThumbnail(
+                imageReference = imageUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier =
+                    Modifier
+                        .size(88.dp, 72.dp)
+                        .clip(SignalBriefShapes.small)
+                        .background(MaterialTheme.colorScheme.surfaceContainer),
+            )
         }
     }
 }
@@ -210,24 +217,4 @@ internal fun ArticleHeader(sourceName: String) {
             modifier = Modifier.weight(1f),
         )
     }
-}
-
-@Composable
-private fun ArticleThumbnail(imageUrl: String) {
-    val placeholderPainter =
-        ColorPainter(
-            color = MaterialTheme.colorScheme.surfaceContainer,
-        )
-    AsyncImage(
-        model = imageUrl,
-        contentDescription = null,
-        contentScale = ContentScale.Crop,
-        placeholder = placeholderPainter,
-        error = placeholderPainter,
-        modifier =
-            Modifier
-                .size(88.dp, 72.dp)
-                .clip(SignalBriefShapes.small)
-                .background(MaterialTheme.colorScheme.surfaceContainer),
-    )
 }

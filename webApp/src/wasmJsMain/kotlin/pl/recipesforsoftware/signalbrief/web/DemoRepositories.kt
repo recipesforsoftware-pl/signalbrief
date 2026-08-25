@@ -40,28 +40,42 @@ class WebSavedArticlesRepository : SavedArticlesRepository {
         }
 }
 
+private const val roofGardenThumbnail = "demo-resource://roof-garden"
+private const val repairCafeThumbnail = "demo-resource://repair-cafe"
+
 internal val demoArticles =
     listOf(
-        demoArticle("City library turns unused roof into a public garden", "Civic Dispatch", "roof-garden"),
-        demoArticle("A small repair café makes neighborhood skills visible", "Local Ledger", "repair-cafe"),
-        demoArticle("Night buses add quiet-reading corners on two routes", "Transit Notes", "night-buses"),
-        demoArticle("School makers build an open map of shade trees", "Field Signal", "shade-trees"),
-        demoArticle("Community radio archives a century of local voices", "Archive Weekly", "radio-archive"),
-        demoArticle("Independent bookshops test a shared delivery shelf", "Local Ledger", "bookshops"),
-        demoArticle("River volunteers log the return of spring insects", "Field Signal", "river-insects"),
-        demoArticle("A former warehouse becomes a rehearsal commons", "Civic Dispatch", "rehearsal"),
-        demoArticle("Students prototype signs for safer crossings", "Transit Notes", "crossings"),
-        demoArticle("Public kitchens trade recipes for surplus produce", "Archive Weekly", "kitchens"),
+        demoArticle(
+            "City library turns unused roof into a public garden",
+            "Civic Dispatch",
+            "roof-garden",
+            roofGardenThumbnail,
+        ),
+        demoArticle(
+            "A small repair café makes neighborhood skills visible",
+            "Local Ledger",
+            "repair-cafe",
+            repairCafeThumbnail,
+        ),
+        demoArticle("Night buses add quiet-reading corners on two routes", "Transit Notes", "night-buses", roofGardenThumbnail),
+        demoArticle("School makers build an open map of shade trees", "Field Signal", "shade-trees", repairCafeThumbnail),
+        demoArticle("Community radio archives a century of local voices", "Archive Weekly", "radio-archive", roofGardenThumbnail),
+        demoArticle("Independent bookshops test a shared delivery shelf", "Local Ledger", "bookshops", repairCafeThumbnail),
+        demoArticle("River volunteers log the return of spring insects", "Field Signal", "river-insects", roofGardenThumbnail),
+        demoArticle("A former warehouse becomes a rehearsal commons", "Civic Dispatch", "rehearsal", repairCafeThumbnail),
+        demoArticle("Students prototype signs for safer crossings", "Transit Notes", "crossings", roofGardenThumbnail),
+        demoArticle("Public kitchens trade recipes for surplus produce", "Archive Weekly", "kitchens", repairCafeThumbnail),
     )
 
 private fun demoArticle(
     title: String,
     source: String,
     slug: String,
+    imageUrl: String,
 ) = Article(
     title = title,
     description = "A fictional SignalBrief demo story for this browser showcase.",
     url = "https://example.com/signalbrief-demo/$slug",
-    imageUrl = null,
+    imageUrl = imageUrl,
     source = Source(slug, source),
 )

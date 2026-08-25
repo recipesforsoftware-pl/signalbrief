@@ -19,6 +19,9 @@
             width: 100%;
             max-width: 960px;
             margin: 0 auto;
+            /* ComposeViewport owns scrolling inside its canvas. Clip only this host's
+               Shadow DOM overflow so it cannot expose a second, native feed bar. */
+            overflow-y: hidden;
         }
     </style>
 </head>
