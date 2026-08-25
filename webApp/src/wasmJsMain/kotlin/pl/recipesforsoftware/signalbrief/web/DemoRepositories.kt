@@ -40,8 +40,8 @@ class WebSavedArticlesRepository : SavedArticlesRepository {
         }
 }
 
-private const val roofGardenThumbnail = "demo-resource://roof-garden"
-private const val repairCafeThumbnail = "demo-resource://repair-cafe"
+private const val ROOF_GARDEN_THUMBNAIL = "demo-resource://roof-garden"
+private const val REPAIR_CAFE_THUMBNAIL = "demo-resource://repair-cafe"
 
 internal val demoArticles =
     listOf(
@@ -49,22 +49,22 @@ internal val demoArticles =
             "City library turns unused roof into a public garden",
             "Civic Dispatch",
             "roof-garden",
-            roofGardenThumbnail,
+            ROOF_GARDEN_THUMBNAIL,
         ),
         demoArticle(
             "A small repair café makes neighborhood skills visible",
             "Local Ledger",
             "repair-cafe",
-            repairCafeThumbnail,
+            REPAIR_CAFE_THUMBNAIL,
         ),
-        demoArticle("Night buses add quiet-reading corners on two routes", "Transit Notes", "night-buses", roofGardenThumbnail),
-        demoArticle("School makers build an open map of shade trees", "Field Signal", "shade-trees", repairCafeThumbnail),
-        demoArticle("Community radio archives a century of local voices", "Archive Weekly", "radio-archive", roofGardenThumbnail),
-        demoArticle("Independent bookshops test a shared delivery shelf", "Local Ledger", "bookshops", repairCafeThumbnail),
-        demoArticle("River volunteers log the return of spring insects", "Field Signal", "river-insects", roofGardenThumbnail),
-        demoArticle("A former warehouse becomes a rehearsal commons", "Civic Dispatch", "rehearsal", repairCafeThumbnail),
-        demoArticle("Students prototype signs for safer crossings", "Transit Notes", "crossings", roofGardenThumbnail),
-        demoArticle("Public kitchens trade recipes for surplus produce", "Archive Weekly", "kitchens", repairCafeThumbnail),
+        demoArticle("Night buses add quiet-reading corners on two routes", "Transit Notes", "night-buses", ROOF_GARDEN_THUMBNAIL),
+        demoArticle("School makers build an open map of shade trees", "Field Signal", "shade-trees", REPAIR_CAFE_THUMBNAIL),
+        demoArticle("Community radio archives a century of local voices", "Archive Weekly", "radio-archive", ROOF_GARDEN_THUMBNAIL),
+        demoArticle("Independent bookshops test a shared delivery shelf", "Local Ledger", "bookshops", REPAIR_CAFE_THUMBNAIL),
+        demoArticle("River volunteers log the return of spring insects", "Field Signal", "river-insects", ROOF_GARDEN_THUMBNAIL),
+        demoArticle("A former warehouse becomes a rehearsal commons", "Civic Dispatch", "rehearsal", REPAIR_CAFE_THUMBNAIL),
+        demoArticle("Students prototype signs for safer crossings", "Transit Notes", "crossings", ROOF_GARDEN_THUMBNAIL),
+        demoArticle("Public kitchens trade recipes for surplus produce", "Archive Weekly", "kitchens", REPAIR_CAFE_THUMBNAIL),
     )
 
 private fun demoArticle(
