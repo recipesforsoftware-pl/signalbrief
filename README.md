@@ -1,30 +1,42 @@
 # SignalBrief
 
-SignalBrief is a Kotlin Multiplatform news reader for **Android and iOS** with an
-offline-first, typed-provenance feed. A shared KMP domain/data layer (`:shared`),
-a shared Compose Multiplatform UI module (`:shared-ui`), and thin platform hosts
-(`:app` with Hilt on Android, `iosApp` with a manual composition root on iOS)
-deliver the same two-page onboarding flow and "Top Headlines" screen on both
-platforms.
+SignalBrief is a Kotlin Multiplatform news reader for **Android, iOS, and Web/Wasm**.
 
-This is the current, honest state of the project — an open-source application
-baseline, not a store publication and not a production backend. NewsAPI is used
-**directly for local development only** with a developer-supplied key (see
-[Local setup](#local-setup)).
+The project shares domain contracts, presentation logic, and Compose Multiplatform UI where that reduces duplication, while keeping platform responsibilities explicit:
+
+- **Android and iOS** use the mobile data layer with Ktor, Room KMP, and an offline-first repository. NewsAPI is used directly only for local development.
+- **Web/Wasm** uses the same shared domain and presentation/UI contracts, with a browser-specific repository backed by Cloudflare Pages Functions and NewsData.io.
+- The public Web deployment keeps provider credentials server-side and proxies article images through a signed, same-origin endpoint.
+
+This repository is an open-source engineering/portfolio project. The Android and iOS apps are **not currently published in the stores**.
+
+## Live Web Demo
+
+**[Open SignalBrief Web Demo](https://signalbrief-bj7.pages.dev/)**
+
+The Web demo serves real headlines and supports the same core reading flow: Headlines, Search, Saved Articles, Article Details, and Daily Brief.
 
 ## Engineering case study
 
-[From Android MVVM to Kotlin Multiplatform: Evolving SignalBrief for Android
-and iOS](https://medium.com/@recipesforsoftware/from-android-mvvm-to-kotlin-multiplatform-evolving-signalbrief-for-android-and-ios-3386b85ebc6c)
+[From Android MVVM to Kotlin Multiplatform: Evolving SignalBrief for Android and iOS](https://medium.com/@recipesforsoftware/from-android-mvvm-to-kotlin-multiplatform-evolving-signalbrief-for-android-and-ios-3386b85ebc6c)
 
-A detailed walkthrough of how the original Android application evolved into an
-offline-first Kotlin Multiplatform project with shared domain, data,
-presentation, and Compose Multiplatform UI.
+A walkthrough of how the original Android application evolved into an offline-first Kotlin Multiplatform project with shared domain, data, presentation, and Compose Multiplatform UI.
 
-[Read the original Android architecture article](https://medium.com/@recipesforsoftware/building-a-modern-android-news-app-with-jetpack-compose-best-practices-without-overengineering-89442c895de9) —
-this documents the earlier Android-only stage of the project.
+[Read the original Android architecture article](https://medium.com/@recipesforsoftware/building-a-modern-android-news-app-with-jetpack-compose-best-practices-without-overengineering-89442c895de9) — this documents the earlier Android-only stage.
 
 ## Screenshots
+
+### Web
+
+| Headlines | Daily Brief |
+| --- | --- |
+| <img src="docs/screenshots/web/01_headlines.png" alt="SignalBrief Web Headlines" width="520"/> | <img src="docs/screenshots/web/02_daily_brief.png" alt="SignalBrief Web Daily Brief" width="520"/> |
+
+| Saved Articles | Article Details |
+| --- | --- |
+| <img src="docs/screenshots/web/03_saved.png" alt="SignalBrief Web Saved Articles" width="520"/> | <img src="docs/screenshots/web/04_article_details.png" alt="SignalBrief Web Article Details" width="520"/> |
+
+### Android and iOS
 
 | | Onboarding | Top Headlines — light | Top Headlines — dark |
 | --- | --- | --- | --- |
@@ -33,156 +45,168 @@ this documents the earlier Android-only stage of the project.
 
 ## Implemented capabilities
 
-- **Android and iOS apps** sharing one Kotlin Multiplatform domain/data layer
-  and one Compose Multiplatform UI module.
-- **Top Headlines feed** from NewsAPI (US by default), rendered in a single
-  shared screen with loading (skeleton cards), empty, error-with-retry, and
-  success states on both platforms.
-- **Offline-first cache**: the latest successful remote response per country is
-  stored in a shared Room KMP database and served as a fallback when the network
-  fails. `TopHeadlinesFeed` is tagged `FeedSource.NETWORK` or
-  `FeedSource.CACHE`, and a "Showing saved headlines" banner appears when the
-  feed comes from the cache.
-- **Two-page onboarding** with paging, "Skip"/"Start reading", and at-most-once
-  host completion. Persisted with DataStore Preferences on Android and
-  NSUserDefaults on iOS; returning users never see an onboarding flash.
-- **Article images** loaded with Coil 3 through the Ktor 3 network fetcher.
-- **Safe external article opening**: article URLs are validated as `http`/`https`
-  before being handed to the platform browser (Chrome Custom Tabs on Android).
-- **Light and dark themes** shared across platforms; the Android host keeps a
-  persisted dark-mode toggle. Dynamic color is opt-in and off by default so the
-  editorial palette stays consistent.
-- **Responsive feed**: content is capped at a 600dp reading measure and centered
-  on wide screens.
-- **Typed failures** (`NewsFailure.Network` / `InvalidData` / `Unknown`);
-  coroutine cancellation is always rethrown, never reported as a failure.
-- **Branded identity**: launcher/AppIcon and splash/launch screens on both
-  platforms; application identifier
-  `pl.recipesforsoftware.signalbrief`.
+- **Android, iOS, and browser/Wasm targets** with shared Kotlin domain contracts and shared Compose Multiplatform presentation/UI.
+- **Top Headlines** with loading, success, empty, typed error/retry, refresh, article images, and source metadata.
+- **Search** over the locally available headline set.
+- **Saved Articles** with bookmark actions and a dedicated Saved destination. Mobile persistence is durable; the Web implementation is intentionally browser-session-only.
+- **Article Details** with shared content layout, bookmark state, article image, and safe external article opening.
+- **Daily Brief** generated from the currently available headline set.
+- **Mobile offline-first cache**: successful remote results are stored in Room KMP and used as an explicit `FeedSource.CACHE` fallback after network failures.
+- **Two-page mobile onboarding** persisted with DataStore Preferences on Android and NSUserDefaults on iOS. The Web host intentionally skips onboarding.
+- **Light and dark shared themes**, with Android-specific persisted theme selection.
+- **Responsive Compose UI** with a capped reading width on large screens.
+- **Typed failures** (`NewsFailure.Network`, `InvalidData`, `Unknown`) and cancellation-safe coroutine handling.
+- **Public Web backend boundary** using Cloudflare Pages Functions:
+  - `/api/headlines` fetches and normalizes NewsData.io content.
+  - `/api/image` is a signed image proxy with content-type validation, size limits, and edge caching.
+  - provider keys remain server-side and are not embedded in the Wasm bundle.
 
 ## Architecture
 
-MVVM with a clean domain boundary and shared presentation. Four Gradle/Xcode
-units — the exact responsibility of each, the dependency direction, the
-Hilt/iOS composition, and the data flow are documented in
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md):
+The current project deliberately does **not** maximize shared-code percentage at all costs. Pure domain behavior lives in `:core`; mobile data/network/storage implementations live in `:shared`; common presentation and UI live in `:shared-ui`; each host owns platform-specific composition.
 
 ```text
-:app (Android host, Hilt)  ──┐
-                             ├──> :shared-ui (shared Compose UI + presenter) ──> :shared (domain + data) ──> NewsAPI + Room
-iosApp (iOS host, manual) ───┘
+                          ┌──────────────────────────────┐
+                          │ :app — Android host / Hilt   │
+                          └──────────────┬───────────────┘
+                                         │
+                                         ▼
+┌──────────────┐                 ┌───────────────────────┐
+│    :core     │◄────────────────│      :shared-ui       │
+│ pure domain  │                 │ Compose + presenters  │
+└──────▲───────┘                 └──────────┬────────────┘
+       │                                    │
+       │                          ┌──────────┴──────────┐
+       │                          │                     │
+┌──────┴───────┐          ┌──────▼────────┐    ┌──────▼────────┐
+│   :shared    │          │    iosApp     │    │    :webApp    │
+│ mobile data  │          │ SwiftUI host  │    │ browser/Wasm  │
+└──────┬───────┘          └───────────────┘    └──────┬────────┘
+       │                                               │
+       ▼                                               ▼
+Ktor + Room KMP                              Cloudflare Pages Functions
+       │                                      /api/headlines + /api/image
+       ▼                                               │
+    NewsAPI                                            ▼
+                                                NewsData.io
 ```
 
-In short:
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for module ownership, dependency direction, platform composition, mobile offline-first flow, and the Web request/image-proxy flow.
 
-- **`:shared`** — Kotlin Multiplatform. Domain contracts and models, typed
-  failures, Ktor networking (DTOs + mapping), Room KMP cache, and the
-  network-first `OfflineFirstNewsRepository`. No UI, no DI framework.
-- **`:shared-ui`** — Kotlin Multiplatform Compose UI: the `SignalBriefApp`
-  shell, onboarding, the stateless `TopHeadlinesScreen`, a framework-independent
-  `TopHeadlinesPresenter` (StateFlow), design tokens, and the shared theme.
-- **`:app`** — Android application: `SignalBriefApplication` (`@HiltAndroidApp`),
-  `MainActivity`, Hilt modules, Android-specific dark-mode and onboarding
-  persistence.
-- **`iosApp`** — iOS application: SwiftUI host embedding
-  `SignalBriefSharedUi.framework`; `MainViewController.kt` builds the shared
-  graph manually and reads the key from the app bundle.
+## Module responsibilities
 
-## Offline-first data flow
+- **`:core`** — framework-free domain models, repository contracts, typed failures, and web-safe business logic. Targets Android, iOS, and browser Wasm.
+- **`:shared`** — mobile data layer. Depends on `:core` and owns Ktor networking, serialization, Room KMP persistence, and `OfflineFirstNewsRepository`.
+- **`:shared-ui`** — shared Compose Multiplatform UI and presenters. Its common code depends on `:core`; platform source sets provide image/loading and composition details where needed.
+- **`:app`** — Android host and Hilt composition root.
+- **`iosApp`** — SwiftUI host. The iOS composition root is assembled explicitly from Kotlin/Swift-facing code.
+- **`:webApp`** — browser/Wasm executable, `WebNewsRepository`, and session-only `WebSavedArticlesRepository`. It depends on `:core` and `:shared-ui`, not on the mobile `:shared` data layer.
+- **`functions/`** — Cloudflare Pages Functions used only by the public Web path.
+
+## Mobile offline-first data flow
 
 ```text
-UI observes StateFlow from the shared presenter
-  -> refresh requests the remote source
-  -> DTOs are validated and mapped to domain models
-  -> the country/feed cache is replaced transactionally in Room
-  -> fresh data is returned tagged FeedSource.NETWORK
-  on NewsFailure.Network with a non-empty cache
-  -> cached data is returned tagged FeedSource.CACHE (banner shown)
+shared UI/presenter
+  -> NewsRepository
+  -> OfflineFirstNewsRepository
+      -> Ktor remote source -> NewsAPI
+      -> Room KMP local source
+
+network success
+  -> validate/map/deduplicate
+  -> replace country cache transactionally
+  -> FeedSource.NETWORK
+
+NewsFailure.Network + non-empty cache
+  -> return cached feed
+  -> FeedSource.CACHE
 ```
 
-A failed remote request never touches the cache; `InvalidData`/`Unknown`
-failures are never hidden by cached content.
+A failed remote request never mutates the cache. `InvalidData` and `Unknown` failures are not hidden by cached content.
+
+## Web data and image flow
+
+```text
+SignalBrief Web/Wasm
+  -> WebNewsRepository
+  -> GET /api/headlines?country=us
+  -> Cloudflare Pages Function
+  -> NewsData.io
+
+headline image reference
+  -> signed /api/image?url=...&sig=...
+  -> Cloudflare validates signature, URL, type, and size
+  -> upstream image CDN
+  -> same-origin response
+  -> browser fetch -> ArrayBuffer -> ImageBitmap -> Compose Image
+```
+
+This keeps the NewsData key out of JavaScript/Wasm and avoids relying on third-party image CORS behavior.
 
 ## Technology stack
 
 | Category | Technology |
 |---|---|
-| Language | Kotlin, Kotlin Multiplatform, Swift (iOS host) |
-| UI | Compose Multiplatform, Material 3 (shared screen on both platforms) |
-| Architecture | MVVM, unidirectional StateFlow + shared presenter |
-| DI | Dagger/Hilt (Android only); manual composition root (iOS) |
-| Networking | Ktor 3 client + kotlinx.serialization (Android and iOS engines) |
-| Image loading | Coil 3 (Ktor 3 network fetcher) |
-| Persistence | Room (KMP), DataStore Preferences (Android), NSUserDefaults (iOS) |
+| Language | Kotlin, Kotlin Multiplatform, Swift, JavaScript (Pages Functions) |
+| UI | Compose Multiplatform, Material 3 |
+| Architecture | MVVM-style shared presenters, repository contracts, unidirectional StateFlow |
+| Domain | `:core` shared across Android, iOS, and Web/Wasm |
+| Mobile DI | Dagger/Hilt on Android; manual composition on iOS |
+| Mobile networking | Ktor 3 + kotlinx.serialization |
+| Mobile persistence | Room KMP; DataStore Preferences (Android); NSUserDefaults (iOS) |
+| Mobile images | Coil 3 |
+| Web networking | Browser `fetch` -> Cloudflare Pages Functions -> NewsData.io |
+| Web images | Signed same-origin proxy -> `ArrayBuffer` -> `ImageBitmap` |
 | Async | Coroutines + Flow |
-| Browser | Chrome Custom Tabs (Android) |
 | Testing | JUnit 4, MockK, Turbine, kotlinx-coroutines-test, Robolectric, kotlin.test, Compose UI test, Espresso |
-| Build | Gradle wrapper, AGP, Xcode |
+| Build / CI | Gradle, AGP, Xcode, GitHub Actions, Binaryen |
+| Hosting | Cloudflare Pages + Pages Functions |
 
-## Local setup
+## Local setup — Android and iOS
 
-NewsAPI is used **for local development only**. No real key is stored in this
-repository; you supply your own key in an ignored, local-only file per platform.
-A client-side key is extractable from the built APK/IPA, so this setup must not
-be treated as a production credential.
+NewsAPI is used **only for local mobile development**. No real mobile API key is stored in this repository.
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/recipesforsoftware-pl/signalbrief.git
-   ```
-2. Register for a developer key at [NewsAPI.org](https://newsapi.org/register).
-3. Store the key locally (see the platform sections below). Never commit
-   `local.properties` or `Secrets.xcconfig`; both are already in `.gitignore`.
-
-Without a valid key the apps build and run, but headline requests fail.
+A client-side key embedded in an APK or IPA is extractable, so this setup is intentionally documented as a development configuration rather than a production credential architecture.
 
 ### Android key
 
-Create `local.properties` at the repository root:
+Create or edit the git-ignored `local.properties` at the repository root:
 
 ```properties
 NEWS_API_KEY=your_news_api_key
 ```
 
-The value is embedded into `BuildConfig.NEWS_API_KEY` at build time and sent in
-the `X-Api-Key` header.
-
 ### iOS key
 
-Copy the tracked template and fill in your key:
+Copy the tracked template:
 
 ```bash
 cp iosApp/Configuration/Secrets.example.xcconfig iosApp/Configuration/Secrets.xcconfig
 ```
 
+Then set:
+
 ```xcconfig
 NEWS_API_KEY=your_news_api_key
 ```
 
-The value is injected into `Info.plist` via the xcconfig and read by
-`MainViewController.kt`. Only `Secrets.example.xcconfig` (with a placeholder) is
-tracked.
+Never commit `local.properties` or `Secrets.xcconfig`.
 
-## Running the app — Android
+## Running Android
 
 ```bash
-# Debug build
 ./gradlew assembleDebug
-
-# Install on a connected device or emulator
 ./gradlew installDebug
-
-# Launch
 adb shell am start -n pl.recipesforsoftware.signalbrief/.ui.main.MainActivity
 ```
 
-## Running the app — iOS
+## Running iOS
 
 ```bash
-open iosApp/iosApp.xcodeproj   # then Run (⌘R)
+open iosApp/iosApp.xcodeproj
 ```
 
-or from the command line:
+or:
 
 ```bash
 xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -configuration Debug \
@@ -190,63 +214,61 @@ xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -configuration Debug 
   -derivedDataPath iosApp/build CODE_SIGNING_ALLOWED=NO build
 ```
 
+## Building Web/Wasm
+
+```bash
+./gradlew :webApp:wasmJsBrowserDistribution
+```
+
+Production output:
+
+```text
+webApp/build/dist/wasmJs/productionExecutable
+```
+
+The public Web deployment uses Cloudflare Pages Functions and encrypted production secrets. The repository does not contain the NewsData API key or image-proxy signing key.
+
 ## Tests and quality gates
 
 ```bash
-# Shared modules: JVM host tests + iOS simulator tests + framework links
+# Shared/mobile tests and frameworks
 ./gradlew :shared:allTests :shared-ui:allTests
 ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64 :shared-ui:linkDebugFrameworkIosSimulatorArm64
 
-# Android JVM unit tests, lint, formatting, static analysis, debug build
+# Android
 ./gradlew test lintDebug ktlintCheck detekt assembleDebug
 
-# Coverage report + verification
+# Web/Wasm
+./gradlew :webApp:wasmJsTest :shared-ui:compileKotlinWasmJs :webApp:wasmJsBrowserDistribution
+
+# Coverage
 ./gradlew :app:koverHtmlReportAll :app:koverXmlReportAll :app:koverVerifyAll
 
-# Instrumented tests (require a device or emulator)
+# Instrumented Android tests — require a device/emulator
 ./gradlew connectedDebugAndroidTest
 ```
 
-Notes:
-
-- `ktlintCheck` enforces Kotlin formatting across `:app`, `:shared`, and
-  `:shared-ui`; fix locally with `./gradlew ktlintFormat`.
-- `detekt` runs static analysis on all modules.
-- Kover measures coverage from the **JVM unit tests only** and aggregates
-  `:shared`, `:shared-ui`, and `:app` into a custom `all` variant. **Kover
-  verification passes with the existing 9% line-coverage threshold**.
-- Instrumented tests exist in `app/src/androidTest` but are **not** run in CI
-  yet; they require a device or emulator.
-
 ## CI
 
-Three GitHub Actions workflows protect `main`:
+Four pull-request checks protect `main`:
 
-- **Android CI** (`android_ci.yml`, Ubuntu): Gradle wrapper validation,
-  `ktlintCheck`, `detekt`, `test`, `lintDebug`, `assembleDebug`, and Kover
-  report/verification. No NewsAPI key required.
-- **KMP and iOS CI** (`kmp_ios_ci.yml`, macOS): shared tests, framework links,
-  `ktlintCheck`, `detekt`, and an unsigned iOS simulator build of the host app.
-  It creates a temporary git-ignored `Secrets.xcconfig` with an obvious fake key
-  for the build only.
-- **Dependency review** (`dependency_review.yml`): fails on moderate-or-higher
-  vulnerabilities in pull requests.
+- **Android CI** — formatting/static analysis, unit tests, Android lint, debug build, and Kover verification.
+- **KMP and iOS CI** — shared tests, framework linking, formatting/static analysis, and an unsigned iOS simulator build.
+- **Web CI** — Web/Wasm tests and production browser distribution using the repository's supported Node/Binaryen setup.
+- **Dependency Review** — rejects moderate-or-higher vulnerable dependency changes in pull requests.
+
+No production API secret is committed to or required by CI.
 
 ## Current limitations
 
-- Navigation framework, search, saved articles, topic monitoring, the Daily
-  Brief, payments, synchronization, and a production backend are **not
-  implemented**.
-- Direct NewsAPI use with a client-side key is **local development only**; it is
-  not a production-safe secret architecture. A future production-connected mode
-  would use an authorized provider and, where required, a backend proxy.
-- There are no deterministic demo fixtures yet.
-- Instrumented tests are not part of CI.
+- Android and iOS are not currently published in the app stores.
+- Mobile clients still use a developer-supplied NewsAPI key directly for local development; this is not a production mobile secret architecture.
+- Web Saved Articles are intentionally **session-only** and reset when the browser application reloads.
+- Saved state is not synchronized between platforms or devices.
+- The public Web feed currently targets an English/US top-headlines configuration.
+- Search operates on the headline set already available to the application; there is no separate server-side search index.
+- Payments, account synchronization, analytics, and production mobile signing/release infrastructure are outside this public repository.
 
 ## Roadmap
 
-The phased plan — from the verified Android baseline through the KMP foundation,
-offline-first storage, and the full product MVP — is in
-[IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md). Commercial capabilities
-(payments, production synchronization, analytics, signing) are deliberately
-scoped to a separate private repository.
+The phased history and planned follow-up work are documented in [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md). Commercial capabilities such as payments, account synchronization, analytics, and production signing remain intentionally separated from the public portfolio scope.
