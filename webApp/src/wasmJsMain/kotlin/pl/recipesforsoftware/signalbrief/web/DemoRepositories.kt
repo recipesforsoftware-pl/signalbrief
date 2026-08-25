@@ -57,14 +57,54 @@ internal val demoArticles =
             "repair-cafe",
             REPAIR_CAFE_THUMBNAIL,
         ),
-        demoArticle("Night buses add quiet-reading corners on two routes", "Transit Notes", "night-buses", ROOF_GARDEN_THUMBNAIL),
-        demoArticle("School makers build an open map of shade trees", "Field Signal", "shade-trees", REPAIR_CAFE_THUMBNAIL),
-        demoArticle("Community radio archives a century of local voices", "Archive Weekly", "radio-archive", ROOF_GARDEN_THUMBNAIL),
-        demoArticle("Independent bookshops test a shared delivery shelf", "Local Ledger", "bookshops", REPAIR_CAFE_THUMBNAIL),
-        demoArticle("River volunteers log the return of spring insects", "Field Signal", "river-insects", ROOF_GARDEN_THUMBNAIL),
-        demoArticle("A former warehouse becomes a rehearsal commons", "Civic Dispatch", "rehearsal", REPAIR_CAFE_THUMBNAIL),
-        demoArticle("Students prototype signs for safer crossings", "Transit Notes", "crossings", ROOF_GARDEN_THUMBNAIL),
-        demoArticle("Public kitchens trade recipes for surplus produce", "Archive Weekly", "kitchens", REPAIR_CAFE_THUMBNAIL),
+        demoArticle(
+            "Night buses add quiet-reading corners on two routes",
+            "Transit Notes",
+            "night-buses",
+            ROOF_GARDEN_THUMBNAIL,
+        ),
+        demoArticle(
+            "School makers build an open map of shade trees",
+            "Field Signal",
+            "shade-trees",
+            REPAIR_CAFE_THUMBNAIL,
+        ),
+        demoArticle(
+            "Community radio archives a century of local voices",
+            "Archive Weekly",
+            "radio-archive",
+            ROOF_GARDEN_THUMBNAIL,
+        ),
+        demoArticle(
+            "Independent bookshops test a shared delivery shelf",
+            "Local Ledger",
+            "bookshops",
+            REPAIR_CAFE_THUMBNAIL,
+        ),
+        demoArticle(
+            "River volunteers log the return of spring insects",
+            "Field Signal",
+            "river-insects",
+            ROOF_GARDEN_THUMBNAIL,
+        ),
+        demoArticle(
+            "A former warehouse becomes a rehearsal commons",
+            "Civic Dispatch",
+            "rehearsal",
+            REPAIR_CAFE_THUMBNAIL,
+        ),
+        demoArticle(
+            "Students prototype signs for safer crossings",
+            "Transit Notes",
+            "crossings",
+            ROOF_GARDEN_THUMBNAIL,
+        ),
+        demoArticle(
+            "Public kitchens trade recipes for surplus produce",
+            "Archive Weekly",
+            "kitchens",
+            REPAIR_CAFE_THUMBNAIL,
+        ),
     )
 
 private fun demoArticle(
