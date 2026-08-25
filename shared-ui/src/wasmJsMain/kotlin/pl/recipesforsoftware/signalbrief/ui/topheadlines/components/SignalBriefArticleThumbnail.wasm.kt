@@ -11,8 +11,8 @@ import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.Res
 import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.demo_repair_cafe
 import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.demo_roof_garden
 
-private const val RoofGardenReference = "demo-resource://roof-garden"
-private const val RepairCafeReference = "demo-resource://repair-cafe"
+private const val ROOF_GARDEN_REFERENCE = "demo-resource://roof-garden"
+private const val REPAIR_CAFE_REFERENCE = "demo-resource://repair-cafe"
 
 @Composable
 internal actual fun SignalBriefArticleThumbnail(
@@ -23,8 +23,8 @@ internal actual fun SignalBriefArticleThumbnail(
 ) {
     val painter =
         when (imageReference) {
-            RoofGardenReference -> painterResource(Res.drawable.demo_roof_garden)
-            RepairCafeReference -> painterResource(Res.drawable.demo_repair_cafe)
+            ROOF_GARDEN_REFERENCE -> painterResource(Res.drawable.demo_roof_garden)
+            REPAIR_CAFE_REFERENCE -> painterResource(Res.drawable.demo_repair_cafe)
             else -> ColorPainter(MaterialTheme.colorScheme.surfaceContainer)
         }
     Image(

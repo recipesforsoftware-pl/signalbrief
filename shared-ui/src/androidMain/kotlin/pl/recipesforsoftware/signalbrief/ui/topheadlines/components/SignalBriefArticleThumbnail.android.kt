@@ -1,10 +1,10 @@
 package pl.recipesforsoftware.signalbrief.ui.topheadlines.components
 
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.material3.MaterialTheme
 import coil3.compose.AsyncImage
 
 @Composable
