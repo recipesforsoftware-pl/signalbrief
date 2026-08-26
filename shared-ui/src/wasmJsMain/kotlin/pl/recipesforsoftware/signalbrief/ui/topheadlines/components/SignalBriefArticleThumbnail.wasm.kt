@@ -3,7 +3,6 @@
 package pl.recipesforsoftware.signalbrief.ui.topheadlines.components
 
 import androidx.compose.foundation.Image
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -11,7 +10,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.decodeToImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
-import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import kotlinx.browser.window
 import kotlinx.coroutines.CancellationException
@@ -28,6 +26,16 @@ private const val IMAGE_PROXY_PREFIX = "/api/image?"
 
 private val remoteImageCache = mutableMapOf<String, ImageBitmap>()
 
+internal sealed interface RemoteImageLoadState {
+    data object Loading : RemoteImageLoadState
+
+    data class Success(
+        val bitmap: ImageBitmap,
+    ) : RemoteImageLoadState
+
+    data object Failure : RemoteImageLoadState
+}
+
 @Composable
 internal actual fun SignalBriefArticleThumbnail(
     imageReference: String,
@@ -35,64 +43,71 @@ internal actual fun SignalBriefArticleThumbnail(
     modifier: Modifier,
     contentScale: ContentScale,
 ) {
-    val remoteBitmap =
-        if (imageReference.startsWith(IMAGE_PROXY_PREFIX)) {
-            val bitmap by produceState<ImageBitmap?>(
-                initialValue = remoteImageCache[imageReference],
-                key1 = imageReference,
-            ) {
-                if (value == null) {
-                    value = loadRemoteImage(imageReference)
-                    value?.let { loaded ->
-                        remoteImageCache[imageReference] = loaded
-                    }
-                }
+    if (!imageReference.startsWith(IMAGE_PROXY_PREFIX)) {
+        SignalBriefImageFallbackSurface(modifier)
+        return
+    }
+
+    val imageState by
+        produceState<RemoteImageLoadState>(
+            initialValue = RemoteImageLoadState.Loading,
+            key1 = imageReference,
+        ) {
+            val cachedBitmap = remoteImageCache[imageReference]
+            if (cachedBitmap != null) {
+                value = RemoteImageLoadState.Success(cachedBitmap)
+                return@produceState
             }
-            bitmap
-        } else {
-            null
+
+            value = RemoteImageLoadState.Loading
+            try {
+                val loaded = loadRemoteImage(imageReference)
+                remoteImageCache[imageReference] = loaded
+                value = RemoteImageLoadState.Success(loaded)
+            } catch (failure: CancellationException) {
+                throw failure
+            } catch (_: Throwable) {
+                value = RemoteImageLoadState.Failure
+            }
         }
 
-    val painter =
-        remoteBitmap?.let(::BitmapPainter)
-            ?: ColorPainter(MaterialTheme.colorScheme.surfaceContainer)
+    when (val state = imageState) {
+        RemoteImageLoadState.Loading -> {
+            SignalBriefImageLoadingPlaceholder(modifier)
+        }
 
-    Image(
-        painter = painter,
-        contentDescription = contentDescription,
-        contentScale = contentScale,
-        modifier = modifier,
-    )
+        is RemoteImageLoadState.Success -> {
+            Image(
+                painter = BitmapPainter(state.bitmap),
+                contentDescription = contentDescription,
+                contentScale = contentScale,
+                modifier = modifier,
+            )
+        }
+
+        RemoteImageLoadState.Failure -> {
+            SignalBriefImageFallbackSurface(modifier)
+        }
+    }
 }
 
-private suspend fun loadRemoteImage(imageReference: String): ImageBitmap? =
-    runCatching {
-        val response =
-            window
-                .fetch(imageReference)
-                .awaitValue()
+private suspend fun loadRemoteImage(imageReference: String): ImageBitmap {
+    val response =
+        window
+            .fetch(imageReference)
+            .awaitValue()
 
-        check(response.ok)
+    check(response.ok)
 
-        val arrayBuffer =
-            response
-                .arrayBuffer()
-                .awaitValue()
+    val arrayBuffer =
+        response
+            .arrayBuffer()
+            .awaitValue()
 
-        Int8Array(arrayBuffer)
-            .toByteArray()
-            .decodeToImageBitmap()
-    }.fold(
-        onSuccess = { bitmap ->
-            bitmap
-        },
-        onFailure = { failure ->
-            if (failure is CancellationException) {
-                throw failure
-            }
-            null
-        },
-    )
+    return Int8Array(arrayBuffer)
+        .toByteArray()
+        .decodeToImageBitmap()
+}
 
 private suspend fun <T : JsAny?> Promise<T>.awaitValue(): T =
     suspendCancellableCoroutine { continuation ->
