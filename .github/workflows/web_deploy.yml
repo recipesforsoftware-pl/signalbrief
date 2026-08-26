@@ -1,0 +1,70 @@
+name: Web Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: signalbrief-web-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy Web to Cloudflare Pages
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Install Binaryen 131
+        run: |
+          BINARYEN_VERSION=131
+          BINARYEN_SHA256=b5bf1f0eaf17c63ee588ff7a5954dc8f6ce2c26989051c66f24dfe9ece3e46db
+          ARCHIVE="$RUNNER_TEMP/binaryen.tar.gz"
+          DEST="$RUNNER_TEMP/binaryen"
+
+          curl --fail --location --retry 3 \
+            --output "$ARCHIVE" \
+            "https://github.com/WebAssembly/binaryen/releases/download/version_${BINARYEN_VERSION}/binaryen-version_${BINARYEN_VERSION}-x86_64-linux.tar.gz"
+
+          echo "${BINARYEN_SHA256}  ${ARCHIVE}" | sha256sum --check
+
+          mkdir -p "$DEST"
+          tar -xzf "$ARCHIVE" -C "$DEST" --strip-components=1
+
+          echo "$DEST/bin" >> "$GITHUB_PATH"
+          "$DEST/bin/wasm-opt" --version
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Build production Web distribution
+        run: ./gradlew :webApp:wasmJsBrowserDistribution
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4.126.0'
+          command: >-
+            pages deploy webApp/build/dist/wasmJs/productionExecutable
+            --project-name=signalbrief
+            --branch=main
+            --commit-hash=${{ github.sha }}
