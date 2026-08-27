@@ -48,7 +48,7 @@ A walkthrough of how the original Android application evolved into an offline-fi
 - **Android, iOS, and browser/Wasm targets** with shared Kotlin domain contracts and shared Compose Multiplatform presentation/UI.
 - **Top Headlines** with loading, success, empty, typed error/retry, refresh, article images, and source metadata.
 - **Search** over the locally available headline set.
-- **Saved Articles** with bookmark actions and a dedicated Saved destination. Mobile persistence is durable; the Web implementation is intentionally browser-session-only.
+- **Saved Articles** with bookmark actions and a dedicated Saved destination. Mobile persistence is durable; Web Saved Articles persist locally in the browser.
 - **Article Details** with shared content layout, bookmark state, article image, and safe external article opening.
 - **Daily Brief** generated from the currently available headline set.
 - **Mobile offline-first cache**: successful remote results are stored in Room KMP and used as an explicit `FeedSource.CACHE` fallback after network failures.
@@ -100,7 +100,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for module ownership, dependenc
 - **`:shared-ui`** — shared Compose Multiplatform UI and presenters. Its common code depends on `:core`; platform source sets provide image/loading and composition details where needed.
 - **`:app`** — Android host and Hilt composition root.
 - **`iosApp`** — SwiftUI host. The iOS composition root is assembled explicitly from Kotlin/Swift-facing code.
-- **`:webApp`** — browser/Wasm executable, `WebNewsRepository`, and session-only `WebSavedArticlesRepository`. It depends on `:core` and `:shared-ui`, not on the mobile `:shared` data layer.
+- **`:webApp`** — browser/Wasm executable, `WebNewsRepository`, and browser-local `WebSavedArticlesRepository`. It depends on `:core` and `:shared-ui`, not on the mobile `:shared` data layer.
 - **`functions/`** — Cloudflare Pages Functions used only by the public Web path.
 
 ## Mobile offline-first data flow
@@ -263,8 +263,7 @@ No production API secret is committed to or required by CI.
 
 - Android and iOS are not currently published in the app stores.
 - Mobile clients still use a developer-supplied NewsAPI key directly for local development; this is not a production mobile secret architecture.
-- Web Saved Articles are intentionally **session-only** and reset when the browser application reloads.
-- Saved state is not synchronized between platforms or devices.
+- Web Saved Articles persist locally in the browser, but are not synchronized between browsers, devices, or platforms.
 - The public Web feed currently targets an English/US top-headlines configuration.
 - Search operates on the headline set already available to the application; there is no separate server-side search index.
 - Payments, account synchronization, analytics, and production mobile signing/release infrastructure are outside this public repository.
