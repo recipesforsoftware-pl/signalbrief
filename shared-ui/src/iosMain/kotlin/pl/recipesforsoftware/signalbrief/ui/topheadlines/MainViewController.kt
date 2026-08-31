@@ -62,6 +62,8 @@ fun mainViewController(): UIViewController {
 
         SignalBriefTheme {
             var completed by remember { mutableStateOf(onboardingCompleted) }
+            val savedArticles by
+                composition.savedArticlesRepository.observeAllSavedArticles().collectAsState(emptyList())
 
             SignalBriefApp(
                 onboardingCompleted = completed,
@@ -107,6 +109,7 @@ fun mainViewController(): UIViewController {
                         onBack = onBack,
                     )
                 },
+                savedArticleCount = savedArticles.size,
             )
         }
     }

@@ -27,6 +27,7 @@ fun SignalBriefAppHost(
     newsRepository: NewsRepository,
     savedArticlesRepository: SavedArticlesRepository,
 ) {
+    val savedArticles by savedArticlesRepository.observeAllSavedArticles().collectAsState(emptyList())
     val composition =
         remember(newsRepository, savedArticlesRepository) {
             PresentationComposition(newsRepository, savedArticlesRepository)
@@ -44,6 +45,7 @@ fun SignalBriefAppHost(
             Search(composition::search, initial, queryChanged, articleClick, back)
         },
         articleDetailsContent = { article, back -> Details(article, savedArticlesRepository, back) },
+        savedArticleCount = savedArticles.size,
     )
 }
 

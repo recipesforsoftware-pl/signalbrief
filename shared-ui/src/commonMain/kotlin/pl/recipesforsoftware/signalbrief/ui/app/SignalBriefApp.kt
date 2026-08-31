@@ -4,8 +4,11 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -106,6 +109,7 @@ fun SignalBriefApp(
     searchContent: SearchContent,
     articleDetailsContent: ArticleDetailsContent,
     dailyBriefContent: DailyBriefContent,
+    savedArticleCount: Int = 0,
     modifier: Modifier = Modifier,
 ) {
     installSignalBriefImageLoader()
@@ -136,6 +140,7 @@ fun SignalBriefApp(
                 savedContent = savedContent,
                 searchContent = searchContent,
                 articleDetailsContent = articleDetailsContent,
+                savedArticleCount = savedArticleCount,
             )
         }
     }
@@ -148,6 +153,7 @@ private fun SignalBriefMainContent(
     savedContent: SavedContent,
     searchContent: SearchContent,
     articleDetailsContent: ArticleDetailsContent,
+    savedArticleCount: Int,
 ) {
     var currentDestination by rememberSaveable(stateSaver = AppDestinationSaver) {
         mutableStateOf(AppDestination.Headlines)
@@ -176,6 +182,7 @@ private fun SignalBriefMainContent(
             SignalBriefBottomBar(
                 currentDestination = currentDestination,
                 onNavigate = { currentDestination = it },
+                savedArticleCount = savedArticleCount,
             )
         }
 
@@ -203,6 +210,7 @@ private fun SignalBriefMainContent(
 private fun SignalBriefBottomBar(
     currentDestination: AppDestination,
     onNavigate: (AppDestination) -> Unit,
+    savedArticleCount: Int,
 ) {
     NavigationBar {
         NavigationBarItem(
@@ -239,25 +247,52 @@ private fun SignalBriefBottomBar(
                     indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
                 ),
         )
-        NavigationBarItem(
-            selected = currentDestination == AppDestination.Saved,
-            onClick = { onNavigate(AppDestination.Saved) },
-            icon = {
+        SavedNavigationBarItem(currentDestination, onNavigate, savedArticleCount)
+    }
+}
+
+@Composable
+private fun RowScope.SavedNavigationBarItem(
+    currentDestination: AppDestination,
+    onNavigate: (AppDestination) -> Unit,
+    savedArticleCount: Int,
+) {
+    NavigationBarItem(
+        selected = currentDestination == AppDestination.Saved,
+        onClick = { onNavigate(AppDestination.Saved) },
+        icon = {
+            BadgedBox(
+                badge = {
+                    savedCountBadgeLabel(savedArticleCount)?.let { label ->
+                        Badge { Text(label) }
+                    }
+                },
+            ) {
                 Icon(
                     imageVector = NavigationIcons.Saved,
                     contentDescription = null,
                 )
-            },
-            label = { Text("Saved") },
-            colors =
-                NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    selectedTextColor = MaterialTheme.colorScheme.onSurface,
-                    indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
-                ),
-        )
-    }
+            }
+        },
+        label = { Text("Saved") },
+        colors =
+            NavigationBarItemDefaults.colors(
+                selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
+            ),
+    )
 }
+
+/** Returns the compact Saved navigation badge label, or `null` when it should be hidden. */
+internal fun savedCountBadgeLabel(savedArticleCount: Int): String? =
+    when {
+        savedArticleCount <= 0 -> null
+        savedArticleCount > MAX_SAVED_COUNT_BADGE -> "$MAX_SAVED_COUNT_BADGE+"
+        else -> savedArticleCount.toString()
+    }
+
+private const val MAX_SAVED_COUNT_BADGE = 99
 
 @Composable
 private fun InitializingContent() {
