@@ -66,6 +66,7 @@ class MainActivity : ComponentActivity() {
 
         val onboardingViewModel: OnboardingViewModel = hiltViewModel()
         val onboardingCompleted by onboardingViewModel.isOnboardingCompleted.collectAsState()
+        val savedArticles by savedArticlesRepository.observeAllSavedArticles().collectAsState(emptyList())
 
         SyncSystemBars(isDarkMode)
 
@@ -115,6 +116,7 @@ class MainActivity : ComponentActivity() {
                         onBack = onBack,
                     )
                 },
+                savedArticleCount = savedArticles.size,
             )
         }
     }
