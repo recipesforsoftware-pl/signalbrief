@@ -10,7 +10,9 @@ import pl.recipesforsoftware.signalbrief.data.local.NewsLocalDataSource
 import pl.recipesforsoftware.signalbrief.data.local.RoomNewsLocalDataSource
 import pl.recipesforsoftware.signalbrief.data.local.db.SignalBriefDatabase
 import pl.recipesforsoftware.signalbrief.data.local.db.createSignalBriefDatabase
+import pl.recipesforsoftware.signalbrief.data.repository.RoomCollectionsRepository
 import pl.recipesforsoftware.signalbrief.data.repository.RoomSavedArticlesRepository
+import pl.recipesforsoftware.signalbrief.domain.repository.CollectionsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
 import javax.inject.Singleton
 
@@ -42,6 +44,13 @@ object DatabaseModule {
     @Singleton
     fun provideSavedArticlesRepository(database: SignalBriefDatabase): SavedArticlesRepository =
         RoomSavedArticlesRepository(
+            database,
+        )
+
+    @Provides
+    @Singleton
+    fun provideCollectionsRepository(database: SignalBriefDatabase): CollectionsRepository =
+        RoomCollectionsRepository(
             database,
         )
 }
