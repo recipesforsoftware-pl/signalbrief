@@ -78,7 +78,10 @@ typealias SavedContent =
     @Composable (
         bottomBar: @Composable () -> Unit,
         onArticleClick: (Article) -> Unit,
+        onCollectionsClick: () -> Unit,
     ) -> Unit
+
+typealias CollectionsContent = @Composable (onBack: () -> Unit) -> Unit
 
 typealias DailyBriefContent =
     @Composable (
@@ -109,6 +112,7 @@ fun SignalBriefApp(
     searchContent: SearchContent,
     articleDetailsContent: ArticleDetailsContent,
     dailyBriefContent: DailyBriefContent,
+    collectionsContent: CollectionsContent = {},
     savedArticleCount: Int = 0,
     modifier: Modifier = Modifier,
 ) {
@@ -140,6 +144,7 @@ fun SignalBriefApp(
                 savedContent = savedContent,
                 searchContent = searchContent,
                 articleDetailsContent = articleDetailsContent,
+                collectionsContent = collectionsContent,
                 savedArticleCount = savedArticleCount,
             )
         }
@@ -153,6 +158,7 @@ private fun SignalBriefMainContent(
     savedContent: SavedContent,
     searchContent: SearchContent,
     articleDetailsContent: ArticleDetailsContent,
+    collectionsContent: CollectionsContent,
     savedArticleCount: Int,
 ) {
     var currentDestination by rememberSaveable(stateSaver = AppDestinationSaver) {
@@ -164,6 +170,7 @@ private fun SignalBriefMainContent(
     var isSearchVisible by rememberSaveable {
         mutableStateOf(false)
     }
+    var isCollectionsVisible by rememberSaveable { mutableStateOf(false) }
     var searchQuery by rememberSaveable {
         mutableStateOf("")
     }
@@ -177,6 +184,8 @@ private fun SignalBriefMainContent(
             { selectedArticle = it },
             { isSearchVisible = false },
         )
+    } else if (isCollectionsVisible) {
+        collectionsContent { isCollectionsVisible = false }
     } else {
         val bottomBar: @Composable () -> Unit = {
             SignalBriefBottomBar(
@@ -200,7 +209,11 @@ private fun SignalBriefMainContent(
             }
 
             AppDestination.Saved -> {
-                savedContent(bottomBar) { article -> selectedArticle = article }
+                savedContent(
+                    bottomBar,
+                    { article -> selectedArticle = article },
+                    { isCollectionsVisible = true },
+                )
             }
         }
     }

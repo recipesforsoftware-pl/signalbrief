@@ -84,7 +84,7 @@ class NavigationTest {
                             bottomBar = bottomBar,
                         )
                     },
-                    savedContent = { bottomBar, onArticleClick ->
+                    savedContent = { bottomBar, onArticleClick, _ ->
                         SavedArticlesScreen(
                             uiState =
                                 if (savedArticles.isEmpty()) {
@@ -200,7 +200,7 @@ class NavigationTest {
                             bottomBar = bottomBar,
                         )
                     },
-                    savedContent = { bottomBar, onArticleClick ->
+                    savedContent = { bottomBar, onArticleClick, _ ->
                         SavedArticlesScreen(
                             uiState = SavedArticlesUiState.Empty,
                             onArticleClick = onArticleClick,
@@ -258,7 +258,7 @@ class NavigationTest {
                             bottomBar = bottomBar,
                         )
                     },
-                    savedContent = { bottomBar, onArticleClick ->
+                    savedContent = { bottomBar, onArticleClick, _ ->
                         SavedArticlesScreen(
                             uiState = SavedArticlesUiState.Empty,
                             onArticleClick = onArticleClick,
@@ -464,7 +464,7 @@ class NavigationTest {
                             bottomBar = bottomBar,
                         )
                     },
-                    savedContent = { bottomBar, onArticleClick ->
+                    savedContent = { bottomBar, onArticleClick, _ ->
                         SavedArticlesScreen(
                             uiState = SavedArticlesUiState.Empty,
                             onArticleClick = onArticleClick,
