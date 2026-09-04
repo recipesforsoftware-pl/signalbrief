@@ -2,10 +2,13 @@ package pl.recipesforsoftware.signalbrief.data.repository
 
 import app.cash.turbine.test
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import pl.recipesforsoftware.signalbrief.data.local.db.SignalBriefDatabase
 import pl.recipesforsoftware.signalbrief.data.local.db.createTestDatabase
 import pl.recipesforsoftware.signalbrief.domain.failure.CollectionFailure
+import pl.recipesforsoftware.signalbrief.domain.model.Article
+import pl.recipesforsoftware.signalbrief.domain.model.Source
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -295,6 +298,57 @@ class RoomCollectionsRepositoryTest {
         }
 
     @Test
+    fun articleMemberships_areReactiveIdempotentAndIndependent() =
+        runTest {
+            val reading = repository.createCollection("Reading").getOrThrow()
+            val watchlist = repository.createCollection("Watchlist").getOrThrow()
+
+            repository.observeCollectionIdsForArticle(ARTICLE_A).test {
+                assertEquals(emptySet(), awaitItem())
+                assertTrue(repository.addArticleToCollection(article(ARTICLE_A), reading.id).isSuccess)
+                assertEquals(setOf(reading.id), awaitItem())
+                assertTrue(repository.addArticleToCollection(article(ARTICLE_A), reading.id).isSuccess)
+                expectNoEvents()
+                assertTrue(repository.addArticleToCollection(article(ARTICLE_A), watchlist.id).isSuccess)
+                assertEquals(setOf(reading.id, watchlist.id), awaitItem())
+                assertTrue(repository.removeArticleFromCollection(ARTICLE_A, reading.id).isSuccess)
+                assertEquals(setOf(watchlist.id), awaitItem())
+                assertTrue(repository.removeArticleFromCollection(ARTICLE_A, reading.id).isSuccess)
+                expectNoEvents()
+                cancelAndIgnoreRemainingEvents()
+            }
+            assertTrue(repository.addArticleToCollection(article(ARTICLE_B), reading.id).isSuccess)
+            assertEquals(setOf(watchlist.id), repository.observeCollectionIdsForArticle(ARTICLE_A).first())
+            assertEquals(setOf(reading.id), repository.observeCollectionIdsForArticle(ARTICLE_B).first())
+        }
+
+    @Test
+    fun articleMemberships_validateIdsAndCascadeOnCollectionDeletion() =
+        runTest {
+            val reading = repository.createCollection("Reading").getOrThrow()
+
+            assertIs<CollectionFailure.InvalidArticleId>(
+                repository.addArticleToCollection(article(" "), reading.id).exceptionOrNull(),
+            )
+            assertIs<CollectionFailure.NotFound>(
+                repository.addArticleToCollection(article(ARTICLE_A), "nope").exceptionOrNull(),
+            )
+            assertTrue(repository.addArticleToCollection(article(ARTICLE_A), reading.id).isSuccess)
+            assertTrue(repository.deleteCollection(reading.id).isSuccess)
+            assertEquals(emptySet(), repository.observeCollectionIdsForArticle(ARTICLE_A).first())
+        }
+
+    @Test
+    fun articleMembership_survivesSavedArticleRemoval() =
+        runTest {
+            val reading = repository.createCollection("Reading").getOrThrow()
+            assertTrue(repository.addArticleToCollection(article(ARTICLE_A), reading.id).isSuccess)
+            database.savedArticleDao().deleteByUrl(ARTICLE_A)
+
+            assertEquals(setOf(reading.id), repository.observeCollectionIdsForArticle(ARTICLE_A).first())
+        }
+
+    @Test
     fun createAfterDatabaseClose_throwsCancellationException() {
         database.close()
 
@@ -334,5 +388,19 @@ class RoomCollectionsRepositoryTest {
             }
             throw AssertionError("Expected CancellationException from closed database")
         }
+    }
+
+    private fun article(url: String): Article =
+        Article(
+            title = "Headline for $url",
+            description = "Summary for $url",
+            url = url,
+            imageUrl = "https://example.com/image.png",
+            source = Source(id = "source-id", name = "Source Name"),
+        )
+
+    private companion object {
+        const val ARTICLE_A = "https://example.com/a"
+        const val ARTICLE_B = "https://example.com/b"
     }
 }

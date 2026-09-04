@@ -14,4 +14,7 @@ sealed class CollectionFailure : Throwable() {
 
     /** No collection exists with the supplied id. */
     data object NotFound : CollectionFailure()
+
+    /** The supplied article identity is blank and cannot identify membership. */
+    data object InvalidArticleId : CollectionFailure()
 }
