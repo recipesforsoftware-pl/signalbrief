@@ -7,10 +7,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalUriHandler
 import pl.recipesforsoftware.signalbrief.domain.model.Article
+import pl.recipesforsoftware.signalbrief.domain.repository.CollectionsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.NewsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsPresenter
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsScreen
+import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsPresenter
+import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsScreen
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefPresenter
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefScreen
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesPresenter
@@ -26,11 +29,12 @@ import pl.recipesforsoftware.signalbrief.ui.topheadlines.hasActionableUrl
 fun SignalBriefAppHost(
     newsRepository: NewsRepository,
     savedArticlesRepository: SavedArticlesRepository,
+    collectionsRepository: CollectionsRepository,
 ) {
     val savedArticles by savedArticlesRepository.observeAllSavedArticles().collectAsState(emptyList())
     val composition =
-        remember(newsRepository, savedArticlesRepository) {
-            PresentationComposition(newsRepository, savedArticlesRepository)
+        remember(newsRepository, savedArticlesRepository, collectionsRepository) {
+            PresentationComposition(newsRepository, savedArticlesRepository, collectionsRepository)
         }
     DisposableEffect(composition) { onDispose(composition::dispose) }
     SignalBriefApp(
@@ -39,12 +43,15 @@ fun SignalBriefAppHost(
         topHeadlinesContent = { bottomBar, onArticleClick, onSearchClick ->
             Headlines(composition.headlines, bottomBar, onArticleClick, onSearchClick)
         },
-        savedContent = { bottomBar, onArticleClick -> Saved(composition.saved, bottomBar, onArticleClick) },
+        savedContent = { bottomBar, onArticleClick, onCollectionsClick ->
+            Saved(composition.saved, bottomBar, onArticleClick, onCollectionsClick)
+        },
         dailyBriefContent = { bottomBar, onArticleClick -> Brief(composition.brief, bottomBar, onArticleClick) },
         searchContent = { initial, queryChanged, articleClick, back ->
             Search(composition::search, initial, queryChanged, articleClick, back)
         },
         articleDetailsContent = { article, back -> Details(article, savedArticlesRepository, back) },
+        collectionsContent = { back -> Collections(composition.collections, back) },
         savedArticleCount = savedArticles.size,
     )
 }
@@ -52,10 +59,12 @@ fun SignalBriefAppHost(
 private class PresentationComposition(
     private val news: NewsRepository,
     private val savedRepository: SavedArticlesRepository,
+    collectionsRepository: CollectionsRepository,
 ) {
     val headlines = TopHeadlinesPresenter(news, savedRepository)
     val saved = SavedArticlesPresenter(savedRepository)
     val brief = DailyBriefPresenter(news, savedRepository)
+    val collections = CollectionsPresenter(collectionsRepository)
 
     fun search(query: String) = SearchPresenter(news, savedRepository, query)
 
@@ -63,6 +72,7 @@ private class PresentationComposition(
         headlines.dispose()
         saved.dispose()
         brief.dispose()
+        collections.dispose()
     }
 }
 
@@ -88,9 +98,31 @@ private fun Headlines(
     p: SavedArticlesPresenter,
     bottom: @Composable () -> Unit,
     click: (Article) -> Unit,
+    collections: () -> Unit,
 ) {
     val state by p.uiState.collectAsState()
-    SavedArticlesScreen(state, click, { p.removeArticle(it.url) }, bottomBar = bottom)
+    SavedArticlesScreen(state, click, { p.removeArticle(it.url) }, collections, bottomBar = bottom)
+}
+
+@Composable
+private fun Collections(
+    p: CollectionsPresenter,
+    back: () -> Unit,
+) {
+    val state by p.uiState.collectAsState()
+    CollectionsScreen(
+        uiState = state,
+        onOpenCreateEditor = p::openCreateEditor,
+        onOpenRenameEditor = p::openRenameEditor,
+        onUpdateEditorName = p::updateEditorName,
+        onConfirmEditor = p::confirmEditor,
+        onDismissEditor = p::dismissEditor,
+        onOpenDeleteConfirmation = p::openDeleteConfirmation,
+        onConfirmDelete = p::confirmDelete,
+        onDismissDeleteConfirmation = p::dismissDeleteConfirmation,
+        onDismissError = p::dismissError,
+        onBack = back,
+    )
 }
 
 @Composable private fun Brief(

@@ -26,6 +26,8 @@ import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesReposito
 import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefApp
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsPresenter
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsScreen
+import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsScreen
+import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsViewModel
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefPresenter
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefScreen
 import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingViewModel
@@ -92,10 +94,11 @@ class MainActivity : ComponentActivity() {
                         onSearchClick = onSearchClick,
                     )
                 },
-                savedContent = { bottomBar, onArticleClick ->
+                savedContent = { bottomBar, onArticleClick, onCollectionsClick ->
                     SavedArticlesRoute(
                         bottomBar = bottomBar,
                         onArticleClick = onArticleClick,
+                        onCollectionsClick = onCollectionsClick,
                     )
                 },
                 dailyBriefContent = { bottomBar, onArticleClick ->
@@ -116,6 +119,7 @@ class MainActivity : ComponentActivity() {
                         onBack = onBack,
                     )
                 },
+                collectionsContent = { onBack -> CollectionsRoute(onBack) },
                 savedArticleCount = savedArticles.size,
             )
         }
@@ -171,6 +175,7 @@ class MainActivity : ComponentActivity() {
     private fun SavedArticlesRoute(
         bottomBar: @Composable () -> Unit,
         onArticleClick: (Article) -> Unit,
+        onCollectionsClick: () -> Unit,
     ) {
         val viewModel: SavedArticlesViewModel = hiltViewModel()
         val uiState by viewModel.uiState.collectAsState()
@@ -179,7 +184,28 @@ class MainActivity : ComponentActivity() {
             uiState = uiState,
             onArticleClick = onArticleClick,
             onRemoveClick = { viewModel.removeArticle(it.url) },
+            onCollectionsClick = onCollectionsClick,
             bottomBar = bottomBar,
+        )
+    }
+
+    @Composable
+    private fun CollectionsRoute(onBack: () -> Unit) {
+        BackHandler(onBack = onBack)
+        val viewModel: CollectionsViewModel = hiltViewModel()
+        val uiState by viewModel.uiState.collectAsState()
+        CollectionsScreen(
+            uiState = uiState,
+            onOpenCreateEditor = viewModel::openCreateEditor,
+            onOpenRenameEditor = viewModel::openRenameEditor,
+            onUpdateEditorName = viewModel::updateEditorName,
+            onConfirmEditor = viewModel::confirmEditor,
+            onDismissEditor = viewModel::dismissEditor,
+            onOpenDeleteConfirmation = viewModel::openDeleteConfirmation,
+            onConfirmDelete = viewModel::confirmDelete,
+            onDismissDeleteConfirmation = viewModel::dismissDeleteConfirmation,
+            onDismissError = viewModel::dismissError,
+            onBack = onBack,
         )
     }
 

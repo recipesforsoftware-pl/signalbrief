@@ -14,4 +14,5 @@ object SavedArticlesStrings {
     const val EMPTY_TITLE: String = "No saved articles yet"
     const val EMPTY_SUBTITLE: String = "Save stories from Top Headlines to keep them here."
     const val BROWSE_HEADLINES: String = "Browse Headlines"
+    const val OPEN_COLLECTIONS: String = "Collections"
 }

@@ -11,6 +11,7 @@ fun main() {
     ComposeViewport(viewportContainerId = "ComposeTarget") {
         val newsRepository = remember { WebNewsRepository() }
         val savedRepository = remember { WebSavedArticlesRepository() }
-        SignalBriefTheme { SignalBriefAppHost(newsRepository, savedRepository) }
+        val collectionsRepository = remember { WebCollectionsRepository() }
+        SignalBriefTheme { SignalBriefAppHost(newsRepository, savedRepository, collectionsRepository) }
     }
 }

@@ -18,13 +18,17 @@ import pl.recipesforsoftware.signalbrief.data.remote.KtorNewsRemoteDataSource
 import pl.recipesforsoftware.signalbrief.data.remote.NewsApiConfig
 import pl.recipesforsoftware.signalbrief.data.remote.createHttpClient
 import pl.recipesforsoftware.signalbrief.data.repository.OfflineFirstNewsRepository
+import pl.recipesforsoftware.signalbrief.data.repository.RoomCollectionsRepository
 import pl.recipesforsoftware.signalbrief.data.repository.RoomSavedArticlesRepository
 import pl.recipesforsoftware.signalbrief.domain.model.Article
+import pl.recipesforsoftware.signalbrief.domain.repository.CollectionsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.NewsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
 import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefApp
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsPresenter
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsScreen
+import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsPresenter
+import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsRoute
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefPresenter
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefScreen
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesPresenter
@@ -50,6 +54,7 @@ private const val ONBOARDING_KEY = "pl.recipesforsoftware.signalbrief.onboarding
  * [RoomSavedArticlesRepository], and the same presenters, so switching tabs or
  * opening details never closes or recreates persistence layers.
  */
+@Suppress("LongMethod")
 fun mainViewController(): UIViewController {
     val onboardingCompleted = readOnboardingCompleted()
 
@@ -79,11 +84,12 @@ fun mainViewController(): UIViewController {
                         onSearchClick = onSearchClick,
                     )
                 },
-                savedContent = { bottomBar, onArticleClick ->
+                savedContent = { bottomBar, onArticleClick, onCollectionsClick ->
                     SavedRoute(
                         presenter = composition.savedPresenter,
                         bottomBar = bottomBar,
                         onArticleClick = onArticleClick,
+                        onCollectionsClick = onCollectionsClick,
                     )
                 },
                 dailyBriefContent = { bottomBar, onArticleClick ->
@@ -108,6 +114,9 @@ fun mainViewController(): UIViewController {
                         savedArticlesRepository = composition.savedArticlesRepository,
                         onBack = onBack,
                     )
+                },
+                collectionsContent = { onBack ->
+                    CollectionsRoute(composition.collectionsPresenter, onBack)
                 },
                 savedArticleCount = savedArticles.size,
             )
@@ -139,6 +148,7 @@ private fun SavedRoute(
     presenter: SavedArticlesPresenter,
     bottomBar: @Composable () -> Unit,
     onArticleClick: (Article) -> Unit,
+    onCollectionsClick: () -> Unit,
 ) {
     val uiState by presenter.uiState.collectAsState()
 
@@ -146,6 +156,7 @@ private fun SavedRoute(
         uiState = uiState,
         onArticleClick = onArticleClick,
         onRemoveClick = { presenter.removeArticle(it.url) },
+        onCollectionsClick = onCollectionsClick,
         bottomBar = bottomBar,
     )
 }
@@ -256,6 +267,7 @@ private class IosComposition(
     val savedPresenter: SavedArticlesPresenter,
     val dailyBriefPresenter: DailyBriefPresenter,
     val savedArticlesRepository: SavedArticlesRepository,
+    val collectionsPresenter: CollectionsPresenter,
     private val newsRepository: NewsRepository,
     private val client: HttpClient,
     private val database: SignalBriefDatabase,
@@ -271,6 +283,7 @@ private class IosComposition(
         headlinesPresenter.dispose()
         savedPresenter.dispose()
         dailyBriefPresenter.dispose()
+        collectionsPresenter.dispose()
         client.close()
         database.close()
     }
@@ -297,6 +310,8 @@ private fun createIosComposition(): IosComposition {
     val remoteDataSource = KtorNewsRemoteDataSource(client)
     val localDataSource = RoomNewsLocalDataSource(database)
     val savedArticlesRepository = RoomSavedArticlesRepository(database)
+    val collectionsRepository: CollectionsRepository = RoomCollectionsRepository(database)
+    val collectionsPresenter = CollectionsPresenter(collectionsRepository)
     val newsRepository = OfflineFirstNewsRepository(remoteDataSource, localDataSource)
     val headlinesPresenter =
         TopHeadlinesPresenter(
@@ -317,6 +332,7 @@ private fun createIosComposition(): IosComposition {
         savedPresenter,
         dailyBriefPresenter,
         savedArticlesRepository,
+        collectionsPresenter,
         newsRepository,
         client,
         database,
