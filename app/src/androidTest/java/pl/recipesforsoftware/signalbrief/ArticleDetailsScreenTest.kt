@@ -9,6 +9,9 @@ import org.junit.Rule
 import org.junit.Test
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.Source
+import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleCollectionAssignmentError
+import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleCollectionAssignmentStrings
+import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleCollectionAssignmentUiState
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsScreen
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsStrings
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsUiState
@@ -154,5 +157,58 @@ class ArticleDetailsScreenTest {
 
         composeTestRule.onNodeWithText("Test Article Title").assertIsDisplayed()
         composeTestRule.onNodeWithText(ArticleDetailsStrings.READ_FULL_ARTICLE).assertIsDisplayed()
+    }
+
+    @Test
+    fun collectionPicker_emptyStateOffersCollectionsManagement() {
+        var manageCollectionsClicked = false
+        composeTestRule.setContent {
+            SignalBriefAndroidTheme(isDarkMode = false, dynamicColor = false) {
+                ArticleDetailsScreen(
+                    uiState = ArticleDetailsUiState(article),
+                    onBack = {},
+                    onBookmarkClick = {},
+                    onOpenFullArticle = {},
+                    collectionAssignmentUiState =
+                        ArticleCollectionAssignmentUiState(
+                            isLoadingCollections = false,
+                            isPickerVisible = true,
+                        ),
+                    onCollectionAssignmentClick = {},
+                    onToggleCollection = {},
+                    onDismissCollectionAssignment = {},
+                    onManageCollections = { manageCollectionsClicked = true },
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText(ArticleCollectionAssignmentStrings.EMPTY_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(ArticleCollectionAssignmentStrings.MANAGE_COLLECTIONS).performClick()
+
+        assert(manageCollectionsClicked)
+    }
+
+    @Test
+    fun collectionPicker_errorIsVisibleInsideDialog() {
+        composeTestRule.setContent {
+            SignalBriefAndroidTheme(isDarkMode = false, dynamicColor = false) {
+                ArticleDetailsScreen(
+                    uiState = ArticleDetailsUiState(article),
+                    onBack = {},
+                    onBookmarkClick = {},
+                    onOpenFullArticle = {},
+                    collectionAssignmentUiState =
+                        ArticleCollectionAssignmentUiState(
+                            isLoadingCollections = false,
+                            isPickerVisible = true,
+                            error = ArticleCollectionAssignmentError.Unknown,
+                        ),
+                )
+            }
+        }
+
+        composeTestRule
+            .onNodeWithText(ArticleCollectionAssignmentStrings.error(ArticleCollectionAssignmentError.Unknown))
+            .assertIsDisplayed()
     }
 }

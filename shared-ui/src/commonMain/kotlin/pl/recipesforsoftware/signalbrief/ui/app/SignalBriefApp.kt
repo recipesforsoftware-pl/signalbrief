@@ -101,6 +101,7 @@ typealias ArticleDetailsContent =
     @Composable (
         article: Article,
         onBack: () -> Unit,
+        onCollectionsClick: () -> Unit,
     ) -> Unit
 
 @Composable
@@ -167,16 +168,23 @@ private fun SignalBriefMainContent(
     var selectedArticle by rememberSaveable(stateSaver = SelectedArticleSaver) {
         mutableStateOf<Article?>(null)
     }
-    var isSearchVisible by rememberSaveable {
-        mutableStateOf(false)
-    }
+    var isSearchVisible by rememberSaveable { mutableStateOf(false) }
     var isCollectionsVisible by rememberSaveable { mutableStateOf(false) }
     var searchQuery by rememberSaveable {
         mutableStateOf("")
     }
 
-    if (selectedArticle != null) {
-        articleDetailsContent(requireNotNull(selectedArticle)) { selectedArticle = null }
+    if (isCollectionsVisible) {
+        collectionsContent { isCollectionsVisible = false }
+    } else if (selectedArticle != null) {
+        ArticleDetailsDestination(
+            articleDetailsContent,
+            requireNotNull(selectedArticle),
+            onBack = { selectedArticle = null },
+            onCollectionsClick = {
+                isCollectionsVisible = true
+            },
+        )
     } else if (isSearchVisible) {
         searchContent(
             searchQuery,
@@ -184,8 +192,6 @@ private fun SignalBriefMainContent(
             { selectedArticle = it },
             { isSearchVisible = false },
         )
-    } else if (isCollectionsVisible) {
-        collectionsContent { isCollectionsVisible = false }
     } else {
         val bottomBar: @Composable () -> Unit = {
             SignalBriefBottomBar(
@@ -217,6 +223,16 @@ private fun SignalBriefMainContent(
             }
         }
     }
+}
+
+@Composable
+private fun ArticleDetailsDestination(
+    content: ArticleDetailsContent,
+    article: Article,
+    onBack: () -> Unit,
+    onCollectionsClick: () -> Unit,
+) {
+    content(article, onBack, onCollectionsClick)
 }
 
 @Composable
