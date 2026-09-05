@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package pl.recipesforsoftware.signalbrief.ui.topheadlines
 
 import androidx.compose.runtime.Composable
@@ -28,6 +30,8 @@ import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefApp
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleCollectionAssignmentPresenter
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsPresenter
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsScreen
+import pl.recipesforsoftware.signalbrief.ui.collectiondetails.CollectionDetailsPresenter
+import pl.recipesforsoftware.signalbrief.ui.collectiondetails.CollectionDetailsScreen
 import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsPresenter
 import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsRoute
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefPresenter
@@ -118,13 +122,29 @@ fun mainViewController(): UIViewController {
                         onManageCollections = onCollectionsClick,
                     )
                 },
-                collectionsContent = { onBack ->
-                    CollectionsRoute(composition.collectionsPresenter, onBack)
+                collectionsContent = { onBack, onCollectionClick ->
+                    CollectionsRoute(composition.collectionsPresenter, onBack, onCollectionClick)
+                },
+                collectionDetailsContent = { collection, onArticleClick, onBack ->
+                    CollectionDetailsRoute(collection, composition.collectionsRepository, onArticleClick, onBack)
                 },
                 savedArticleCount = savedArticles.size,
             )
         }
     }
+}
+
+@Composable
+private fun CollectionDetailsRoute(
+    collection: pl.recipesforsoftware.signalbrief.domain.model.Collection,
+    repository: CollectionsRepository,
+    onArticleClick: (Article) -> Unit,
+    onBack: () -> Unit,
+) {
+    val presenter = remember(collection.id) { CollectionDetailsPresenter(collection, repository) }
+    DisposableEffect(presenter) { onDispose(presenter::dispose) }
+    val uiState by presenter.uiState.collectAsState()
+    CollectionDetailsScreen(uiState, onArticleClick, onBack)
 }
 
 @Composable

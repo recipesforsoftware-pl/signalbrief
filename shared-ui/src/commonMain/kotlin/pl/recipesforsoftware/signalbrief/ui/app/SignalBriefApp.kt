@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import pl.recipesforsoftware.signalbrief.domain.model.Article
+import pl.recipesforsoftware.signalbrief.domain.model.Collection
 import pl.recipesforsoftware.signalbrief.ui.images.installSignalBriefImageLoader
 import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingCompletion
 import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingScreen
@@ -60,7 +61,8 @@ import pl.recipesforsoftware.signalbrief.ui.onboarding.rememberOnboardingPresent
  *
  * Toolbar back and any host-integrated system back both funnel through the
  * same state clear, so there is one shared transition path and no back stack.
- * The selected article survives recreation through [SelectedArticleSaver].
+ * The selected article and collection survive recreation through
+ * [SelectedArticleSaver] and [SelectedCollectionSaver].
  *
  * The shell also installs the shared Coil image-loader singleton once for the
  * app composition root. Both "Skip" and "Start reading" funnel through an
@@ -81,7 +83,10 @@ typealias SavedContent =
         onCollectionsClick: () -> Unit,
     ) -> Unit
 
-typealias CollectionsContent = @Composable (onBack: () -> Unit) -> Unit
+typealias CollectionsContent = @Composable (onBack: () -> Unit, onCollectionClick: (Collection) -> Unit) -> Unit
+
+typealias CollectionDetailsContent =
+    @Composable (collection: Collection, onArticleClick: (Article) -> Unit, onBack: () -> Unit) -> Unit
 
 typealias DailyBriefContent =
     @Composable (
@@ -113,7 +118,8 @@ fun SignalBriefApp(
     searchContent: SearchContent,
     articleDetailsContent: ArticleDetailsContent,
     dailyBriefContent: DailyBriefContent,
-    collectionsContent: CollectionsContent = {},
+    collectionsContent: CollectionsContent = { _, _ -> },
+    collectionDetailsContent: CollectionDetailsContent = { _, _, _ -> },
     savedArticleCount: Int = 0,
     modifier: Modifier = Modifier,
 ) {
@@ -146,6 +152,7 @@ fun SignalBriefApp(
                 searchContent = searchContent,
                 articleDetailsContent = articleDetailsContent,
                 collectionsContent = collectionsContent,
+                collectionDetailsContent = collectionDetailsContent,
                 savedArticleCount = savedArticleCount,
             )
         }
@@ -153,6 +160,7 @@ fun SignalBriefApp(
 }
 
 @Composable
+@Suppress("LongMethod")
 private fun SignalBriefMainContent(
     topHeadlinesContent: TopHeadlinesContent,
     dailyBriefContent: DailyBriefContent,
@@ -160,6 +168,7 @@ private fun SignalBriefMainContent(
     searchContent: SearchContent,
     articleDetailsContent: ArticleDetailsContent,
     collectionsContent: CollectionsContent,
+    collectionDetailsContent: CollectionDetailsContent,
     savedArticleCount: Int,
 ) {
     var currentDestination by rememberSaveable(stateSaver = AppDestinationSaver) {
@@ -170,18 +179,49 @@ private fun SignalBriefMainContent(
     }
     var isSearchVisible by rememberSaveable { mutableStateOf(false) }
     var isCollectionsVisible by rememberSaveable { mutableStateOf(false) }
+    var selectedCollection by rememberSaveable(stateSaver = SelectedCollectionSaver) {
+        mutableStateOf<Collection?>(null)
+    }
     var searchQuery by rememberSaveable {
         mutableStateOf("")
     }
 
     if (isCollectionsVisible) {
-        collectionsContent { isCollectionsVisible = false }
+        when {
+            selectedArticle != null && selectedCollection != null -> {
+                ArticleDetailsDestination(
+                    articleDetailsContent,
+                    requireNotNull(selectedArticle),
+                    onBack = { selectedArticle = null },
+                    onCollectionsClick = {
+                        selectedCollection = null
+                        isCollectionsVisible = true
+                    },
+                )
+            }
+
+            selectedCollection != null -> {
+                collectionDetailsContent(
+                    requireNotNull(selectedCollection),
+                    { selectedArticle = it },
+                    { selectedCollection = null },
+                )
+            }
+
+            else -> {
+                collectionsContent(
+                    { isCollectionsVisible = false },
+                    { selectedCollection = it },
+                )
+            }
+        }
     } else if (selectedArticle != null) {
         ArticleDetailsDestination(
             articleDetailsContent,
             requireNotNull(selectedArticle),
             onBack = { selectedArticle = null },
             onCollectionsClick = {
+                selectedCollection = null
                 isCollectionsVisible = true
             },
         )

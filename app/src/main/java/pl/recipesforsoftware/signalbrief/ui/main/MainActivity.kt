@@ -28,6 +28,8 @@ import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefApp
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleCollectionAssignmentPresenter
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsPresenter
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsScreen
+import pl.recipesforsoftware.signalbrief.ui.collectiondetails.CollectionDetailsPresenter
+import pl.recipesforsoftware.signalbrief.ui.collectiondetails.CollectionDetailsScreen
 import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsScreen
 import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsViewModel
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefPresenter
@@ -126,7 +128,10 @@ class MainActivity : ComponentActivity() {
                         onManageCollections = onCollectionsClick,
                     )
                 },
-                collectionsContent = { onBack -> CollectionsRoute(onBack) },
+                collectionsContent = { onBack, onCollectionClick -> CollectionsRoute(onBack, onCollectionClick) },
+                collectionDetailsContent = { collection, onArticleClick, onBack ->
+                    CollectionDetailsRoute(collection, onArticleClick, onBack)
+                },
                 savedArticleCount = savedArticles.size,
             )
         }
@@ -197,7 +202,10 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun CollectionsRoute(onBack: () -> Unit) {
+    private fun CollectionsRoute(
+        onBack: () -> Unit,
+        onCollectionClick: (pl.recipesforsoftware.signalbrief.domain.model.Collection) -> Unit,
+    ) {
         BackHandler(onBack = onBack)
         val viewModel: CollectionsViewModel = hiltViewModel()
         val uiState by viewModel.uiState.collectAsState()
@@ -212,8 +220,25 @@ class MainActivity : ComponentActivity() {
             onConfirmDelete = viewModel::confirmDelete,
             onDismissDeleteConfirmation = viewModel::dismissDeleteConfirmation,
             onDismissError = viewModel::dismissError,
+            onOpenCollection = onCollectionClick,
             onBack = onBack,
         )
+    }
+
+    @Composable
+    private fun CollectionDetailsRoute(
+        collection: pl.recipesforsoftware.signalbrief.domain.model.Collection,
+        onArticleClick: (Article) -> Unit,
+        onBack: () -> Unit,
+    ) {
+        BackHandler(onBack = onBack)
+        val presenter =
+            remember(collection.id) {
+                CollectionDetailsPresenter(collection, collectionsRepository, Dispatchers.Main.immediate)
+            }
+        DisposableEffect(presenter) { onDispose(presenter::dispose) }
+        val uiState by presenter.uiState.collectAsState()
+        CollectionDetailsScreen(uiState, onArticleClick, onBack)
     }
 
     @Composable

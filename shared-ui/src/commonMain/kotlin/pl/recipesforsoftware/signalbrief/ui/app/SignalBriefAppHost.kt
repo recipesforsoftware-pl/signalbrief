@@ -13,6 +13,8 @@ import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesReposito
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleCollectionAssignmentPresenter
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsPresenter
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsScreen
+import pl.recipesforsoftware.signalbrief.ui.collectiondetails.CollectionDetailsPresenter
+import pl.recipesforsoftware.signalbrief.ui.collectiondetails.CollectionDetailsScreen
 import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsPresenter
 import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsScreen
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefPresenter
@@ -54,7 +56,10 @@ fun SignalBriefAppHost(
         articleDetailsContent = { article, back, collections ->
             Details(article, savedArticlesRepository, collectionsRepository, back, collections)
         },
-        collectionsContent = { back -> Collections(composition.collections, back) },
+        collectionsContent = { back, open -> Collections(composition.collections, back, open) },
+        collectionDetailsContent = { collection, articleClick, back ->
+            CollectionDetails(collection, collectionsRepository, articleClick, back)
+        },
         savedArticleCount = savedArticles.size,
     )
 }
@@ -111,6 +116,7 @@ private fun Headlines(
 private fun Collections(
     p: CollectionsPresenter,
     back: () -> Unit,
+    open: (pl.recipesforsoftware.signalbrief.domain.model.Collection) -> Unit,
 ) {
     val state by p.uiState.collectAsState()
     CollectionsScreen(
@@ -124,8 +130,22 @@ private fun Collections(
         onConfirmDelete = p::confirmDelete,
         onDismissDeleteConfirmation = p::dismissDeleteConfirmation,
         onDismissError = p::dismissError,
+        onOpenCollection = open,
         onBack = back,
     )
+}
+
+@Composable
+private fun CollectionDetails(
+    collection: pl.recipesforsoftware.signalbrief.domain.model.Collection,
+    repository: CollectionsRepository,
+    articleClick: (Article) -> Unit,
+    back: () -> Unit,
+) {
+    val presenter = remember(collection.id) { CollectionDetailsPresenter(collection, repository) }
+    DisposableEffect(presenter) { onDispose(presenter::dispose) }
+    val state by presenter.uiState.collectAsState()
+    CollectionDetailsScreen(state, articleClick, back)
 }
 
 @Composable private fun Brief(

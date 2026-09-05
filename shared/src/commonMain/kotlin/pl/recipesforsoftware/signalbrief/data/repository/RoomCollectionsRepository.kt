@@ -42,6 +42,13 @@ class RoomCollectionsRepository(
     override fun observeCollectionIdsForArticle(articleId: String): Flow<Set<String>> =
         membershipDao.observeCollectionIdsForArticle(articleId).map { ids -> ids.map(Long::toString).toSet() }
 
+    override fun observeArticlesInCollection(collectionId: String): Flow<List<Article>> {
+        val rowId = collectionId.toLongOrNull() ?: return kotlinx.coroutines.flow.flowOf(emptyList())
+        return membershipDao.observeArticlesInCollection(rowId).map { memberships ->
+            memberships.map { it.toDomain() }.sortedArticleSnapshots()
+        }
+    }
+
     override suspend fun createCollection(name: String): Result<Collection> {
         val collectionName =
             CollectionName.from(name)
@@ -139,3 +146,9 @@ class RoomCollectionsRepository(
             Result.failure(IllegalStateException("Collections persistence failure", e))
         }
 }
+
+/** Cross-platform Collection Details ordering: title (missing first), then URL, ascending. */
+private fun List<Article>.sortedArticleSnapshots(): List<Article> =
+    sortedWith(
+        compareBy<Article> { it.title.orEmpty() }.thenBy { it.url },
+    )

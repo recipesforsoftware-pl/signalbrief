@@ -16,6 +16,9 @@ internal interface ArticleCollectionMembershipDao {
     )
     fun observeCollectionIdsForArticle(articleId: String): Flow<List<Long>>
 
+    @Query("SELECT * FROM article_collection_memberships WHERE collection_id = :collectionId")
+    fun observeArticlesInCollection(collectionId: Long): Flow<List<ArticleCollectionMembershipEntity>>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertIgnore(entity: ArticleCollectionMembershipEntity): Long
 

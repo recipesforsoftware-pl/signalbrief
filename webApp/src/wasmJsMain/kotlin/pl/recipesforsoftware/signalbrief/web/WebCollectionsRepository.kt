@@ -12,8 +12,10 @@ import pl.recipesforsoftware.signalbrief.domain.failure.CollectionFailure
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.Collection
 import pl.recipesforsoftware.signalbrief.domain.model.CollectionName
+import pl.recipesforsoftware.signalbrief.domain.model.Source
 import pl.recipesforsoftware.signalbrief.domain.repository.CollectionsRepository
 
+@Suppress("TooManyFunctions")
 internal class WebCollectionsRepository(
     private val storage: CollectionsStorage = BrowserCollectionsStorage(),
     private val clock: () -> Long = { currentTimeMillis() },
@@ -36,6 +38,16 @@ internal class WebCollectionsRepository(
                 .filter { it.articleId == articleId }
                 .map { it.collectionId.toString() }
                 .toSet()
+        }
+
+    override fun observeArticlesInCollection(collectionId: String): Flow<List<Article>> =
+        membershipState.map { persistedMemberships ->
+            persistedMemberships
+                .asSequence()
+                .filter { it.collectionId.toString() == collectionId }
+                .map(PersistedMembership::toDomain)
+                .toList()
+                .sortedArticleSnapshots()
         }
 
     override suspend fun createCollection(name: String): Result<Collection> {
@@ -300,6 +312,21 @@ private fun Article.toMembership(collectionId: Long): PersistedMembership =
         description = description,
         imageUrl = imageUrl,
         source = source?.toSavedSource(),
+    )
+
+private fun PersistedMembership.toDomain(): Article =
+    Article(
+        title = title,
+        description = description,
+        url = articleId,
+        imageUrl = imageUrl,
+        source = source?.let { Source(id = it.id, name = it.name) },
+    )
+
+/** Cross-platform Collection Details ordering: title (missing first), then URL, ascending. */
+private fun List<Article>.sortedArticleSnapshots(): List<Article> =
+    sortedWith(
+        compareBy<Article> { it.title.orEmpty() }.thenBy { it.url },
     )
 
 internal const val COLLECTIONS_STORAGE_KEY = "signalbrief.collections.v1"

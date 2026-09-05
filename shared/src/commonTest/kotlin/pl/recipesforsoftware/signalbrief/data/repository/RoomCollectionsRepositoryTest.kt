@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import pl.recipesforsoftware.signalbrief.data.local.db.SignalBriefDatabase
 import pl.recipesforsoftware.signalbrief.data.local.db.createTestDatabase
+import pl.recipesforsoftware.signalbrief.data.local.mapper.toSavedEntity
 import pl.recipesforsoftware.signalbrief.domain.failure.CollectionFailure
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.Source
@@ -346,6 +347,40 @@ class RoomCollectionsRepositoryTest {
             database.savedArticleDao().deleteByUrl(ARTICLE_A)
 
             assertEquals(setOf(reading.id), repository.observeCollectionIdsForArticle(ARTICLE_A).first())
+        }
+
+    @Test
+    fun collectionArticles_useIndependentSnapshots_filterReactively_andOrderByTitleThenUrl() =
+        runTest {
+            val reading = repository.createCollection("Reading").getOrThrow()
+            val watchlist = repository.createCollection("Watchlist").getOrThrow()
+            val zebra = article(ARTICLE_A).copy(title = "Zebra")
+            val alpha = article(ARTICLE_B).copy(title = "Alpha")
+
+            repository.observeArticlesInCollection(reading.id).test {
+                assertEquals(emptyList(), awaitItem())
+                assertTrue(repository.addArticleToCollection(zebra, reading.id).isSuccess)
+                assertEquals(listOf(ARTICLE_A), awaitItem().map(Article::url))
+                assertTrue(repository.addArticleToCollection(alpha, reading.id).isSuccess)
+                assertEquals(listOf(ARTICLE_B, ARTICLE_A), awaitItem().map(Article::url))
+                assertTrue(repository.addArticleToCollection(zebra, watchlist.id).isSuccess)
+                assertEquals(listOf(ARTICLE_B, ARTICLE_A), awaitItem().map(Article::url))
+                database.savedArticleDao().insertOrUpdate(zebra.toSavedEntity(savedAt = 1L))
+                assertEquals(listOf(ARTICLE_A), database.savedArticleDao().getAllOnce().map { it.url })
+                database.savedArticleDao().deleteByUrl(ARTICLE_A)
+                assertTrue(database.savedArticleDao().getAllOnce().isEmpty())
+                assertEquals(
+                    listOf(ARTICLE_B, ARTICLE_A),
+                    repository.observeArticlesInCollection(reading.id).first().map(Article::url),
+                )
+                assertTrue(repository.removeArticleFromCollection(ARTICLE_A, reading.id).isSuccess)
+                assertEquals(listOf(ARTICLE_B), awaitItem().map(Article::url))
+                cancelAndIgnoreRemainingEvents()
+            }
+            assertEquals(
+                listOf(ARTICLE_A),
+                repository.observeArticlesInCollection(watchlist.id).first().map(Article::url),
+            )
         }
 
     @Test
