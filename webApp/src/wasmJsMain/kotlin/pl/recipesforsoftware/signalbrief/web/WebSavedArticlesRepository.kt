@@ -95,7 +95,7 @@ private data class SavedArticle(
 )
 
 @Serializable
-private data class SavedSource(
+internal data class SavedSource(
     val id: String?,
     val name: String?,
 )
@@ -109,7 +109,7 @@ private fun Article.toSavedArticle(): SavedArticle =
         source = source?.toSavedSource(),
     )
 
-private fun Source.toSavedSource(): SavedSource =
+internal fun Source.toSavedSource(): SavedSource =
     SavedSource(
         id = id,
         name = name,

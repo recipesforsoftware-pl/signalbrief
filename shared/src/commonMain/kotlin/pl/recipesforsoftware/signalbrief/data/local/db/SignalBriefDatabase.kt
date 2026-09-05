@@ -6,9 +6,11 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.execSQL
+import pl.recipesforsoftware.signalbrief.data.local.dao.ArticleCollectionMembershipDao
 import pl.recipesforsoftware.signalbrief.data.local.dao.CachedArticleDao
 import pl.recipesforsoftware.signalbrief.data.local.dao.CollectionDao
 import pl.recipesforsoftware.signalbrief.data.local.dao.SavedArticleDao
+import pl.recipesforsoftware.signalbrief.data.local.entity.ArticleCollectionMembershipEntity
 import pl.recipesforsoftware.signalbrief.data.local.entity.CachedArticleEntity
 import pl.recipesforsoftware.signalbrief.data.local.entity.CollectionEntity
 import pl.recipesforsoftware.signalbrief.data.local.entity.SavedArticleEntity
@@ -16,12 +18,17 @@ import pl.recipesforsoftware.signalbrief.data.local.entity.SavedArticleEntity
 /**
  * Room database for the shared data layer.
  *
- * Version 3 adds the collections table. Schema export is enabled so
+ * Version 4 adds article-to-collection memberships. Schema export is enabled so
  * migrations can be validated against checked-in JSON files.
  */
 @Database(
-    entities = [CachedArticleEntity::class, SavedArticleEntity::class, CollectionEntity::class],
-    version = 3,
+    entities = [
+        CachedArticleEntity::class,
+        SavedArticleEntity::class,
+        CollectionEntity::class,
+        ArticleCollectionMembershipEntity::class,
+    ],
+    version = 4,
     exportSchema = true,
 )
 @ConstructedBy(SignalBriefDatabaseConstructor::class)
@@ -31,6 +38,8 @@ abstract class SignalBriefDatabase : RoomDatabase() {
     internal abstract fun savedArticleDao(): SavedArticleDao
 
     internal abstract fun collectionDao(): CollectionDao
+
+    internal abstract fun articleCollectionMembershipDao(): ArticleCollectionMembershipDao
 }
 
 /**
@@ -84,6 +93,42 @@ val MIGRATION_2_3 =
             connection.execSQL(
                 "CREATE INDEX IF NOT EXISTS `index_collections_created_at`" +
                     " ON `collections` (`created_at`)",
+            )
+        }
+    }
+
+/**
+ * Version 3 → 4: adds the article-to-collection membership join table.
+ *
+ * Memberships use article URLs without a saved-article foreign key, so an
+ * assignment can survive an article being unsaved. Each membership stores a
+ * snapshot of the article's durable display fields (the same fields persisted
+ * by `saved_articles`) so it stays renderable after the saved article is
+ * removed. Collection deletion is enforced by SQLite through the collection
+ * foreign-key cascade.
+ */
+val MIGRATION_3_4 =
+    object : Migration(3, 4) {
+        override fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `article_collection_memberships` (
+                    `collection_id` INTEGER NOT NULL,
+                    `article_id` TEXT NOT NULL,
+                    `title` TEXT,
+                    `description` TEXT,
+                    `image_url` TEXT,
+                    `source_id` TEXT,
+                    `source_name` TEXT,
+                    PRIMARY KEY(`collection_id`, `article_id`),
+                    FOREIGN KEY(`collection_id`) REFERENCES `collections`(`id`)
+                        ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+                """,
+            )
+            connection.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_article_collection_memberships_article_id`" +
+                    " ON `article_collection_memberships` (`article_id`)",
             )
         }
     }

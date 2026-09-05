@@ -2,11 +2,14 @@ package pl.recipesforsoftware.signalbrief.data.repository
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import pl.recipesforsoftware.signalbrief.data.local.dao.ArticleCollectionMembershipDao
 import pl.recipesforsoftware.signalbrief.data.local.dao.CollectionDao
 import pl.recipesforsoftware.signalbrief.data.local.db.SignalBriefDatabase
 import pl.recipesforsoftware.signalbrief.data.local.mapper.newCollectionEntity
 import pl.recipesforsoftware.signalbrief.data.local.mapper.toDomain
+import pl.recipesforsoftware.signalbrief.data.local.mapper.toMembershipEntity
 import pl.recipesforsoftware.signalbrief.domain.failure.CollectionFailure
+import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.Collection
 import pl.recipesforsoftware.signalbrief.domain.model.CollectionName
 import pl.recipesforsoftware.signalbrief.domain.repository.CollectionsRepository
@@ -29,11 +32,15 @@ class RoomCollectionsRepository(
     private val clock: () -> Long = { currentTimeMillis() },
 ) : CollectionsRepository {
     private val dao: CollectionDao = database.collectionDao()
+    private val membershipDao: ArticleCollectionMembershipDao = database.articleCollectionMembershipDao()
 
     override fun observeAllCollections(): Flow<List<Collection>> =
         dao.observeAll().map { entities ->
             entities.map { it.toDomain() }
         }
+
+    override fun observeCollectionIdsForArticle(articleId: String): Flow<Set<String>> =
+        membershipDao.observeCollectionIdsForArticle(articleId).map { ids -> ids.map(Long::toString).toSet() }
 
     override suspend fun createCollection(name: String): Result<Collection> {
         val collectionName =
@@ -81,6 +88,38 @@ class RoomCollectionsRepository(
             if (affected == 0) throw CollectionFailure.NotFound
         }
     }
+
+    override suspend fun addArticleToCollection(
+        article: Article,
+        collectionId: String,
+    ): Result<Unit> {
+        val rowId = membershipCollectionId(article.url, collectionId).getOrElse { return Result.failure(it) }
+        return guardLocal {
+            if (!dao.exists(rowId)) throw CollectionFailure.NotFound
+            membershipDao.insertIgnore(article.toMembershipEntity(rowId))
+        }
+    }
+
+    override suspend fun removeArticleFromCollection(
+        articleId: String,
+        collectionId: String,
+    ): Result<Unit> {
+        val rowId = membershipCollectionId(articleId, collectionId).getOrElse { return Result.failure(it) }
+        return guardLocal {
+            if (!dao.exists(rowId)) throw CollectionFailure.NotFound
+            membershipDao.delete(collectionId = rowId, articleId = articleId)
+        }
+    }
+
+    private fun membershipCollectionId(
+        articleId: String,
+        collectionId: String,
+    ): Result<Long> =
+        when {
+            articleId.isBlank() -> Result.failure(CollectionFailure.InvalidArticleId)
+            collectionId.toLongOrNull() == null -> Result.failure(CollectionFailure.NotFound)
+            else -> Result.success(collectionId.toLong())
+        }
 
     /**
      * Executes [block] and returns it as a [Result]. Cancellation is always

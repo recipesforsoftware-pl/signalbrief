@@ -155,11 +155,23 @@ class WebCollectionsRepositoryFailureTest {
         }
 }
 
+/**
+ * In-memory [CollectionsStorage] test double.
+ *
+ * Writes can be forced to fail three independent ways: [writeFailure] fails
+ * every write, [failKeys] fails writes targeting specific storage keys, and
+ * [failWriteNumbers] fails the Nth write (1-based across the lifetime of the
+ * fake, see [writeCount]).
+ */
 internal class FakeCollectionsStorage(
     val values: MutableMap<String, String> = mutableMapOf(),
     private val readFailure: Exception? = null,
     var writeFailure: Exception? = null,
+    val failKeys: MutableSet<String> = mutableSetOf(),
+    val failWriteNumbers: MutableSet<Int> = mutableSetOf(),
 ) : CollectionsStorage {
+    var writeCount: Int = 0
+
     override fun read(key: String): String? {
         if (readFailure != null) {
             throw readFailure
@@ -171,8 +183,18 @@ internal class FakeCollectionsStorage(
         key: String,
         value: String,
     ) {
-        if (writeFailure != null) {
-            throw writeFailure!!
+        writeCount++
+        val failure =
+            writeFailure
+                ?: if (key in failKeys) {
+                    IllegalStateException("write failed for key $key")
+                } else if (writeCount in failWriteNumbers) {
+                    IllegalStateException("write failed at #$writeCount")
+                } else {
+                    null
+                }
+        if (failure != null) {
+            throw failure
         }
         values[key] = value
     }

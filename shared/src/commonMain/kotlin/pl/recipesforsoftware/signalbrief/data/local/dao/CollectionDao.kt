@@ -28,6 +28,10 @@ internal interface CollectionDao {
     )
     fun observeAll(): Flow<List<CollectionEntity>>
 
+    /** Returns whether a collection with [id] exists. */
+    @Query("SELECT EXISTS(SELECT 1 FROM collections WHERE id = :id)")
+    suspend fun exists(id: Long): Boolean
+
     /**
      * Inserts a new collection and returns the auto-generated row id.
      */

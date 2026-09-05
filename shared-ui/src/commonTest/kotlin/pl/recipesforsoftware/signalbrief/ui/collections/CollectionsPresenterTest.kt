@@ -1,12 +1,15 @@
 package pl.recipesforsoftware.signalbrief.ui.collections
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import pl.recipesforsoftware.signalbrief.domain.failure.CollectionFailure
+import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.Collection
 import pl.recipesforsoftware.signalbrief.domain.repository.CollectionsRepository
 import kotlin.test.Test
@@ -16,6 +19,7 @@ import kotlin.test.assertNull
 
 private class FakeCollectionsRepository : CollectionsRepository {
     private val collections = MutableStateFlow<List<Collection>>(emptyList())
+    private val memberships = MutableStateFlow<Map<String, Set<String>>>(emptyMap())
     var createFailure: Throwable? = null
     var renameFailure: Throwable? = null
     var deleteFailure: Throwable? = null
@@ -24,6 +28,30 @@ private class FakeCollectionsRepository : CollectionsRepository {
     var deleteCalls = 0
 
     override fun observeAllCollections() = collections
+
+    override fun observeCollectionIdsForArticle(articleId: String): Flow<Set<String>> =
+        memberships.map { perArticle -> perArticle[articleId].orEmpty() }
+
+    override suspend fun addArticleToCollection(
+        article: Article,
+        collectionId: String,
+    ): Result<Unit> {
+        val perArticle = memberships.value.toMutableMap()
+        val articleIds = perArticle[article.url].orEmpty() + collectionId
+        perArticle[article.url] = articleIds
+        memberships.value = perArticle
+        return Result.success(Unit)
+    }
+
+    override suspend fun removeArticleFromCollection(
+        articleId: String,
+        collectionId: String,
+    ): Result<Unit> {
+        val perArticle = memberships.value.toMutableMap()
+        perArticle[articleId] = perArticle[articleId].orEmpty() - collectionId
+        memberships.value = perArticle
+        return Result.success(Unit)
+    }
 
     @Suppress("ReturnCount")
     override suspend fun createCollection(name: String): Result<Collection> {
