@@ -63,7 +63,8 @@ class NavigationTest {
         headlineArticles: List<Article> = fakeArticles,
         savedArticles: List<Article> = emptyList(),
         searchUiState: SearchUiState = SearchUiState.Idle,
-        articleDetailsContent: @Composable (article: Article, onBack: () -> Unit) -> Unit = ::TestDetailsContent,
+        articleDetailsContent: @Composable (article: Article, onBack: () -> Unit, onCollectionsClick: () -> Unit) -> Unit =
+            { article, onBack, _ -> TestDetailsContent(article, onBack) },
     ) {
         composeTestRule.setContent {
             SignalBriefAndroidTheme(isDarkMode = isDarkMode, dynamicColor = false) {
@@ -84,7 +85,7 @@ class NavigationTest {
                             bottomBar = bottomBar,
                         )
                     },
-                    savedContent = { bottomBar, onArticleClick, _ ->
+                    savedContent = { bottomBar, onArticleClick, onCollectionsClick ->
                         SavedArticlesScreen(
                             uiState =
                                 if (savedArticles.isEmpty()) {
@@ -94,6 +95,7 @@ class NavigationTest {
                                 },
                             onArticleClick = onArticleClick,
                             onRemoveClick = {},
+                            onCollectionsClick = onCollectionsClick,
                             bottomBar = bottomBar,
                         )
                     },
@@ -116,6 +118,10 @@ class NavigationTest {
                         )
                     },
                     articleDetailsContent = articleDetailsContent,
+                    collectionsContent = { onBack ->
+                        TextButton(onClick = onBack) { Text("Collections back") }
+                        Text("Collections")
+                    },
                 )
             }
         }
@@ -226,7 +232,7 @@ class NavigationTest {
                             onBack = onBack,
                         )
                     },
-                    articleDetailsContent = { _, _ -> },
+                    articleDetailsContent = { _, _, _ -> },
                 )
             }
         }
@@ -284,7 +290,7 @@ class NavigationTest {
                             onBack = onBack,
                         )
                     },
-                    articleDetailsContent = { _, _ -> },
+                    articleDetailsContent = { _, _, _ -> },
                 )
             }
         }
@@ -342,6 +348,39 @@ class NavigationTest {
         composeTestRule.onNodeWithText("Back").performClick()
 
         composeTestRule.onNodeWithText("Test Article").assertIsDisplayed()
+    }
+
+    @Test
+    fun detailsCollectionsBackReturnsToSameArticle() {
+        setContent(
+            articleDetailsContent = { article, onBack, onCollectionsClick ->
+                TextButton(onClick = onBack) { Text("Back") }
+                Text(article.title.orEmpty())
+                TextButton(onClick = onCollectionsClick) { Text("Manage collections") }
+            },
+        )
+
+        composeTestRule.onNodeWithText("Test Article").performClick()
+        composeTestRule.onNodeWithText("Manage collections").performClick()
+        composeTestRule.onNodeWithText("Collections").assertIsDisplayed()
+
+        composeTestRule.onNodeWithText("Collections back").performClick()
+
+        composeTestRule.onNodeWithText("Test Article").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Manage collections").assertIsDisplayed()
+    }
+
+    @Test
+    fun savedCollectionsBackReturnsToSaved() {
+        setContent()
+
+        composeTestRule.onNodeWithText("Saved").performClick()
+        composeTestRule.onNodeWithText(SavedArticlesStrings.OPEN_COLLECTIONS).performClick()
+        composeTestRule.onNodeWithText("Collections").assertIsDisplayed()
+
+        composeTestRule.onNodeWithText("Collections back").performClick()
+
+        composeTestRule.onNodeWithText(SavedArticlesStrings.TOP_BAR_TITLE).assertIsDisplayed()
     }
 
     @Test
@@ -495,7 +534,7 @@ class NavigationTest {
                             onBack = onBack,
                         )
                     },
-                    articleDetailsContent = { article, onBack ->
+                    articleDetailsContent = { article, onBack, _ ->
                         TestDetailsContent(article = article, onBack = onBack)
                     },
                 )

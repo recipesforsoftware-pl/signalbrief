@@ -10,6 +10,7 @@ import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.repository.CollectionsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.NewsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
+import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleCollectionAssignmentPresenter
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsPresenter
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsScreen
 import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsPresenter
@@ -50,7 +51,9 @@ fun SignalBriefAppHost(
         searchContent = { initial, queryChanged, articleClick, back ->
             Search(composition::search, initial, queryChanged, articleClick, back)
         },
-        articleDetailsContent = { article, back -> Details(article, savedArticlesRepository, back) },
+        articleDetailsContent = { article, back, collections ->
+            Details(article, savedArticlesRepository, collectionsRepository, back, collections)
+        },
         collectionsContent = { back -> Collections(composition.collections, back) },
         savedArticleCount = savedArticles.size,
     )
@@ -154,17 +157,35 @@ private fun Search(
 
 @Composable private fun Details(
     article: Article,
-    repository: SavedArticlesRepository,
+    savedArticlesRepository: SavedArticlesRepository,
+    collectionsRepository: CollectionsRepository,
     back: () -> Unit,
+    manageCollections: () -> Unit,
 ) {
-    val p = remember(article.url) { ArticleDetailsPresenter(repository, article) }
-    DisposableEffect(p) { onDispose(p::dispose) }
-    val state by p.uiState.collectAsState()
+    val presenter = remember(article.url) { ArticleDetailsPresenter(savedArticlesRepository, article) }
+    val assignmentPresenter =
+        remember(article.url) { ArticleCollectionAssignmentPresenter(collectionsRepository, article) }
+    DisposableEffect(presenter, assignmentPresenter) {
+        onDispose {
+            presenter.dispose()
+            assignmentPresenter.dispose()
+        }
+    }
+    val state by presenter.uiState.collectAsState()
+    val assignmentState by assignmentPresenter.uiState.collectAsState()
     val uri = LocalUriHandler.current
     ArticleDetailsScreen(
         uiState = state,
         onBack = back,
-        onBookmarkClick = p::toggleBookmark,
+        onBookmarkClick = presenter::toggleBookmark,
         onOpenFullArticle = { if (article.hasActionableUrl()) uri.openUri(article.url) },
+        collectionAssignmentUiState = assignmentState,
+        onCollectionAssignmentClick = assignmentPresenter::showPicker,
+        onToggleCollection = assignmentPresenter::toggleCollection,
+        onDismissCollectionAssignment = assignmentPresenter::dismissPicker,
+        onManageCollections = {
+            assignmentPresenter.dismissPicker()
+            manageCollections()
+        },
     )
 }

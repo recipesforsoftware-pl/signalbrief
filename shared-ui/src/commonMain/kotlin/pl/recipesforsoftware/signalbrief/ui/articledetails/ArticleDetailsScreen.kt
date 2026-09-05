@@ -59,6 +59,11 @@ fun ArticleDetailsScreen(
     onBack: () -> Unit,
     onBookmarkClick: () -> Unit,
     onOpenFullArticle: () -> Unit,
+    collectionAssignmentUiState: ArticleCollectionAssignmentUiState = ArticleCollectionAssignmentUiState(),
+    onCollectionAssignmentClick: () -> Unit = {},
+    onToggleCollection: (String) -> Unit = {},
+    onDismissCollectionAssignment: () -> Unit = {},
+    onManageCollections: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -94,8 +99,17 @@ fun ArticleDetailsScreen(
                 uiState = uiState,
                 onBookmarkClick = onBookmarkClick,
                 onOpenFullArticle = onOpenFullArticle,
+                onCollectionAssignmentClick = onCollectionAssignmentClick,
             )
         }
+    }
+    if (collectionAssignmentUiState.isPickerVisible) {
+        ArticleCollectionAssignmentDialog(
+            uiState = collectionAssignmentUiState,
+            onToggleCollection = onToggleCollection,
+            onDismiss = onDismissCollectionAssignment,
+            onManageCollections = onManageCollections,
+        )
     }
 }
 
@@ -119,6 +133,7 @@ private fun DetailsBody(
     uiState: ArticleDetailsUiState,
     onBookmarkClick: () -> Unit,
     onOpenFullArticle: () -> Unit,
+    onCollectionAssignmentClick: () -> Unit,
 ) {
     val article = uiState.article
     Column(
@@ -154,8 +169,19 @@ private fun DetailsBody(
                 isSaved = uiState.isSaved,
                 onClick = onBookmarkClick,
             )
+            CollectionAssignmentAction(onClick = onCollectionAssignmentClick)
         }
         Spacer(modifier = Modifier.height(SignalBriefSpacing.xxl))
+    }
+}
+
+@Composable
+private fun CollectionAssignmentAction(onClick: () -> Unit) {
+    FilledTonalButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+    ) {
+        Text(ArticleCollectionAssignmentStrings.ADD_TO_COLLECTIONS)
     }
 }
 

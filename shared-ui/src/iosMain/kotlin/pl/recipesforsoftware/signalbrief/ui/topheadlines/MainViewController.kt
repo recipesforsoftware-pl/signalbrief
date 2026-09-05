@@ -25,6 +25,7 @@ import pl.recipesforsoftware.signalbrief.domain.repository.CollectionsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.NewsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
 import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefApp
+import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleCollectionAssignmentPresenter
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsPresenter
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsScreen
 import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsPresenter
@@ -108,11 +109,13 @@ fun mainViewController(): UIViewController {
                         onBack = onBack,
                     )
                 },
-                articleDetailsContent = { article, onBack ->
+                articleDetailsContent = { article, onBack, onCollectionsClick ->
                     ArticleDetailsRoute(
                         article = article,
                         savedArticlesRepository = composition.savedArticlesRepository,
+                        collectionsRepository = composition.collectionsRepository,
                         onBack = onBack,
+                        onManageCollections = onCollectionsClick,
                     )
                 },
                 collectionsContent = { onBack ->
@@ -209,7 +212,9 @@ private fun SearchRoute(
 private fun ArticleDetailsRoute(
     article: Article,
     savedArticlesRepository: SavedArticlesRepository,
+    collectionsRepository: CollectionsRepository,
     onBack: () -> Unit,
+    onManageCollections: () -> Unit,
 ) {
     val presenter =
         remember(article.url) {
@@ -218,11 +223,17 @@ private fun ArticleDetailsRoute(
                 article = article,
             )
         }
-    DisposableEffect(presenter) {
-        onDispose { presenter.dispose() }
+    val assignmentPresenter =
+        remember(article.url) { ArticleCollectionAssignmentPresenter(collectionsRepository, article) }
+    DisposableEffect(presenter, assignmentPresenter) {
+        onDispose {
+            presenter.dispose()
+            assignmentPresenter.dispose()
+        }
     }
 
     val uiState by presenter.uiState.collectAsState()
+    val assignmentUiState by assignmentPresenter.uiState.collectAsState()
     val uriHandler = LocalUriHandler.current
     val openFullArticle = rememberOpenFullArticleAction(article, uriHandler)
 
@@ -231,6 +242,14 @@ private fun ArticleDetailsRoute(
         onBack = onBack,
         onBookmarkClick = presenter::toggleBookmark,
         onOpenFullArticle = openFullArticle,
+        collectionAssignmentUiState = assignmentUiState,
+        onCollectionAssignmentClick = assignmentPresenter::showPicker,
+        onToggleCollection = assignmentPresenter::toggleCollection,
+        onDismissCollectionAssignment = assignmentPresenter::dismissPicker,
+        onManageCollections = {
+            assignmentPresenter.dismissPicker()
+            onManageCollections()
+        },
     )
 }
 
@@ -267,6 +286,7 @@ private class IosComposition(
     val savedPresenter: SavedArticlesPresenter,
     val dailyBriefPresenter: DailyBriefPresenter,
     val savedArticlesRepository: SavedArticlesRepository,
+    val collectionsRepository: CollectionsRepository,
     val collectionsPresenter: CollectionsPresenter,
     private val newsRepository: NewsRepository,
     private val client: HttpClient,
@@ -332,6 +352,7 @@ private fun createIosComposition(): IosComposition {
         savedPresenter,
         dailyBriefPresenter,
         savedArticlesRepository,
+        collectionsRepository,
         collectionsPresenter,
         newsRepository,
         client,
