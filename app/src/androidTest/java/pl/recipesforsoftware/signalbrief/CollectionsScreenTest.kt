@@ -2,6 +2,7 @@ package pl.recipesforsoftware.signalbrief
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import org.junit.Rule
@@ -19,20 +20,24 @@ class CollectionsScreenTest {
     private fun setContent(
         state: CollectionsUiState,
         onCreate: () -> Unit = {},
+        onOpenCollection: (Collection) -> Unit = {},
+        onRename: (Collection) -> Unit = {},
+        onDelete: (Collection) -> Unit = {},
     ) {
         composeTestRule.setContent {
             SignalBriefAndroidTheme(isDarkMode = false, dynamicColor = false) {
                 CollectionsScreen(
                     uiState = state,
                     onOpenCreateEditor = onCreate,
-                    onOpenRenameEditor = {},
+                    onOpenRenameEditor = onRename,
                     onUpdateEditorName = {},
                     onConfirmEditor = {},
                     onDismissEditor = {},
-                    onOpenDeleteConfirmation = {},
+                    onOpenDeleteConfirmation = onDelete,
                     onConfirmDelete = {},
                     onDismissDeleteConfirmation = {},
                     onDismissError = {},
+                    onOpenCollection = onOpenCollection,
                     onBack = {},
                 )
             }
@@ -50,6 +55,53 @@ class CollectionsScreenTest {
     fun populatedState_displaysCollections() {
         setContent(CollectionsUiState(collections = listOf(Collection("1", "Read later"))))
         composeTestRule.onNodeWithText("Read later").assertIsDisplayed()
+    }
+
+    @Test
+    fun collectionRow_invokesOpenWithCorrectCollection() {
+        val collection = Collection("42", "Read later")
+        var opened: Collection? = null
+        setContent(CollectionsUiState(collections = listOf(collection)), onOpenCollection = { opened = it })
+
+        composeTestRule.onNodeWithText(collection.name).performClick()
+
+        check(opened == collection)
+    }
+
+    @Test
+    fun renameOverflowAction_doesNotOpenCollection() {
+        val collection = Collection("42", "Read later")
+        var opened = false
+        var renamed = false
+        setContent(
+            CollectionsUiState(collections = listOf(collection)),
+            onOpenCollection = { opened = true },
+            onRename = { renamed = it == collection },
+        )
+
+        composeTestRule.onNodeWithContentDescription(CollectionsStrings.OPTIONS).performClick()
+        composeTestRule.onNodeWithText(CollectionsStrings.RENAME).performClick()
+
+        check(renamed)
+        check(!opened)
+    }
+
+    @Test
+    fun deleteOverflowAction_doesNotOpenCollection() {
+        val collection = Collection("42", "Read later")
+        var opened = false
+        var deleted = false
+        setContent(
+            CollectionsUiState(collections = listOf(collection)),
+            onOpenCollection = { opened = true },
+            onDelete = { deleted = it == collection },
+        )
+
+        composeTestRule.onNodeWithContentDescription(CollectionsStrings.OPTIONS).performClick()
+        composeTestRule.onNodeWithText(CollectionsStrings.DELETE).performClick()
+
+        check(deleted)
+        check(!opened)
     }
 
     @Test

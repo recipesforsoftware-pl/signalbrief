@@ -32,6 +32,15 @@ interface CollectionsRepository {
     fun observeCollectionIdsForArticle(articleId: String): Flow<Set<String>>
 
     /**
+     * Observes the durable article snapshots assigned to [collectionId].
+     *
+     * This read is intentionally independent of saved articles: an article
+     * remains displayable in a collection after it is unsaved. Results are
+     * ordered by title (with missing titles first), then URL, ascending.
+     */
+    fun observeArticlesInCollection(collectionId: String): Flow<List<Article>>
+
+    /**
      * Creates a collection with the given [name].
      *
      * The name is normalized (trimmed) and a blank-only name is rejected with

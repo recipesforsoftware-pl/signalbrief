@@ -20,6 +20,7 @@ import kotlin.test.assertNull
 private class FakeCollectionsRepository : CollectionsRepository {
     private val collections = MutableStateFlow<List<Collection>>(emptyList())
     private val memberships = MutableStateFlow<Map<String, Set<String>>>(emptyMap())
+    private val collectionArticles = MutableStateFlow<List<Article>>(emptyList())
     var createFailure: Throwable? = null
     var renameFailure: Throwable? = null
     var deleteFailure: Throwable? = null
@@ -31,6 +32,8 @@ private class FakeCollectionsRepository : CollectionsRepository {
 
     override fun observeCollectionIdsForArticle(articleId: String): Flow<Set<String>> =
         memberships.map { perArticle -> perArticle[articleId].orEmpty() }
+
+    override fun observeArticlesInCollection(collectionId: String): Flow<List<Article>> = collectionArticles
 
     override suspend fun addArticleToCollection(
         article: Article,

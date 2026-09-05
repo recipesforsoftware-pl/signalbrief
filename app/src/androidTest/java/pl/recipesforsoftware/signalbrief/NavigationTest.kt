@@ -15,6 +15,7 @@ import androidx.compose.ui.test.performTextInput
 import org.junit.Rule
 import org.junit.Test
 import pl.recipesforsoftware.signalbrief.domain.model.Article
+import pl.recipesforsoftware.signalbrief.domain.model.Collection
 import pl.recipesforsoftware.signalbrief.domain.model.FeedSource
 import pl.recipesforsoftware.signalbrief.domain.model.Source
 import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefApp
@@ -65,6 +66,16 @@ class NavigationTest {
         searchUiState: SearchUiState = SearchUiState.Idle,
         articleDetailsContent: @Composable (article: Article, onBack: () -> Unit, onCollectionsClick: () -> Unit) -> Unit =
             { article, onBack, _ -> TestDetailsContent(article, onBack) },
+        collectionsContent: @Composable (onBack: () -> Unit, onCollectionClick: (Collection) -> Unit) -> Unit =
+            { onBack, _ ->
+                TextButton(onClick = onBack) { Text("Collections back") }
+                Text("Collections")
+            },
+        collectionDetailsContent: @Composable (collection: Collection, onArticleClick: (Article) -> Unit, onBack: () -> Unit) -> Unit =
+            { collection, _, onBack ->
+                TextButton(onClick = onBack) { Text("Collection details back") }
+                Text("Collection details ${collection.id}: ${collection.name}")
+            },
     ) {
         composeTestRule.setContent {
             SignalBriefAndroidTheme(isDarkMode = isDarkMode, dynamicColor = false) {
@@ -118,10 +129,8 @@ class NavigationTest {
                         )
                     },
                     articleDetailsContent = articleDetailsContent,
-                    collectionsContent = { onBack ->
-                        TextButton(onClick = onBack) { Text("Collections back") }
-                        Text("Collections")
-                    },
+                    collectionsContent = collectionsContent,
+                    collectionDetailsContent = collectionDetailsContent,
                 )
             }
         }
@@ -381,6 +390,60 @@ class NavigationTest {
         composeTestRule.onNodeWithText("Collections back").performClick()
 
         composeTestRule.onNodeWithText(SavedArticlesStrings.TOP_BAR_TITLE).assertIsDisplayed()
+    }
+
+    @Test
+    fun collectionsDetailsBackReturnsToCollections() {
+        val collection = Collection("42", "Reading")
+        setContent(
+            collectionsContent = { onBack, onCollectionClick ->
+                TextButton(onClick = onBack) { Text("Collections back") }
+                TextButton(onClick = { onCollectionClick(collection) }) { Text("Open Reading") }
+                Text("Collections")
+            },
+        )
+
+        composeTestRule.onNodeWithText("Saved").performClick()
+        composeTestRule.onNodeWithText(SavedArticlesStrings.OPEN_COLLECTIONS).performClick()
+        composeTestRule.onNodeWithText("Open Reading").performClick()
+        composeTestRule.onNodeWithText("Collection details 42: Reading").assertIsDisplayed()
+
+        composeTestRule.onNodeWithText("Collection details back").performClick()
+
+        composeTestRule.onNodeWithText("Collections").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Open Reading").assertIsDisplayed()
+    }
+
+    @Test
+    fun collectionDetailsArticleBackRestoresSameCollection() {
+        val collection = Collection("42", "Reading")
+        setContent(
+            articleDetailsContent = { article, onBack, _ ->
+                TextButton(onClick = onBack) { Text("Article details back") }
+                Text("Article details: ${article.url}")
+            },
+            collectionsContent = { onBack, onCollectionClick ->
+                TextButton(onClick = onBack) { Text("Collections back") }
+                TextButton(onClick = { onCollectionClick(collection) }) { Text("Open Reading") }
+                Text("Collections")
+            },
+            collectionDetailsContent = { selected, onArticleClick, onBack ->
+                TextButton(onClick = onBack) { Text("Collection details back") }
+                Text("Collection details ${selected.id}: ${selected.name}")
+                TextButton(onClick = { onArticleClick(fakeArticles.single()) }) { Text("Open member article") }
+            },
+        )
+
+        composeTestRule.onNodeWithText("Saved").performClick()
+        composeTestRule.onNodeWithText(SavedArticlesStrings.OPEN_COLLECTIONS).performClick()
+        composeTestRule.onNodeWithText("Open Reading").performClick()
+        composeTestRule.onNodeWithText("Open member article").performClick()
+        composeTestRule.onNodeWithText("Article details: https://example.com/1").assertIsDisplayed()
+
+        composeTestRule.onNodeWithText("Article details back").performClick()
+
+        composeTestRule.onNodeWithText("Collection details 42: Reading").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Open member article").assertIsDisplayed()
     }
 
     @Test

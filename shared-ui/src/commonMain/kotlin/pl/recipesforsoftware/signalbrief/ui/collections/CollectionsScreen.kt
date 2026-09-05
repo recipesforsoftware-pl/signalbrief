@@ -1,5 +1,6 @@
 package pl.recipesforsoftware.signalbrief.ui.collections
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -64,6 +65,7 @@ fun CollectionsScreen(
     onConfirmDelete: () -> Unit,
     onDismissDeleteConfirmation: () -> Unit,
     onDismissError: () -> Unit,
+    onOpenCollection: (Collection) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -100,7 +102,7 @@ fun CollectionsScreen(
             if (uiState.collections.isEmpty()) {
                 EmptyContent(onOpenCreateEditor)
             } else {
-                CollectionsList(uiState.collections, onOpenRenameEditor, onOpenDeleteConfirmation)
+                CollectionsList(uiState.collections, onOpenCollection, onOpenRenameEditor, onOpenDeleteConfirmation)
             }
         }
     }
@@ -126,6 +128,7 @@ fun CollectionsScreen(
 @Composable
 private fun CollectionsList(
     collections: List<Collection>,
+    onOpen: (Collection) -> Unit,
     onRename: (Collection) -> Unit,
     onDelete: (Collection) -> Unit,
 ) {
@@ -135,7 +138,7 @@ private fun CollectionsList(
         verticalArrangement = Arrangement.spacedBy(SignalBriefSpacing.xs),
     ) {
         items(items = collections, key = Collection::id) { collection ->
-            CollectionRow(collection, { onRename(collection) }, { onDelete(collection) })
+            CollectionRow(collection, { onOpen(collection) }, { onRename(collection) }, { onDelete(collection) })
         }
     }
 }
@@ -143,6 +146,7 @@ private fun CollectionsList(
 @Composable
 private fun CollectionRow(
     collection: Collection,
+    onOpen: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -152,6 +156,7 @@ private fun CollectionRow(
             Modifier
                 .fillMaxWidth()
                 .heightIn(min = 56.dp)
+                .clickable(onClick = onOpen)
                 .padding(horizontal = SignalBriefSpacing.pageHorizontal),
         verticalAlignment = Alignment.CenterVertically,
     ) {

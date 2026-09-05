@@ -21,6 +21,7 @@ import kotlin.test.assertTrue
 private class FakeAssignmentCollectionsRepository : CollectionsRepository {
     private val collections = MutableStateFlow<List<Collection>>(emptyList())
     private val memberships = MutableStateFlow<Map<String, Set<String>>>(emptyMap())
+    private val collectionArticles = MutableStateFlow<List<Article>>(emptyList())
     val addCalls = mutableListOf<Pair<Article, String>>()
     val removeCalls = mutableListOf<Pair<String, String>>()
     var addResult: suspend () -> Result<Unit> = { Result.success(Unit) }
@@ -29,6 +30,8 @@ private class FakeAssignmentCollectionsRepository : CollectionsRepository {
     override fun observeAllCollections(): Flow<List<Collection>> = collections
 
     override fun observeCollectionIdsForArticle(articleId: String): Flow<Set<String>> = membershipsFor(articleId)
+
+    override fun observeArticlesInCollection(collectionId: String): Flow<List<Article>> = collectionArticles
 
     override suspend fun createCollection(name: String): Result<Collection> = error("Not used")
 

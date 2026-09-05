@@ -2,6 +2,7 @@ package pl.recipesforsoftware.signalbrief.data.local.mapper
 
 import pl.recipesforsoftware.signalbrief.data.local.entity.ArticleCollectionMembershipEntity
 import pl.recipesforsoftware.signalbrief.domain.model.Article
+import pl.recipesforsoftware.signalbrief.domain.model.Source
 
 /**
  * Maps a domain article into a collection-membership entity.
@@ -20,4 +21,14 @@ internal fun Article.toMembershipEntity(collectionId: Long): ArticleCollectionMe
         imageUrl = imageUrl,
         sourceId = source?.id,
         sourceName = source?.name,
+    )
+
+/** Maps the membership's durable display snapshot back to its domain article. */
+internal fun ArticleCollectionMembershipEntity.toDomain(): Article =
+    Article(
+        title = title,
+        description = description,
+        url = articleId,
+        imageUrl = imageUrl,
+        source = if (sourceId != null || sourceName != null) Source(id = sourceId, name = sourceName) else null,
     )

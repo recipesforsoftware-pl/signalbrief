@@ -63,6 +63,40 @@ class WebCollectionMembershipRepositoryTest {
         }
 
     @Test
+    fun collectionArticlesRestoreSnapshotsFilterByCollectionAndUseTitleThenUrlOrdering() =
+        runTest {
+            val storage = FakeCollectionsStorage()
+            val repository = WebCollectionsRepository(storage)
+            val reading = repository.createCollection("Reading").getOrThrow()
+            val watchlist = repository.createCollection("Watchlist").getOrThrow()
+            assertTrue(
+                repository.addArticleToCollection(article(ARTICLE_A).copy(title = "Zebra"), reading.id).isSuccess,
+            )
+            assertTrue(
+                repository.addArticleToCollection(article(ARTICLE_B).copy(title = "Alpha"), reading.id).isSuccess,
+            )
+            assertTrue(repository.addArticleToCollection(article(ARTICLE_A), watchlist.id).isSuccess)
+
+            assertEquals(
+                listOf(ARTICLE_B, ARTICLE_A),
+                repository.observeArticlesInCollection(reading.id).first().map(Article::url),
+            )
+            assertEquals(
+                listOf(ARTICLE_A),
+                repository.observeArticlesInCollection(watchlist.id).first().map(Article::url),
+            )
+            assertTrue(repository.removeArticleFromCollection(ARTICLE_A, reading.id).isSuccess)
+            assertEquals(
+                listOf(ARTICLE_B),
+                repository.observeArticlesInCollection(reading.id).first().map(Article::url),
+            )
+            assertEquals(
+                listOf(ARTICLE_B),
+                WebCollectionsRepository(storage).observeArticlesInCollection(reading.id).first().map(Article::url),
+            )
+        }
+
+    @Test
     fun activeObserverSeesMembershipChangesInOrder() =
         runTest {
             val repository = WebCollectionsRepository(FakeCollectionsStorage())
