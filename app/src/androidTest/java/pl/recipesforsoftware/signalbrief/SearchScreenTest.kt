@@ -43,6 +43,7 @@ class SearchScreenTest {
         onQueryChange: (String) -> Unit = {},
         onArticleClick: (Article) -> Unit = {},
         onBookmarkClick: ((Article) -> Unit)? = null,
+        onOpenTopicMonitoring: () -> Unit = {},
         onBack: () -> Unit = {},
     ) {
         composeTestRule.setContent {
@@ -53,6 +54,7 @@ class SearchScreenTest {
                     uiState = uiState,
                     onArticleClick = onArticleClick,
                     onBookmarkClick = onBookmarkClick,
+                    onOpenTopicMonitoring = onOpenTopicMonitoring,
                     onBack = onBack,
                 )
             }
@@ -204,6 +206,7 @@ class SearchScreenTest {
                     uiState = SearchUiState.Idle,
                     onArticleClick = {},
                     onBookmarkClick = {},
+                    onOpenTopicMonitoring = {},
                     onBack = {},
                 )
             }

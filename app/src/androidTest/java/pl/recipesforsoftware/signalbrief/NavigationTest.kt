@@ -32,6 +32,9 @@ import pl.recipesforsoftware.signalbrief.ui.theme.SignalBriefAndroidTheme
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesScreen
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesStrings
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesUiState
+import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringScreen
+import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringStrings
+import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringUiState
 
 class NavigationTest {
     @get:Rule
@@ -76,6 +79,9 @@ class NavigationTest {
                 TextButton(onClick = onBack) { Text("Collection details back") }
                 Text("Collection details ${collection.id}: ${collection.name}")
             },
+        topicMonitoringContent: @Composable (onBack: () -> Unit) -> Unit = { back ->
+            TopicMonitoringScreen(TopicMonitoringUiState(), {}, {}, {}, {}, {}, {}, {}, {}, {}, back)
+        },
     ) {
         composeTestRule.setContent {
             SignalBriefAndroidTheme(isDarkMode = isDarkMode, dynamicColor = false) {
@@ -118,22 +124,36 @@ class NavigationTest {
                             bottomBar = bottomBar,
                         )
                     },
-                    searchContent = { initialQuery, onQueryChange, onArticleClick, onBack ->
+                    searchContent = { initialQuery, onQueryChange, onArticleClick, monitoring, onBack ->
                         SearchScreen(
                             query = initialQuery,
                             onQueryChange = onQueryChange,
                             uiState = searchUiState,
                             onArticleClick = onArticleClick,
                             onBookmarkClick = {},
+                            onOpenTopicMonitoring = monitoring,
                             onBack = onBack,
                         )
                     },
                     articleDetailsContent = articleDetailsContent,
                     collectionsContent = collectionsContent,
                     collectionDetailsContent = collectionDetailsContent,
+                    topicMonitoringContent = topicMonitoringContent,
                 )
             }
         }
+    }
+
+    @Test
+    fun searchTopicMonitoringBackPreservesQuery() {
+        setContent()
+        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SEARCH).performClick()
+        composeTestRule.onNode(hasSetTextAction()).performTextInput("Kotlin")
+        composeTestRule.onNodeWithText(SearchStrings.MONITORED_TOPICS).performClick()
+        composeTestRule.onNodeWithText(TopicMonitoringStrings.TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(TopicMonitoringStrings.BACK).performClick()
+        composeTestRule.onNodeWithText(SearchStrings.TOP_BAR_TITLE).assertIsDisplayed()
+        composeTestRule.onNode(hasSetTextAction()).assertTextEquals("Kotlin")
     }
 
     @Test
@@ -231,13 +251,14 @@ class NavigationTest {
                             bottomBar = bottomBar,
                         )
                     },
-                    searchContent = { initialQuery, onQueryChange, onArticleClick, onBack ->
+                    searchContent = { initialQuery, onQueryChange, onArticleClick, _, onBack ->
                         SearchScreen(
                             query = initialQuery,
                             onQueryChange = onQueryChange,
                             uiState = SearchUiState.Idle,
                             onArticleClick = onArticleClick,
                             onBookmarkClick = {},
+                            onOpenTopicMonitoring = {},
                             onBack = onBack,
                         )
                     },
@@ -289,13 +310,14 @@ class NavigationTest {
                             bottomBar = bottomBar,
                         )
                     },
-                    searchContent = { initialQuery, onQueryChange, onArticleClick, onBack ->
+                    searchContent = { initialQuery, onQueryChange, onArticleClick, _, onBack ->
                         SearchScreen(
                             query = initialQuery,
                             onQueryChange = onQueryChange,
                             uiState = SearchUiState.Idle,
                             onArticleClick = onArticleClick,
                             onBookmarkClick = {},
+                            onOpenTopicMonitoring = {},
                             onBack = onBack,
                         )
                     },
@@ -582,7 +604,7 @@ class NavigationTest {
                             bottomBar = bottomBar,
                         )
                     },
-                    searchContent = { initialQuery, onQueryChange, onArticleClick, onBack ->
+                    searchContent = { initialQuery, onQueryChange, onArticleClick, _, onBack ->
                         SearchScreen(
                             query = initialQuery,
                             onQueryChange = onQueryChange,
@@ -594,6 +616,7 @@ class NavigationTest {
                                 ),
                             onArticleClick = onArticleClick,
                             onBookmarkClick = {},
+                            onOpenTopicMonitoring = {},
                             onBack = onBack,
                         )
                     },

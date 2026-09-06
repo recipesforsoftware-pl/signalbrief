@@ -7,6 +7,7 @@ package pl.recipesforsoftware.signalbrief.ui.search
  * dependencies while giving both hosts a single source of truth.
  */
 object SearchStrings {
+    const val MONITORED_TOPICS = "Monitored topics"
     const val TOP_BAR_TITLE: String = "Search"
     const val BACK: String = "Back"
 

@@ -12,6 +12,14 @@ fun main() {
         val newsRepository = remember { WebNewsRepository() }
         val savedRepository = remember { WebSavedArticlesRepository() }
         val collectionsRepository = remember { WebCollectionsRepository() }
-        SignalBriefTheme { SignalBriefAppHost(newsRepository, savedRepository, collectionsRepository) }
+        val topicMonitoringRepository = remember { WebTopicMonitoringRepository() }
+        SignalBriefTheme {
+            SignalBriefAppHost(
+                newsRepository,
+                savedRepository,
+                collectionsRepository,
+                topicMonitoringRepository,
+            )
+        }
     }
 }
