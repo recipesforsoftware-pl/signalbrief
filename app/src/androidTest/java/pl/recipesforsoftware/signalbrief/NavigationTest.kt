@@ -17,6 +17,7 @@ import org.junit.Test
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.Collection
 import pl.recipesforsoftware.signalbrief.domain.model.FeedSource
+import pl.recipesforsoftware.signalbrief.domain.model.MonitoredTopic
 import pl.recipesforsoftware.signalbrief.domain.model.Source
 import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefApp
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefScreen
@@ -32,6 +33,9 @@ import pl.recipesforsoftware.signalbrief.ui.theme.SignalBriefAndroidTheme
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesScreen
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesStrings
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesUiState
+import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMatchesScreen
+import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMatchesStrings
+import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMatchesUiState
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringScreen
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringStrings
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringUiState
@@ -79,9 +83,35 @@ class NavigationTest {
                 TextButton(onClick = onBack) { Text("Collection details back") }
                 Text("Collection details ${collection.id}: ${collection.name}")
             },
-        topicMonitoringContent: @Composable (onBack: () -> Unit) -> Unit = { back ->
-            TopicMonitoringScreen(TopicMonitoringUiState(), {}, {}, {}, {}, {}, {}, {}, {}, {}, back)
-        },
+        topicMonitoringContent: @Composable (onOpenTopicMatches: (MonitoredTopic) -> Unit, onBack: () -> Unit) -> Unit =
+            { openMatches, back ->
+                TopicMonitoringScreen(
+                    uiState = TopicMonitoringUiState(topics = listOf(MonitoredTopic("1", "Kotlin"))),
+                    onOpenCreateEditor = {},
+                    onOpenRenameEditor = {},
+                    onUpdateEditorQuery = {},
+                    onConfirmEditor = {},
+                    onDismissEditor = {},
+                    onOpenDeleteConfirmation = {},
+                    onConfirmDelete = {},
+                    onDismissDeleteConfirmation = {},
+                    onDismissError = {},
+                    onOpenTopicMatches = openMatches,
+                    onBack = back,
+                )
+            },
+        topicMatchesContent: @Composable (topic: MonitoredTopic, onArticleClick: (Article) -> Unit, onBack: () -> Unit) -> Unit =
+            { topic, onArticleClick, onBack ->
+                TopicMatchesScreen(
+                    uiState =
+                        TopicMatchesUiState.NoMatches(
+                            topic = MonitoredTopic(topic.id, topic.query),
+                        ),
+                    onArticleClick = onArticleClick,
+                    onBookmarkClick = {},
+                    onBack = onBack,
+                )
+            },
     ) {
         composeTestRule.setContent {
             SignalBriefAndroidTheme(isDarkMode = isDarkMode, dynamicColor = false) {
@@ -139,6 +169,7 @@ class NavigationTest {
                     collectionsContent = collectionsContent,
                     collectionDetailsContent = collectionDetailsContent,
                     topicMonitoringContent = topicMonitoringContent,
+                    topicMatchesContent = topicMatchesContent,
                 )
             }
         }
@@ -154,6 +185,58 @@ class NavigationTest {
         composeTestRule.onNodeWithContentDescription(TopicMonitoringStrings.BACK).performClick()
         composeTestRule.onNodeWithText(SearchStrings.TOP_BAR_TITLE).assertIsDisplayed()
         composeTestRule.onNode(hasSetTextAction()).assertTextEquals("Kotlin")
+    }
+
+    @Test
+    fun searchTopicMatchesRoundTripPreservesQuery() {
+        setContent()
+
+        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SEARCH).performClick()
+        composeTestRule.onNode(hasSetTextAction()).performTextInput("Android")
+        composeTestRule.onNodeWithText(SearchStrings.MONITORED_TOPICS).performClick()
+        composeTestRule.onNodeWithText(TopicMonitoringStrings.TITLE).assertIsDisplayed()
+
+        composeTestRule.onNodeWithText("Kotlin").performClick()
+        composeTestRule.onNodeWithText(TopicMatchesStrings.NO_MATCHES_TITLE).assertIsDisplayed()
+
+        composeTestRule.onNodeWithContentDescription(TopicMatchesStrings.BACK).performClick()
+        composeTestRule.onNodeWithText(TopicMonitoringStrings.TITLE).assertIsDisplayed()
+
+        composeTestRule.onNodeWithContentDescription(TopicMonitoringStrings.BACK).performClick()
+        composeTestRule.onNodeWithText(SearchStrings.TOP_BAR_TITLE).assertIsDisplayed()
+        composeTestRule.onNode(hasSetTextAction()).assertTextEquals("Android")
+    }
+
+    @Test
+    fun topicMatchesArticleDetailsBackReturnsToTopicMatches() {
+        setContent(
+            topicMatchesContent = { topic, onArticleClick, onBack ->
+                TopicMatchesScreen(
+                    uiState =
+                        TopicMatchesUiState.Content(
+                            topic = topic,
+                            articles = fakeArticles,
+                            savedUrls = emptySet(),
+                        ),
+                    onArticleClick = onArticleClick,
+                    onBookmarkClick = {},
+                    onBack = onBack,
+                )
+            },
+        )
+
+        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SEARCH).performClick()
+        composeTestRule.onNodeWithText(SearchStrings.MONITORED_TOPICS).performClick()
+        composeTestRule.onNodeWithText("Kotlin").performClick()
+
+        composeTestRule.onNodeWithText("Test Article").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Test Article").performClick()
+
+        composeTestRule.onNodeWithText("Back").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Back").performClick()
+
+        composeTestRule.onNodeWithText("Test Article").assertIsDisplayed()
+        composeTestRule.onNodeWithText(TopicMatchesStrings.NO_MATCHES_TITLE).assertDoesNotExist()
     }
 
     @Test

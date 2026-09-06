@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.Collection
+import pl.recipesforsoftware.signalbrief.domain.model.MonitoredTopic
 import pl.recipesforsoftware.signalbrief.ui.images.installSignalBriefImageLoader
 import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingCompletion
 import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingScreen
@@ -54,15 +55,23 @@ import pl.recipesforsoftware.signalbrief.ui.onboarding.rememberOnboardingPresent
  * returns to it exactly. Search is a child screen of Headlines and is tracked
  * by [isSearchVisible]; it also survives recreation through `rememberSaveable`.
  *
+ * Topic Monitoring is a child of Search and can descend one level further into
+ * Topic Matches for a selected [MonitoredTopic]; the selected topic survives
+ * recreation through [SelectedMonitoredTopicSaver] and its matches are derived
+ * reactively from the local headline cache.
+ *
  * Navigation priority while the main app is visible:
- * 1. [selectedArticle] -> Article Details.
- * 2. [isSearchVisible] -> Search.
- * 3. [currentDestination] -> Headlines, Daily Brief, or Saved.
+ * 1. Topic Monitoring -> Topic Matches -> Article Details (when selected).
+ * 2. Collections -> Collection Details -> Article Details (when selected).
+ * 3. [selectedArticle] -> Article Details.
+ * 4. [isSearchVisible] -> Search.
+ * 5. [currentDestination] -> Headlines, Daily Brief, or Saved.
  *
  * Toolbar back and any host-integrated system back both funnel through the
  * same state clear, so there is one shared transition path and no back stack.
- * The selected article and collection survive recreation through
- * [SelectedArticleSaver] and [SelectedCollectionSaver].
+ * The selected article, collection, and monitored topic survive recreation
+ * through [SelectedArticleSaver], [SelectedCollectionSaver], and
+ * [SelectedMonitoredTopicSaver].
  *
  * The shell also installs the shared Coil image-loader singleton once for the
  * app composition root. Both "Skip" and "Start reading" funnel through an
@@ -103,7 +112,11 @@ typealias SearchContent =
         onBack: () -> Unit,
     ) -> Unit
 
-typealias TopicMonitoringContent = @Composable (onBack: () -> Unit) -> Unit
+typealias TopicMonitoringContent =
+    @Composable (onOpenTopicMatches: (MonitoredTopic) -> Unit, onBack: () -> Unit) -> Unit
+
+typealias TopicMatchesContent =
+    @Composable (topic: MonitoredTopic, onArticleClick: (Article) -> Unit, onBack: () -> Unit) -> Unit
 
 typealias ArticleDetailsContent =
     @Composable (
@@ -123,7 +136,8 @@ fun SignalBriefApp(
     dailyBriefContent: DailyBriefContent,
     collectionsContent: CollectionsContent = { _, _ -> },
     collectionDetailsContent: CollectionDetailsContent = { _, _, _ -> },
-    topicMonitoringContent: TopicMonitoringContent = {},
+    topicMonitoringContent: TopicMonitoringContent = { _, _ -> },
+    topicMatchesContent: TopicMatchesContent = { _, _, _ -> },
     savedArticleCount: Int = 0,
     modifier: Modifier = Modifier,
 ) {
@@ -158,6 +172,7 @@ fun SignalBriefApp(
                 collectionsContent = collectionsContent,
                 collectionDetailsContent = collectionDetailsContent,
                 topicMonitoringContent = topicMonitoringContent,
+                topicMatchesContent = topicMatchesContent,
                 savedArticleCount = savedArticleCount,
             )
         }
@@ -175,6 +190,7 @@ private fun SignalBriefMainContent(
     collectionsContent: CollectionsContent,
     collectionDetailsContent: CollectionDetailsContent,
     topicMonitoringContent: TopicMonitoringContent,
+    topicMatchesContent: TopicMatchesContent,
     savedArticleCount: Int,
 ) {
     var currentDestination by rememberSaveable(stateSaver = AppDestinationSaver) {
@@ -189,15 +205,55 @@ private fun SignalBriefMainContent(
     var selectedCollection by rememberSaveable(stateSaver = SelectedCollectionSaver) {
         mutableStateOf<Collection?>(null)
     }
+    var selectedMonitoredTopic by rememberSaveable(stateSaver = SelectedMonitoredTopicSaver) {
+        mutableStateOf<MonitoredTopic?>(null)
+    }
     var searchQuery by rememberSaveable {
         mutableStateOf("")
     }
 
     if (isTopicMonitoringVisible) {
-        topicMonitoringContent { isTopicMonitoringVisible = false }
+        when {
+            selectedMonitoredTopic == null -> {
+                topicMonitoringContent(
+                    { selectedMonitoredTopic = it },
+                    { isTopicMonitoringVisible = false },
+                )
+            }
+
+            selectedArticle != null -> {
+                ArticleDetailsDestination(
+                    articleDetailsContent,
+                    requireNotNull(selectedArticle),
+                    onBack = { selectedArticle = null },
+                    onCollectionsClick = {
+                        selectedArticle = null
+                        selectedMonitoredTopic = null
+                        isTopicMonitoringVisible = false
+                        selectedCollection = null
+                        isCollectionsVisible = true
+                    },
+                )
+            }
+
+            else -> {
+                topicMatchesContent(
+                    requireNotNull(selectedMonitoredTopic),
+                    { selectedArticle = it },
+                    { selectedMonitoredTopic = null },
+                )
+            }
+        }
     } else if (isCollectionsVisible) {
         when {
-            selectedArticle != null && selectedCollection != null -> {
+            selectedCollection == null -> {
+                collectionsContent(
+                    { isCollectionsVisible = false },
+                    { selectedCollection = it },
+                )
+            }
+
+            selectedArticle != null -> {
                 ArticleDetailsDestination(
                     articleDetailsContent,
                     requireNotNull(selectedArticle),
@@ -209,18 +265,11 @@ private fun SignalBriefMainContent(
                 )
             }
 
-            selectedCollection != null -> {
+            else -> {
                 collectionDetailsContent(
                     requireNotNull(selectedCollection),
                     { selectedArticle = it },
                     { selectedCollection = null },
-                )
-            }
-
-            else -> {
-                collectionsContent(
-                    { isCollectionsVisible = false },
-                    { selectedCollection = it },
                 )
             }
         }

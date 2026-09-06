@@ -21,6 +21,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import pl.recipesforsoftware.signalbrief.domain.model.Article
+import pl.recipesforsoftware.signalbrief.domain.model.MonitoredTopic
 import pl.recipesforsoftware.signalbrief.domain.repository.CollectionsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.NewsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
@@ -46,6 +47,8 @@ import pl.recipesforsoftware.signalbrief.ui.topheadlines.DarkModeMenu
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesScreen
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesViewModel
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.hasActionableUrl
+import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMatchesPresenter
+import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMatchesScreen
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringPresenter
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringScreen
 import javax.inject.Inject
@@ -140,7 +143,10 @@ class MainActivity : ComponentActivity() {
                 collectionDetailsContent = { collection, onArticleClick, onBack ->
                     CollectionDetailsRoute(collection, onArticleClick, onBack)
                 },
-                topicMonitoringContent = { onBack -> TopicMonitoringRoute(onBack) },
+                topicMonitoringContent = { openMatches, onBack -> TopicMonitoringRoute(openMatches, onBack) },
+                topicMatchesContent = { topic, onArticleClick, onBack ->
+                    TopicMatchesRoute(topic, onArticleClick, onBack)
+                },
                 savedArticleCount = savedArticles.size,
             )
         }
@@ -325,7 +331,10 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun TopicMonitoringRoute(onBack: () -> Unit) {
+    private fun TopicMonitoringRoute(
+        onOpenTopicMatches: (MonitoredTopic) -> Unit,
+        onBack: () -> Unit,
+    ) {
         BackHandler(onBack = onBack)
         val presenter = remember { TopicMonitoringPresenter(topicMonitoringRepository, Dispatchers.Main.immediate) }
         DisposableEffect(presenter) { onDispose(presenter::dispose) }
@@ -341,7 +350,34 @@ class MainActivity : ComponentActivity() {
             presenter::confirmDelete,
             presenter::dismissDeleteConfirmation,
             presenter::dismissError,
+            onOpenTopicMatches,
             onBack,
+        )
+    }
+
+    @Composable
+    private fun TopicMatchesRoute(
+        topic: MonitoredTopic,
+        onArticleClick: (Article) -> Unit,
+        onBack: () -> Unit,
+    ) {
+        BackHandler(onBack = onBack)
+        val presenter =
+            remember(topic.id) {
+                TopicMatchesPresenter(
+                    topic = topic,
+                    newsRepository = newsRepository,
+                    savedArticlesRepository = savedArticlesRepository,
+                    dispatcher = Dispatchers.Main.immediate,
+                )
+            }
+        DisposableEffect(presenter) { onDispose(presenter::dispose) }
+        val uiState by presenter.uiState.collectAsState()
+        TopicMatchesScreen(
+            uiState = uiState,
+            onArticleClick = onArticleClick,
+            onBookmarkClick = presenter::toggleBookmark,
+            onBack = onBack,
         )
     }
 }
