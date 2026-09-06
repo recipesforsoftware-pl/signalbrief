@@ -25,9 +25,10 @@ class TopicMonitoringScreenTest {
         create: () -> Unit = {},
         rename: (MonitoredTopic) -> Unit = {},
         delete: (MonitoredTopic) -> Unit = {},
+        open: (MonitoredTopic) -> Unit = {},
     ) = rule.setContent {
         SignalBriefAndroidTheme(isDarkMode = false, dynamicColor = false) {
-            TopicMonitoringScreen(state, create, rename, {}, {}, {}, delete, {}, {}, {}, {})
+            TopicMonitoringScreen(state, create, rename, {}, {}, {}, delete, {}, {}, {}, open, {})
         }
     }
 
@@ -59,6 +60,39 @@ class TopicMonitoringScreenTest {
         rule.onAllNodesWithContentDescription(TopicMonitoringStrings.OPTIONS)[0].performClick()
         rule.onNodeWithText(TopicMonitoringStrings.DELETE).performClick()
         check(deleted == first)
+    }
+
+    @Test
+    fun topicRowPrimaryActionOpensMatchesForSelectedTopic() {
+        val first = MonitoredTopic("1", "Kotlin")
+        val second = MonitoredTopic("2", "Compose")
+        var opened: MonitoredTopic? = null
+        content(
+            TopicMonitoringUiState(topics = listOf(first, second)),
+            { },
+            { },
+            { },
+            { opened = it },
+        )
+
+        rule.onNodeWithText(second.query).performClick()
+        check(opened == second)
+    }
+
+    @Test
+    fun overflowIconDoesNotOpenTopicMatches() {
+        val topic = MonitoredTopic("1", "Kotlin")
+        var opened: MonitoredTopic? = null
+        content(
+            TopicMonitoringUiState(topics = listOf(topic)),
+            { },
+            { },
+            { },
+            { opened = it },
+        )
+
+        rule.onNodeWithContentDescription(TopicMonitoringStrings.OPTIONS).performClick()
+        check(opened == null)
     }
 
     @Test

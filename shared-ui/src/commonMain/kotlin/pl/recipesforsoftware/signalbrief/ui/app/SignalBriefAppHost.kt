@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalUriHandler
 import pl.recipesforsoftware.signalbrief.domain.model.Article
+import pl.recipesforsoftware.signalbrief.domain.model.MonitoredTopic
 import pl.recipesforsoftware.signalbrief.domain.repository.CollectionsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.NewsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
@@ -27,6 +28,8 @@ import pl.recipesforsoftware.signalbrief.ui.search.SearchScreen
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesPresenter
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesScreen
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.hasActionableUrl
+import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMatchesPresenter
+import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMatchesScreen
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringPresenter
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringScreen
 
@@ -69,7 +72,12 @@ fun SignalBriefAppHost(
         collectionDetailsContent = { collection, articleClick, back ->
             CollectionDetails(collection, collectionsRepository, articleClick, back)
         },
-        topicMonitoringContent = { back -> TopicMonitoring(composition.topicMonitoring, back) },
+        topicMonitoringContent = { openMatches, back ->
+            TopicMonitoring(composition.topicMonitoring, openMatches, back)
+        },
+        topicMatchesContent = { topic, articleClick, back ->
+            TopicMatches(composition::topicMatches, topic, articleClick, back)
+        },
         savedArticleCount = savedArticles.size,
     )
 }
@@ -87,6 +95,8 @@ private class PresentationComposition(
     val topicMonitoring = TopicMonitoringPresenter(topicMonitoringRepository)
 
     fun search(query: String) = SearchPresenter(news, savedRepository, query)
+
+    fun topicMatches(topic: MonitoredTopic) = TopicMatchesPresenter(topic, news, savedRepository)
 
     fun dispose() {
         headlines.dispose()
@@ -192,6 +202,7 @@ private fun Search(
 @Composable
 private fun TopicMonitoring(
     p: TopicMonitoringPresenter,
+    openMatches: (MonitoredTopic) -> Unit,
     back: () -> Unit,
 ) {
     val state by p.uiState.collectAsState()
@@ -206,8 +217,22 @@ private fun TopicMonitoring(
         p::confirmDelete,
         p::dismissDeleteConfirmation,
         p::dismissError,
+        openMatches,
         back,
     )
+}
+
+@Composable
+private fun TopicMatches(
+    factory: (MonitoredTopic) -> TopicMatchesPresenter,
+    topic: MonitoredTopic,
+    articleClick: (Article) -> Unit,
+    back: () -> Unit,
+) {
+    val p = remember(topic.id) { factory(topic) }
+    DisposableEffect(p) { onDispose(p::dispose) }
+    val state by p.uiState.collectAsState()
+    TopicMatchesScreen(state, articleClick, p::toggleBookmark, back)
 }
 
 @Composable private fun Details(

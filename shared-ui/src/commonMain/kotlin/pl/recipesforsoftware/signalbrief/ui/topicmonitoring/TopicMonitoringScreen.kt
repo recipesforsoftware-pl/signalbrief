@@ -1,5 +1,6 @@
 package pl.recipesforsoftware.signalbrief.ui.topicmonitoring
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -57,6 +58,7 @@ fun TopicMonitoringScreen(
     onConfirmDelete: () -> Unit,
     onDismissDeleteConfirmation: () -> Unit,
     onDismissError: () -> Unit,
+    onOpenTopicMatches: (MonitoredTopic) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -92,7 +94,9 @@ fun TopicMonitoringScreen(
                 Modifier.fillMaxSize().padding(padding).widthIn(max = SignalBriefSpacing.maxContentWidth),
                 contentPadding = PaddingValues(bottom = SignalBriefSpacing.xxxxl),
             ) {
-                items(uiState.topics, MonitoredTopic::id) { TopicRow(it, onOpenRenameEditor, onOpenDeleteConfirmation) }
+                items(uiState.topics, MonitoredTopic::id) {
+                    TopicRow(it, onOpenTopicMatches, onOpenRenameEditor, onOpenDeleteConfirmation)
+                }
             }
         }
     }
@@ -140,6 +144,7 @@ fun TopicMonitoringScreen(
 
 @Composable private fun TopicRow(
     topic: MonitoredTopic,
+    open: (MonitoredTopic) -> Unit,
     rename: (MonitoredTopic) -> Unit,
     delete: (MonitoredTopic) -> Unit,
 ) {
@@ -148,7 +153,11 @@ fun TopicMonitoringScreen(
         Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = SignalBriefSpacing.pageHorizontal),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(topic.query, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+        Text(
+            topic.query,
+            Modifier.weight(1f).clickable { open(topic) },
+            style = MaterialTheme.typography.bodyLarge,
+        )
         IconButton(onClick = {
             expanded =
                 true

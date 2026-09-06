@@ -24,6 +24,7 @@ import pl.recipesforsoftware.signalbrief.data.repository.RoomCollectionsReposito
 import pl.recipesforsoftware.signalbrief.data.repository.RoomSavedArticlesRepository
 import pl.recipesforsoftware.signalbrief.data.repository.RoomTopicMonitoringRepository
 import pl.recipesforsoftware.signalbrief.domain.model.Article
+import pl.recipesforsoftware.signalbrief.domain.model.MonitoredTopic
 import pl.recipesforsoftware.signalbrief.domain.repository.CollectionsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.NewsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
@@ -42,6 +43,8 @@ import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesPresenter
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesScreen
 import pl.recipesforsoftware.signalbrief.ui.search.SearchPresenter
 import pl.recipesforsoftware.signalbrief.ui.search.SearchScreen
+import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMatchesPresenter
+import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMatchesScreen
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringPresenter
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringScreen
 import platform.Foundation.NSBundle
@@ -133,10 +136,19 @@ fun mainViewController(): UIViewController {
                 collectionDetailsContent = { collection, onArticleClick, onBack ->
                     CollectionDetailsRoute(collection, composition.collectionsRepository, onArticleClick, onBack)
                 },
-                topicMonitoringContent = { onBack ->
+                topicMonitoringContent = { onOpenTopicMatches, onBack ->
                     TopicMonitoringRoute(
                         composition.topicMonitoringPresenter,
+                        onOpenTopicMatches,
                         onBack,
+                    )
+                },
+                topicMatchesContent = { topic, onArticleClick, onBack ->
+                    TopicMatchesRoute(
+                        presenterFactory = composition::topicMatchesPresenter,
+                        topic = topic,
+                        onArticleClick = onArticleClick,
+                        onBack = onBack,
                     )
                 },
                 savedArticleCount = savedArticles.size,
@@ -244,6 +256,7 @@ private fun SearchRoute(
 @Composable
 private fun TopicMonitoringRoute(
     presenter: TopicMonitoringPresenter,
+    onOpenTopicMatches: (MonitoredTopic) -> Unit,
     onBack: () -> Unit,
 ) {
     val uiState by presenter.uiState.collectAsState()
@@ -258,7 +271,28 @@ private fun TopicMonitoringRoute(
         presenter::confirmDelete,
         presenter::dismissDeleteConfirmation,
         presenter::dismissError,
+        onOpenTopicMatches,
         onBack,
+    )
+}
+
+@Composable
+private fun TopicMatchesRoute(
+    presenterFactory: (MonitoredTopic) -> TopicMatchesPresenter,
+    topic: MonitoredTopic,
+    onArticleClick: (Article) -> Unit,
+    onBack: () -> Unit,
+) {
+    val presenter = remember(topic.id) { presenterFactory(topic) }
+    DisposableEffect(presenter) {
+        onDispose { presenter.dispose() }
+    }
+    val uiState by presenter.uiState.collectAsState()
+    TopicMatchesScreen(
+        uiState = uiState,
+        onArticleClick = onArticleClick,
+        onBookmarkClick = presenter::toggleBookmark,
+        onBack = onBack,
     )
 }
 
@@ -352,6 +386,13 @@ private class IosComposition(
             newsRepository = newsRepository,
             savedArticlesRepository = savedArticlesRepository,
             initialQuery = initialQuery,
+        )
+
+    fun topicMatchesPresenter(topic: MonitoredTopic): TopicMatchesPresenter =
+        TopicMatchesPresenter(
+            topic = topic,
+            newsRepository = newsRepository,
+            savedArticlesRepository = savedArticlesRepository,
         )
 
     fun dispose() {

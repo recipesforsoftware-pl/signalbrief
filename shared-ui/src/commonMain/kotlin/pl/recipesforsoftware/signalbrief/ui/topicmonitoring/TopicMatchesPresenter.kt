@@ -1,4 +1,4 @@
-package pl.recipesforsoftware.signalbrief.ui.search
+package pl.recipesforsoftware.signalbrief.ui.topicmonitoring
 
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import pl.recipesforsoftware.signalbrief.domain.model.Article
+import pl.recipesforsoftware.signalbrief.domain.model.MonitoredTopic
 import pl.recipesforsoftware.signalbrief.domain.repository.NewsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
 import pl.recipesforsoftware.signalbrief.domain.usecase.ArticleQueryMatcher
@@ -21,49 +22,38 @@ import pl.recipesforsoftware.signalbrief.ui.topheadlines.DEFAULT_NEWS_COUNTRY
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.hasActionableUrl
 
 /**
- * Framework-independent state holder for the Local Search screen.
+ * Framework-independent state holder for the Topic Matches screen.
  *
- * Depends on [NewsRepository] for the locally cached headline stream and on
- * [SavedArticlesRepository] for reactive bookmark state. Search is performed
- * entirely in memory over the cached articles; no remote NewsAPI request is
- * ever issued.
+ * Combines the locally cached top headlines (via
+ * [NewsRepository.observeCachedTopHeadlines]) with the reactive saved-article
+ * stream and the selected [MonitoredTopic]. Matches are derived in memory using
+ * the shared [ArticleQueryMatcher]; no remote search request is ever issued and
+ * no network refresh is performed.
  *
- * The presenter owns its [CoroutineScope], the query state, and an immutable
- * [uiState] [StateFlow]. Callers must call [dispose] when the screen is torn
- * down so collection is cancelled.
+ * The presenter owns its [CoroutineScope], so callers must call [dispose] when
+ * the screen is torn down. Any cached-headline observation failure is treated
+ * as an empty local cache, consistent with the Local Search convention.
  */
-class SearchPresenter(
+class TopicMatchesPresenter(
+    private val topic: MonitoredTopic,
     private val newsRepository: NewsRepository,
     private val savedArticlesRepository: SavedArticlesRepository,
-    initialQuery: String = "",
+    private val matcher: ArticleQueryMatcher = ArticleQueryMatcher,
     private val country: String = DEFAULT_NEWS_COUNTRY,
     dispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
     private val scope = CoroutineScope(dispatcher + SupervisorJob())
-
-    private val _query = MutableStateFlow(initialQuery)
-    val query: StateFlow<String> = _query.asStateFlow()
-
-    private val _uiState = MutableStateFlow<SearchUiState>(SearchUiState.Loading)
-    val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow<TopicMatchesUiState>(TopicMatchesUiState.Loading(topic))
+    val uiState: StateFlow<TopicMatchesUiState> = _uiState.asStateFlow()
 
     init {
         scope.launch {
             combine(
                 observeCachedArticles(),
                 savedArticlesRepository.observeAllSavedArticles(),
-                _query,
                 ::buildUiState,
             ).collect { _uiState.value = it }
         }
-    }
-
-    /**
-     * Updates the search query. Matching is performed after trimming leading and
-     * trailing whitespace.
-     */
-    fun setQuery(value: String) {
-        _query.value = value
     }
 
     /**
@@ -89,32 +79,28 @@ class SearchPresenter(
         scope.cancel()
     }
 
-    private fun observeCachedArticles(): Flow<List<Article>> = cachedArticles().catch { emit(emptyList()) }
-
-    private fun cachedArticles(): Flow<List<Article>> = newsRepository.observeCachedTopHeadlines(country)
+    private fun observeCachedArticles(): Flow<List<Article>> =
+        newsRepository
+            .observeCachedTopHeadlines(country)
+            .catch { emit(emptyList()) }
 
     private fun buildUiState(
         articles: List<Article>,
         savedArticles: List<Article>,
-        query: String,
-    ): SearchUiState {
-        val trimmed = query.trim()
+    ): TopicMatchesUiState {
+        val savedUrls = savedArticles.mapTo(HashSet(savedArticles.size)) { it.url }
+        val query = topic.query
         return when {
             articles.isEmpty() -> {
-                SearchUiState.NoLocalArticles
-            }
-
-            trimmed.isBlank() -> {
-                SearchUiState.Idle
+                TopicMatchesUiState.NoLocalArticles(topic)
             }
 
             else -> {
-                val savedUrls = savedArticles.mapTo(HashSet(savedArticles.size)) { it.url }
-                val matches = ArticleQueryMatcher.filter(articles, trimmed)
+                val matches = matcher.filter(articles, query)
                 if (matches.isEmpty()) {
-                    SearchUiState.NoResults(trimmed)
+                    TopicMatchesUiState.NoMatches(topic)
                 } else {
-                    SearchUiState.Results(trimmed, matches, savedUrls)
+                    TopicMatchesUiState.Content(topic, matches, savedUrls)
                 }
             }
         }
