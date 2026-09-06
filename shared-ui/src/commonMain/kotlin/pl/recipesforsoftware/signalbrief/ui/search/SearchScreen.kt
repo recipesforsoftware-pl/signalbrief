@@ -22,6 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -63,12 +64,13 @@ fun SearchScreen(
     uiState: SearchUiState,
     onArticleClick: (Article) -> Unit,
     onBookmarkClick: ((Article) -> Unit)?,
+    onOpenTopicMonitoring: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
         modifier = modifier,
-        topBar = { SearchTopBar(onBack = onBack) },
+        topBar = { SearchTopBar(onBack = onBack, onOpenTopicMonitoring = onOpenTopicMonitoring) },
     ) { contentPadding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(contentPadding),
@@ -120,7 +122,10 @@ fun SearchScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SearchTopBar(onBack: () -> Unit) {
+private fun SearchTopBar(
+    onBack: () -> Unit,
+    onOpenTopicMonitoring: () -> Unit,
+) {
     TopAppBar(
         title = {
             Text(
@@ -135,6 +140,11 @@ private fun SearchTopBar(onBack: () -> Unit) {
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = SearchStrings.BACK,
                 )
+            }
+        },
+        actions = {
+            TextButton(onClick = onOpenTopicMonitoring) {
+                Text(SearchStrings.MONITORED_TOPICS)
             }
         },
     )

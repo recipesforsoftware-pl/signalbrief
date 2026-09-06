@@ -99,8 +99,11 @@ typealias SearchContent =
         initialQuery: String,
         onQueryChange: (String) -> Unit,
         onArticleClick: (Article) -> Unit,
+        onOpenTopicMonitoring: () -> Unit,
         onBack: () -> Unit,
     ) -> Unit
+
+typealias TopicMonitoringContent = @Composable (onBack: () -> Unit) -> Unit
 
 typealias ArticleDetailsContent =
     @Composable (
@@ -120,6 +123,7 @@ fun SignalBriefApp(
     dailyBriefContent: DailyBriefContent,
     collectionsContent: CollectionsContent = { _, _ -> },
     collectionDetailsContent: CollectionDetailsContent = { _, _, _ -> },
+    topicMonitoringContent: TopicMonitoringContent = {},
     savedArticleCount: Int = 0,
     modifier: Modifier = Modifier,
 ) {
@@ -153,6 +157,7 @@ fun SignalBriefApp(
                 articleDetailsContent = articleDetailsContent,
                 collectionsContent = collectionsContent,
                 collectionDetailsContent = collectionDetailsContent,
+                topicMonitoringContent = topicMonitoringContent,
                 savedArticleCount = savedArticleCount,
             )
         }
@@ -169,6 +174,7 @@ private fun SignalBriefMainContent(
     articleDetailsContent: ArticleDetailsContent,
     collectionsContent: CollectionsContent,
     collectionDetailsContent: CollectionDetailsContent,
+    topicMonitoringContent: TopicMonitoringContent,
     savedArticleCount: Int,
 ) {
     var currentDestination by rememberSaveable(stateSaver = AppDestinationSaver) {
@@ -178,6 +184,7 @@ private fun SignalBriefMainContent(
         mutableStateOf<Article?>(null)
     }
     var isSearchVisible by rememberSaveable { mutableStateOf(false) }
+    var isTopicMonitoringVisible by rememberSaveable { mutableStateOf(false) }
     var isCollectionsVisible by rememberSaveable { mutableStateOf(false) }
     var selectedCollection by rememberSaveable(stateSaver = SelectedCollectionSaver) {
         mutableStateOf<Collection?>(null)
@@ -186,7 +193,9 @@ private fun SignalBriefMainContent(
         mutableStateOf("")
     }
 
-    if (isCollectionsVisible) {
+    if (isTopicMonitoringVisible) {
+        topicMonitoringContent { isTopicMonitoringVisible = false }
+    } else if (isCollectionsVisible) {
         when {
             selectedArticle != null && selectedCollection != null -> {
                 ArticleDetailsDestination(
@@ -230,6 +239,7 @@ private fun SignalBriefMainContent(
             searchQuery,
             { searchQuery = it },
             { selectedArticle = it },
+            { isTopicMonitoringVisible = true },
             { isSearchVisible = false },
         )
     } else {

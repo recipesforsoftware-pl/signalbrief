@@ -22,10 +22,12 @@ import pl.recipesforsoftware.signalbrief.data.remote.createHttpClient
 import pl.recipesforsoftware.signalbrief.data.repository.OfflineFirstNewsRepository
 import pl.recipesforsoftware.signalbrief.data.repository.RoomCollectionsRepository
 import pl.recipesforsoftware.signalbrief.data.repository.RoomSavedArticlesRepository
+import pl.recipesforsoftware.signalbrief.data.repository.RoomTopicMonitoringRepository
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.repository.CollectionsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.NewsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
+import pl.recipesforsoftware.signalbrief.domain.repository.TopicMonitoringRepository
 import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefApp
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleCollectionAssignmentPresenter
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsPresenter
@@ -40,6 +42,8 @@ import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesPresenter
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesScreen
 import pl.recipesforsoftware.signalbrief.ui.search.SearchPresenter
 import pl.recipesforsoftware.signalbrief.ui.search.SearchScreen
+import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringPresenter
+import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringScreen
 import platform.Foundation.NSBundle
 import platform.Foundation.NSUserDefaults
 import platform.UIKit.UIViewController
@@ -104,12 +108,13 @@ fun mainViewController(): UIViewController {
                         onArticleClick = onArticleClick,
                     )
                 },
-                searchContent = { initialQuery, onQueryChange, onArticleClick, onBack ->
+                searchContent = { initialQuery, onQueryChange, onArticleClick, onOpenTopicMonitoring, onBack ->
                     SearchRoute(
                         presenterFactory = composition::searchPresenter,
                         initialQuery = initialQuery,
                         onQueryChange = onQueryChange,
                         onArticleClick = onArticleClick,
+                        onOpenTopicMonitoring = onOpenTopicMonitoring,
                         onBack = onBack,
                     )
                 },
@@ -127,6 +132,12 @@ fun mainViewController(): UIViewController {
                 },
                 collectionDetailsContent = { collection, onArticleClick, onBack ->
                     CollectionDetailsRoute(collection, composition.collectionsRepository, onArticleClick, onBack)
+                },
+                topicMonitoringContent = { onBack ->
+                    TopicMonitoringRoute(
+                        composition.topicMonitoringPresenter,
+                        onBack,
+                    )
                 },
                 savedArticleCount = savedArticles.size,
             )
@@ -205,6 +216,7 @@ private fun SearchRoute(
     initialQuery: String,
     onQueryChange: (String) -> Unit,
     onArticleClick: (Article) -> Unit,
+    onOpenTopicMonitoring: () -> Unit,
     onBack: () -> Unit,
 ) {
     val presenter = remember { presenterFactory(initialQuery) }
@@ -224,7 +236,29 @@ private fun SearchRoute(
         uiState = uiState,
         onArticleClick = onArticleClick,
         onBookmarkClick = presenter::toggleBookmark,
+        onOpenTopicMonitoring = onOpenTopicMonitoring,
         onBack = onBack,
+    )
+}
+
+@Composable
+private fun TopicMonitoringRoute(
+    presenter: TopicMonitoringPresenter,
+    onBack: () -> Unit,
+) {
+    val uiState by presenter.uiState.collectAsState()
+    TopicMonitoringScreen(
+        uiState,
+        presenter::openCreateEditor,
+        presenter::openRenameEditor,
+        presenter::updateEditorQuery,
+        presenter::confirmEditor,
+        presenter::dismissEditor,
+        presenter::openDeleteConfirmation,
+        presenter::confirmDelete,
+        presenter::dismissDeleteConfirmation,
+        presenter::dismissError,
+        onBack,
     )
 }
 
@@ -308,6 +342,7 @@ private class IosComposition(
     val savedArticlesRepository: SavedArticlesRepository,
     val collectionsRepository: CollectionsRepository,
     val collectionsPresenter: CollectionsPresenter,
+    val topicMonitoringPresenter: TopicMonitoringPresenter,
     private val newsRepository: NewsRepository,
     private val client: HttpClient,
     private val database: SignalBriefDatabase,
@@ -324,6 +359,7 @@ private class IosComposition(
         savedPresenter.dispose()
         dailyBriefPresenter.dispose()
         collectionsPresenter.dispose()
+        topicMonitoringPresenter.dispose()
         client.close()
         database.close()
     }
@@ -352,6 +388,8 @@ private fun createIosComposition(): IosComposition {
     val savedArticlesRepository = RoomSavedArticlesRepository(database)
     val collectionsRepository: CollectionsRepository = RoomCollectionsRepository(database)
     val collectionsPresenter = CollectionsPresenter(collectionsRepository)
+    val topicMonitoringRepository: TopicMonitoringRepository = RoomTopicMonitoringRepository(database)
+    val topicMonitoringPresenter = TopicMonitoringPresenter(topicMonitoringRepository)
     val newsRepository = OfflineFirstNewsRepository(remoteDataSource, localDataSource)
     val headlinesPresenter =
         TopHeadlinesPresenter(
@@ -374,6 +412,7 @@ private fun createIosComposition(): IosComposition {
         savedArticlesRepository,
         collectionsRepository,
         collectionsPresenter,
+        topicMonitoringPresenter,
         newsRepository,
         client,
         database,

@@ -10,6 +10,7 @@ import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.repository.CollectionsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.NewsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
+import pl.recipesforsoftware.signalbrief.domain.repository.TopicMonitoringRepository
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleCollectionAssignmentPresenter
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsPresenter
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsScreen
@@ -26,6 +27,8 @@ import pl.recipesforsoftware.signalbrief.ui.search.SearchScreen
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesPresenter
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesScreen
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.hasActionableUrl
+import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringPresenter
+import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringScreen
 
 /** Reusable contract-only host for browser and other lightweight platform compositions. */
 @Composable
@@ -33,11 +36,17 @@ fun SignalBriefAppHost(
     newsRepository: NewsRepository,
     savedArticlesRepository: SavedArticlesRepository,
     collectionsRepository: CollectionsRepository,
+    topicMonitoringRepository: TopicMonitoringRepository,
 ) {
     val savedArticles by savedArticlesRepository.observeAllSavedArticles().collectAsState(emptyList())
     val composition =
-        remember(newsRepository, savedArticlesRepository, collectionsRepository) {
-            PresentationComposition(newsRepository, savedArticlesRepository, collectionsRepository)
+        remember(newsRepository, savedArticlesRepository, collectionsRepository, topicMonitoringRepository) {
+            PresentationComposition(
+                newsRepository,
+                savedArticlesRepository,
+                collectionsRepository,
+                topicMonitoringRepository,
+            )
         }
     DisposableEffect(composition) { onDispose(composition::dispose) }
     SignalBriefApp(
@@ -50,8 +59,8 @@ fun SignalBriefAppHost(
             Saved(composition.saved, bottomBar, onArticleClick, onCollectionsClick)
         },
         dailyBriefContent = { bottomBar, onArticleClick -> Brief(composition.brief, bottomBar, onArticleClick) },
-        searchContent = { initial, queryChanged, articleClick, back ->
-            Search(composition::search, initial, queryChanged, articleClick, back)
+        searchContent = { initial, queryChanged, articleClick, monitoring, back ->
+            Search(composition::search, initial, queryChanged, articleClick, monitoring, back)
         },
         articleDetailsContent = { article, back, collections ->
             Details(article, savedArticlesRepository, collectionsRepository, back, collections)
@@ -60,6 +69,7 @@ fun SignalBriefAppHost(
         collectionDetailsContent = { collection, articleClick, back ->
             CollectionDetails(collection, collectionsRepository, articleClick, back)
         },
+        topicMonitoringContent = { back -> TopicMonitoring(composition.topicMonitoring, back) },
         savedArticleCount = savedArticles.size,
     )
 }
@@ -68,11 +78,13 @@ private class PresentationComposition(
     private val news: NewsRepository,
     private val savedRepository: SavedArticlesRepository,
     collectionsRepository: CollectionsRepository,
+    topicMonitoringRepository: TopicMonitoringRepository,
 ) {
     val headlines = TopHeadlinesPresenter(news, savedRepository)
     val saved = SavedArticlesPresenter(savedRepository)
     val brief = DailyBriefPresenter(news, savedRepository)
     val collections = CollectionsPresenter(collectionsRepository)
+    val topicMonitoring = TopicMonitoringPresenter(topicMonitoringRepository)
 
     fun search(query: String) = SearchPresenter(news, savedRepository, query)
 
@@ -81,6 +93,7 @@ private class PresentationComposition(
         saved.dispose()
         brief.dispose()
         collections.dispose()
+        topicMonitoring.dispose()
     }
 }
 
@@ -163,6 +176,7 @@ private fun Search(
     initial: String,
     changed: (String) -> Unit,
     click: (Article) -> Unit,
+    monitoring: () -> Unit,
     back: () -> Unit,
 ) {
     val p = remember { factory(initial) }
@@ -172,7 +186,28 @@ private fun Search(
     SearchScreen(query, {
         p.setQuery(it)
         changed(it)
-    }, state, click, p::toggleBookmark, back)
+    }, state, click, p::toggleBookmark, monitoring, back)
+}
+
+@Composable
+private fun TopicMonitoring(
+    p: TopicMonitoringPresenter,
+    back: () -> Unit,
+) {
+    val state by p.uiState.collectAsState()
+    TopicMonitoringScreen(
+        state,
+        p::openCreateEditor,
+        p::openRenameEditor,
+        p::updateEditorQuery,
+        p::confirmEditor,
+        p::dismissEditor,
+        p::openDeleteConfirmation,
+        p::confirmDelete,
+        p::dismissDeleteConfirmation,
+        p::dismissError,
+        back,
+    )
 }
 
 @Composable private fun Details(

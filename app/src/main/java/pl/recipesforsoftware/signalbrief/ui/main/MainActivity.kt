@@ -24,6 +24,7 @@ import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.repository.CollectionsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.NewsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
+import pl.recipesforsoftware.signalbrief.domain.repository.TopicMonitoringRepository
 import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefApp
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleCollectionAssignmentPresenter
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsPresenter
@@ -45,6 +46,8 @@ import pl.recipesforsoftware.signalbrief.ui.topheadlines.DarkModeMenu
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesScreen
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesViewModel
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.hasActionableUrl
+import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringPresenter
+import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringScreen
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -58,6 +61,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var collectionsRepository: CollectionsRepository
 
+    @Inject
+    lateinit var topicMonitoringRepository: TopicMonitoringRepository
+
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -68,6 +74,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @Suppress("LongMethod")
     @Composable
     private fun SignalBriefContent() {
         val themeViewModel: ThemeViewModel = hiltViewModel()
@@ -111,11 +118,12 @@ class MainActivity : ComponentActivity() {
                 dailyBriefContent = { bottomBar, onArticleClick ->
                     DailyBriefRoute(bottomBar, onArticleClick)
                 },
-                searchContent = { initialQuery, onQueryChange, onArticleClick, onBack ->
+                searchContent = { initialQuery, onQueryChange, onArticleClick, onOpenTopicMonitoring, onBack ->
                     SearchRoute(
                         initialQuery = initialQuery,
                         onQueryChange = onQueryChange,
                         onArticleClick = onArticleClick,
+                        onOpenTopicMonitoring = onOpenTopicMonitoring,
                         onBack = onBack,
                     )
                 },
@@ -132,6 +140,7 @@ class MainActivity : ComponentActivity() {
                 collectionDetailsContent = { collection, onArticleClick, onBack ->
                     CollectionDetailsRoute(collection, onArticleClick, onBack)
                 },
+                topicMonitoringContent = { onBack -> TopicMonitoringRoute(onBack) },
                 savedArticleCount = savedArticles.size,
             )
         }
@@ -280,6 +289,7 @@ class MainActivity : ComponentActivity() {
         initialQuery: String,
         onQueryChange: (String) -> Unit,
         onArticleClick: (Article) -> Unit,
+        onOpenTopicMonitoring: () -> Unit,
         onBack: () -> Unit,
     ) {
         BackHandler(onBack = onBack)
@@ -309,7 +319,29 @@ class MainActivity : ComponentActivity() {
             uiState = uiState,
             onArticleClick = onArticleClick,
             onBookmarkClick = presenter::toggleBookmark,
+            onOpenTopicMonitoring = onOpenTopicMonitoring,
             onBack = onBack,
+        )
+    }
+
+    @Composable
+    private fun TopicMonitoringRoute(onBack: () -> Unit) {
+        BackHandler(onBack = onBack)
+        val presenter = remember { TopicMonitoringPresenter(topicMonitoringRepository, Dispatchers.Main.immediate) }
+        DisposableEffect(presenter) { onDispose(presenter::dispose) }
+        val uiState by presenter.uiState.collectAsState()
+        TopicMonitoringScreen(
+            uiState,
+            presenter::openCreateEditor,
+            presenter::openRenameEditor,
+            presenter::updateEditorQuery,
+            presenter::confirmEditor,
+            presenter::dismissEditor,
+            presenter::openDeleteConfirmation,
+            presenter::confirmDelete,
+            presenter::dismissDeleteConfirmation,
+            presenter::dismissError,
+            onBack,
         )
     }
 }
