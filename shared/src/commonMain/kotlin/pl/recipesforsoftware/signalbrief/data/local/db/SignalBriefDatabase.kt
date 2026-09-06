@@ -9,16 +9,18 @@ import androidx.sqlite.execSQL
 import pl.recipesforsoftware.signalbrief.data.local.dao.ArticleCollectionMembershipDao
 import pl.recipesforsoftware.signalbrief.data.local.dao.CachedArticleDao
 import pl.recipesforsoftware.signalbrief.data.local.dao.CollectionDao
+import pl.recipesforsoftware.signalbrief.data.local.dao.MonitoredTopicDao
 import pl.recipesforsoftware.signalbrief.data.local.dao.SavedArticleDao
 import pl.recipesforsoftware.signalbrief.data.local.entity.ArticleCollectionMembershipEntity
 import pl.recipesforsoftware.signalbrief.data.local.entity.CachedArticleEntity
 import pl.recipesforsoftware.signalbrief.data.local.entity.CollectionEntity
+import pl.recipesforsoftware.signalbrief.data.local.entity.MonitoredTopicEntity
 import pl.recipesforsoftware.signalbrief.data.local.entity.SavedArticleEntity
 
 /**
  * Room database for the shared data layer.
  *
- * Version 4 adds article-to-collection memberships. Schema export is enabled so
+ * Version 5 adds the monitored-topics table. Schema export is enabled so
  * migrations can be validated against checked-in JSON files.
  */
 @Database(
@@ -27,8 +29,9 @@ import pl.recipesforsoftware.signalbrief.data.local.entity.SavedArticleEntity
         SavedArticleEntity::class,
         CollectionEntity::class,
         ArticleCollectionMembershipEntity::class,
+        MonitoredTopicEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 @ConstructedBy(SignalBriefDatabaseConstructor::class)
@@ -40,6 +43,8 @@ abstract class SignalBriefDatabase : RoomDatabase() {
     internal abstract fun collectionDao(): CollectionDao
 
     internal abstract fun articleCollectionMembershipDao(): ArticleCollectionMembershipDao
+
+    internal abstract fun monitoredTopicDao(): MonitoredTopicDao
 }
 
 /**
@@ -129,6 +134,33 @@ val MIGRATION_3_4 =
             connection.execSQL(
                 "CREATE INDEX IF NOT EXISTS `index_article_collection_memberships_article_id`" +
                     " ON `article_collection_memberships` (`article_id`)",
+            )
+        }
+    }
+
+/**
+ * Version 4 → 5: adds the `monitored_topics` table.
+ *
+ * This is a purely additive migration. The existing `cached_articles`,
+ * `saved_articles`, `collections`, and `article_collection_memberships` tables
+ * are untouched and all existing user data is preserved.
+ */
+val MIGRATION_4_5 =
+    object : Migration(4, 5) {
+        override fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `monitored_topics` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `query` TEXT NOT NULL,
+                    `normalized_query` TEXT NOT NULL
+                )
+                """,
+            )
+            connection.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS" +
+                    " `index_monitored_topics_normalized_query`" +
+                    " ON `monitored_topics` (`normalized_query`)",
             )
         }
     }
