@@ -9,6 +9,8 @@ data class TopicMonitoringUiState(
     val mutatingTopicIds: Set<String> = emptySet(),
     val isCreating: Boolean = false,
     val error: TopicMonitoringUiError? = null,
+    val matchCountsByTopicId: Map<String, Int> = emptyMap(),
+    val hasLocalArticles: Boolean = false,
 )
 
 sealed interface TopicEditor {

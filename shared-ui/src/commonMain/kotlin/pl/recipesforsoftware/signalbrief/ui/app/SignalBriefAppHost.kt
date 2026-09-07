@@ -92,7 +92,7 @@ private class PresentationComposition(
     val saved = SavedArticlesPresenter(savedRepository)
     val brief = DailyBriefPresenter(news, savedRepository)
     val collections = CollectionsPresenter(collectionsRepository)
-    val topicMonitoring = TopicMonitoringPresenter(topicMonitoringRepository)
+    val topicMonitoring = TopicMonitoringPresenter(topicMonitoringRepository, news)
 
     fun search(query: String) = SearchPresenter(news, savedRepository, query)
 

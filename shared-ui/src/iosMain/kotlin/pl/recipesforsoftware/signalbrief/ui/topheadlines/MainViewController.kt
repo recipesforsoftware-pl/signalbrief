@@ -430,8 +430,8 @@ private fun createIosComposition(): IosComposition {
     val collectionsRepository: CollectionsRepository = RoomCollectionsRepository(database)
     val collectionsPresenter = CollectionsPresenter(collectionsRepository)
     val topicMonitoringRepository: TopicMonitoringRepository = RoomTopicMonitoringRepository(database)
-    val topicMonitoringPresenter = TopicMonitoringPresenter(topicMonitoringRepository)
     val newsRepository = OfflineFirstNewsRepository(remoteDataSource, localDataSource)
+    val topicMonitoringPresenter = TopicMonitoringPresenter(topicMonitoringRepository, newsRepository)
     val headlinesPresenter =
         TopHeadlinesPresenter(
             repository = newsRepository,

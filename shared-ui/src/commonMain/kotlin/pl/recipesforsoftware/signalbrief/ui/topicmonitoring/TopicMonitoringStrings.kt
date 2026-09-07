@@ -17,6 +17,9 @@ object TopicMonitoringStrings {
     const val EMPTY_DESCRIPTION = "Add a topic to keep track of stories you care about."
     const val DELETE_TITLE = "Delete monitored topic?"
     const val DELETE_MESSAGE = "This will permanently remove"
+    const val NO_DOWNLOADED_HEADLINES = "No downloaded headlines"
+
+    fun matchSummary(count: Int): String = if (count == 1) "1 match" else "$count matches"
 
     fun error(error: TopicMonitoringUiError): String =
         when (error) {
