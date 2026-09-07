@@ -336,7 +336,14 @@ class MainActivity : ComponentActivity() {
         onBack: () -> Unit,
     ) {
         BackHandler(onBack = onBack)
-        val presenter = remember { TopicMonitoringPresenter(topicMonitoringRepository, Dispatchers.Main.immediate) }
+        val presenter =
+            remember {
+                TopicMonitoringPresenter(
+                    topicMonitoringRepository,
+                    newsRepository,
+                    dispatcher = Dispatchers.Main.immediate,
+                )
+            }
         DisposableEffect(presenter) { onDispose(presenter::dispose) }
         val uiState by presenter.uiState.collectAsState()
         TopicMonitoringScreen(

@@ -96,6 +96,84 @@ class TopicMonitoringScreenTest {
     }
 
     @Test
+    fun singleMatchSummaryIsSingular() {
+        content(
+            TopicMonitoringUiState(
+                topics = listOf(MonitoredTopic("1", "Kotlin")),
+                matchCountsByTopicId = mapOf("1" to 1),
+                hasLocalArticles = true,
+            ),
+        )
+
+        rule.onNodeWithText(TopicMonitoringStrings.matchSummary(1)).assertIsDisplayed()
+    }
+
+    @Test
+    fun pluralMatchSummaryIsPlural() {
+        content(
+            TopicMonitoringUiState(
+                topics = listOf(MonitoredTopic("1", "Kotlin")),
+                matchCountsByTopicId = mapOf("1" to 3),
+                hasLocalArticles = true,
+            ),
+        )
+
+        rule.onNodeWithText(TopicMonitoringStrings.matchSummary(3)).assertIsDisplayed()
+    }
+
+    @Test
+    fun missingLocalCacheShowsNoDownloadedHeadlines() {
+        content(
+            TopicMonitoringUiState(
+                topics = listOf(MonitoredTopic("1", "Kotlin")),
+            ),
+        )
+
+        rule.onNodeWithText(TopicMonitoringStrings.NO_DOWNLOADED_HEADLINES).assertIsDisplayed()
+    }
+
+    @Test
+    fun matchSummaryDoesNotDisplacePrimaryAction() {
+        val first = MonitoredTopic("1", "Kotlin")
+        val second = MonitoredTopic("2", "Compose")
+        var opened: MonitoredTopic? = null
+        content(
+            TopicMonitoringUiState(
+                topics = listOf(first, second),
+                matchCountsByTopicId = mapOf("1" to 1, "2" to 3),
+                hasLocalArticles = true,
+            ),
+            { },
+            { },
+            { },
+            { opened = it },
+        )
+
+        rule.onNodeWithText(second.query).performClick()
+        check(opened == second)
+    }
+
+    @Test
+    fun overflowStillDoesNotOpenTopicMatchesWithSummaries() {
+        val topic = MonitoredTopic("1", "Kotlin")
+        var opened: MonitoredTopic? = null
+        content(
+            TopicMonitoringUiState(
+                topics = listOf(topic),
+                matchCountsByTopicId = mapOf("1" to 2),
+                hasLocalArticles = true,
+            ),
+            { },
+            { },
+            { },
+            { opened = it },
+        )
+
+        rule.onNodeWithContentDescription(TopicMonitoringStrings.OPTIONS).performClick()
+        check(opened == null)
+    }
+
+    @Test
     fun editorErrorIsVisible() {
         content(
             TopicMonitoringUiState(

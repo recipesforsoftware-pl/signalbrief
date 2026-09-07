@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -84,21 +85,14 @@ fun TopicMonitoringScreen(
             Icon(Icons.Filled.Add, TopicMonitoringStrings.CREATE_TOPIC)
         }
     }, snackbarHost = { SnackbarHost(snackbar) }) { padding ->
-        if (uiState.topics.isEmpty()) {
-            EmptyTopics(
-                Modifier.padding(padding),
-                onOpenCreateEditor,
-            )
-        } else {
-            LazyColumn(
-                Modifier.fillMaxSize().padding(padding).widthIn(max = SignalBriefSpacing.maxContentWidth),
-                contentPadding = PaddingValues(bottom = SignalBriefSpacing.xxxxl),
-            ) {
-                items(uiState.topics, MonitoredTopic::id) {
-                    TopicRow(it, onOpenTopicMatches, onOpenRenameEditor, onOpenDeleteConfirmation)
-                }
-            }
-        }
+        TopicMonitoringContent(
+            padding,
+            uiState,
+            onOpenCreateEditor,
+            onOpenTopicMatches,
+            onOpenRenameEditor,
+            onOpenDeleteConfirmation,
+        )
     }
     uiState.editor?.let {
         TopicEditorDialog(
@@ -142,22 +136,83 @@ fun TopicMonitoringScreen(
     TextButton(onClick = create) { Text(TopicMonitoringStrings.CREATE_TOPIC) }
 }
 
+@Composable private fun TopicMonitoringContent(
+    padding: PaddingValues,
+    uiState: TopicMonitoringUiState,
+    onOpenCreateEditor: () -> Unit,
+    onOpenTopicMatches: (MonitoredTopic) -> Unit,
+    onOpenRenameEditor: (MonitoredTopic) -> Unit,
+    onOpenDeleteConfirmation: (MonitoredTopic) -> Unit,
+) {
+    if (uiState.topics.isEmpty()) {
+        EmptyTopics(
+            Modifier.padding(padding),
+            onOpenCreateEditor,
+        )
+    } else {
+        LazyColumn(
+            Modifier.fillMaxSize().padding(padding).widthIn(max = SignalBriefSpacing.maxContentWidth),
+            contentPadding = PaddingValues(bottom = SignalBriefSpacing.xxxxl),
+        ) {
+            topicRows(uiState, onOpenTopicMatches, onOpenRenameEditor, onOpenDeleteConfirmation)
+        }
+    }
+}
+
+private fun LazyListScope.topicRows(
+    uiState: TopicMonitoringUiState,
+    open: (MonitoredTopic) -> Unit,
+    rename: (MonitoredTopic) -> Unit,
+    delete: (MonitoredTopic) -> Unit,
+) {
+    items(uiState.topics, MonitoredTopic::id) {
+        TopicRow(
+            it,
+            uiState.matchCountsByTopicId[it.id] ?: 0,
+            uiState.hasLocalArticles,
+            open,
+            rename,
+            delete,
+        )
+    }
+}
+
 @Composable private fun TopicRow(
     topic: MonitoredTopic,
+    matchCount: Int,
+    hasLocalArticles: Boolean,
     open: (MonitoredTopic) -> Unit,
     rename: (MonitoredTopic) -> Unit,
     delete: (MonitoredTopic) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val summary =
+        when {
+            hasLocalArticles -> TopicMonitoringStrings.matchSummary(matchCount)
+            else -> TopicMonitoringStrings.NO_DOWNLOADED_HEADLINES
+        }
     Row(
         Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = SignalBriefSpacing.pageHorizontal),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            topic.query,
-            Modifier.weight(1f).clickable { open(topic) },
-            style = MaterialTheme.typography.bodyLarge,
-        )
+        Column(
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .heightIn(min = 56.dp)
+                    .clickable { open(topic) },
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                topic.query,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Text(
+                summary,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         IconButton(onClick = {
             expanded =
                 true

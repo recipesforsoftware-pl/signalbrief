@@ -5,17 +5,36 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import pl.recipesforsoftware.signalbrief.domain.failure.TopicMonitoringFailure
+import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.MonitoredTopic
+import pl.recipesforsoftware.signalbrief.domain.repository.NewsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.TopicMonitoringRepository
+import pl.recipesforsoftware.signalbrief.domain.usecase.ArticleQueryMatcher
+import pl.recipesforsoftware.signalbrief.ui.topheadlines.DEFAULT_NEWS_COUNTRY
 
-/** Framework-independent state holder for monitored topic management. */
+/**
+ * Framework-independent state holder for monitored topic management.
+ *
+ * Combines [TopicMonitoringRepository.observeTopics] with the locally cached
+ * top headlines (via [NewsRepository.observeCachedTopHeadlines]) so each topic
+ * exposes a reactive match-count summary derived in memory with the shared
+ * [ArticleQueryMatcher]. No remote search request is ever issued. A cached
+ * observation failure is treated as an empty local cache, consistent with the
+ * Local Search convention.
+ */
 class TopicMonitoringPresenter(
     private val repository: TopicMonitoringRepository,
+    private val newsRepository: NewsRepository,
+    private val matcher: ArticleQueryMatcher = ArticleQueryMatcher,
+    private val country: String = DEFAULT_NEWS_COUNTRY,
     dispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
     private val scope = CoroutineScope(dispatcher + SupervisorJob())
@@ -23,7 +42,21 @@ class TopicMonitoringPresenter(
     val uiState: StateFlow<TopicMonitoringUiState> = _uiState.asStateFlow()
 
     init {
-        scope.launch { repository.observeTopics().collect { update { copy(topics = it) } } }
+        scope.launch {
+            combine(
+                repository.observeTopics(),
+                observeCachedArticles(newsRepository, country),
+            ) { topics, articles -> topics to articles }
+                .collect { (topics, articles) ->
+                    update {
+                        copy(
+                            topics = topics,
+                            matchCountsByTopicId = matchCountsFor(topics, articles, matcher),
+                            hasLocalArticles = articles.isNotEmpty(),
+                        )
+                    }
+                }
+        }
     }
 
     fun openCreateEditor() = update { copy(editor = TopicEditor.Create(), error = null) }
@@ -126,6 +159,23 @@ class TopicMonitoringPresenter(
         _uiState.value = _uiState.value.transform()
     }
 }
+
+private fun observeCachedArticles(
+    newsRepository: NewsRepository,
+    country: String,
+): Flow<List<Article>> =
+    newsRepository
+        .observeCachedTopHeadlines(country)
+        .catch { emit(emptyList()) }
+
+private fun matchCountsFor(
+    topics: List<MonitoredTopic>,
+    articles: List<Article>,
+    matcher: ArticleQueryMatcher,
+): Map<String, Int> =
+    topics.associate { topic ->
+        topic.id to articles.count { matcher.matches(it, topic.query) }
+    }
 
 private fun Throwable.toUiError() =
     when (this) {
