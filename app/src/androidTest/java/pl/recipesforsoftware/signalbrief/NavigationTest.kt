@@ -29,6 +29,9 @@ import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesUiState
 import pl.recipesforsoftware.signalbrief.ui.search.SearchScreen
 import pl.recipesforsoftware.signalbrief.ui.search.SearchStrings
 import pl.recipesforsoftware.signalbrief.ui.search.SearchUiState
+import pl.recipesforsoftware.signalbrief.ui.settings.SettingsScreen
+import pl.recipesforsoftware.signalbrief.ui.settings.SettingsStrings
+import pl.recipesforsoftware.signalbrief.ui.settings.SettingsUiState
 import pl.recipesforsoftware.signalbrief.ui.theme.SignalBriefAndroidTheme
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesScreen
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesStrings
@@ -118,7 +121,7 @@ class NavigationTest {
                 SignalBriefApp(
                     onboardingCompleted = true,
                     onCompleteOnboarding = {},
-                    topHeadlinesContent = { bottomBar, onArticleClick, onSearchClick ->
+                    topHeadlinesContent = { bottomBar, onArticleClick, onSearchClick, onSettingsClick ->
                         TopHeadlinesScreen(
                             uiState =
                                 TopHeadlinesUiState.Success(
@@ -129,6 +132,7 @@ class NavigationTest {
                             onArticleClick = onArticleClick,
                             onBookmarkClick = {},
                             onSearchClick = onSearchClick,
+                            onSettingsClick = onSettingsClick,
                             bottomBar = bottomBar,
                         )
                     },
@@ -170,6 +174,12 @@ class NavigationTest {
                     collectionDetailsContent = collectionDetailsContent,
                     topicMonitoringContent = topicMonitoringContent,
                     topicMatchesContent = topicMatchesContent,
+                    settingsContent = { onBack ->
+                        SettingsScreen(
+                            uiState = SettingsUiState(downloadedHeadlineCount = 0),
+                            onBack = onBack,
+                        )
+                    },
                 )
             }
         }
@@ -304,7 +314,7 @@ class NavigationTest {
                 SignalBriefApp(
                     onboardingCompleted = true,
                     onCompleteOnboarding = {},
-                    topHeadlinesContent = { bottomBar, onArticleClick, onSearchClick ->
+                    topHeadlinesContent = { bottomBar, onArticleClick, onSearchClick, onSettingsClick ->
                         TopHeadlinesScreen(
                             uiState =
                                 TopHeadlinesUiState.Success(
@@ -315,6 +325,7 @@ class NavigationTest {
                             onArticleClick = onArticleClick,
                             onBookmarkClick = {},
                             onSearchClick = onSearchClick,
+                            onSettingsClick = onSettingsClick,
                             bottomBar = bottomBar,
                         )
                     },
@@ -367,13 +378,14 @@ class NavigationTest {
                 SignalBriefApp(
                     onboardingCompleted = true,
                     onCompleteOnboarding = {},
-                    topHeadlinesContent = { bottomBar, onArticleClick, onSearchClick ->
+                    topHeadlinesContent = { bottomBar, onArticleClick, onSearchClick, onSettingsClick ->
                         TopHeadlinesScreen(
                             uiState = TopHeadlinesUiState.Success(fakeArticles, FeedSource.NETWORK),
                             onRefresh = {},
                             onArticleClick = onArticleClick,
                             onBookmarkClick = {},
                             onSearchClick = onSearchClick,
+                            onSettingsClick = onSettingsClick,
                             bottomBar = bottomBar,
                         )
                     },
@@ -661,13 +673,14 @@ class NavigationTest {
                 SignalBriefApp(
                     onboardingCompleted = true,
                     onCompleteOnboarding = {},
-                    topHeadlinesContent = { bottomBar, onArticleClick, onSearchClick ->
+                    topHeadlinesContent = { bottomBar, onArticleClick, onSearchClick, onSettingsClick ->
                         TopHeadlinesScreen(
                             uiState = TopHeadlinesUiState.Success(fakeArticles, FeedSource.NETWORK),
                             onRefresh = {},
                             onArticleClick = onArticleClick,
                             onBookmarkClick = {},
                             onSearchClick = onSearchClick,
+                            onSettingsClick = onSettingsClick,
                             bottomBar = bottomBar,
                         )
                     },
@@ -757,5 +770,39 @@ class NavigationTest {
         composeTestRule.onNodeWithText("Headlines").assertIsDisplayed()
         composeTestRule.onNodeWithText("Saved").assertIsDisplayed()
         composeTestRule.onNodeWithText(SearchStrings.TOP_BAR_TITLE).assertDoesNotExist()
+    }
+
+    @Test
+    fun headlinesSettingsBackReturnsToHeadlines() {
+        setContent()
+
+        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SETTINGS).performClick()
+
+        composeTestRule.onNodeWithText(SettingsStrings.TOP_BAR_TITLE).assertIsDisplayed()
+
+        composeTestRule.onNodeWithContentDescription(SettingsStrings.BACK).performClick()
+
+        composeTestRule.onNodeWithText(TopHeadlinesStrings.TOP_BAR_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText("Headlines").assertIsDisplayed()
+    }
+
+    @Test
+    fun settingsShowsOfflineSection() {
+        setContent()
+
+        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SETTINGS).performClick()
+
+        composeTestRule.onNodeWithText(SettingsStrings.OFFLINE_SECTION).assertIsDisplayed()
+        composeTestRule.onNodeWithText(SettingsStrings.DOWNLOADED_HEADLINES).assertIsDisplayed()
+    }
+
+    @Test
+    fun bottomNavIsHiddenOnSettings() {
+        setContent()
+
+        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SETTINGS).performClick()
+
+        composeTestRule.onNodeWithText("Headlines").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Saved").assertDoesNotExist()
     }
 }

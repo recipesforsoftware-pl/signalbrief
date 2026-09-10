@@ -13,6 +13,7 @@ object TopHeadlinesStrings {
 
     const val SEARCH: String = "Search"
     const val REFRESH: String = "Refresh"
+    const val SETTINGS: String = "Settings"
     const val RETRY: String = "Try Again"
 
     const val LOADING: String = "Loading headlines..."
