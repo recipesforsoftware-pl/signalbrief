@@ -41,6 +41,8 @@ import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesScreen
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesViewModel
 import pl.recipesforsoftware.signalbrief.ui.search.SearchPresenter
 import pl.recipesforsoftware.signalbrief.ui.search.SearchScreen
+import pl.recipesforsoftware.signalbrief.ui.settings.SettingsPresenter
+import pl.recipesforsoftware.signalbrief.ui.settings.SettingsScreen
 import pl.recipesforsoftware.signalbrief.ui.theme.SignalBriefAndroidTheme
 import pl.recipesforsoftware.signalbrief.ui.theme.ThemeViewModel
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.DarkModeMenu
@@ -102,13 +104,14 @@ class MainActivity : ComponentActivity() {
                     localOnboardingCompleted = true
                     onboardingViewModel.completeOnboarding()
                 },
-                topHeadlinesContent = { bottomBar, onArticleClick, onSearchClick ->
+                topHeadlinesContent = { bottomBar, onArticleClick, onSearchClick, onSettingsClick ->
                     TopHeadlinesRoute(
                         isDarkMode = isDarkMode,
                         onToggleDarkMode = themeViewModel::toggleDarkMode,
                         bottomBar = bottomBar,
                         onArticleClick = onArticleClick,
                         onSearchClick = onSearchClick,
+                        onSettingsClick = onSettingsClick,
                     )
                 },
                 savedContent = { bottomBar, onArticleClick, onCollectionsClick ->
@@ -147,6 +150,12 @@ class MainActivity : ComponentActivity() {
                 topicMatchesContent = { topic, onArticleClick, onBack ->
                     TopicMatchesRoute(topic, onArticleClick, onBack)
                 },
+                settingsContent = { onBack ->
+                    SettingsRoute(
+                        newsRepository = newsRepository,
+                        onBack = onBack,
+                    )
+                },
                 savedArticleCount = savedArticles.size,
             )
         }
@@ -178,6 +187,7 @@ class MainActivity : ComponentActivity() {
         bottomBar: @Composable () -> Unit,
         onArticleClick: (Article) -> Unit,
         onSearchClick: () -> Unit,
+        onSettingsClick: () -> Unit,
     ) {
         val viewModel: TopHeadlinesViewModel = hiltViewModel()
         val uiState by viewModel.uiState.collectAsState()
@@ -188,6 +198,7 @@ class MainActivity : ComponentActivity() {
             onArticleClick = onArticleClick,
             onBookmarkClick = viewModel::toggleBookmark,
             onSearchClick = onSearchClick,
+            onSettingsClick = onSettingsClick,
             topBarActions = {
                 DarkModeMenu(
                     isDarkMode = isDarkMode,
@@ -461,5 +472,40 @@ private fun ArticleDetailsRoute(
             assignmentPresenter.dismissPicker()
             onManageCollections()
         },
+    )
+}
+
+/**
+ * Android Settings route.
+ *
+ * [BackHandler] integrates the Android system back gesture with the shared
+ * child-navigation state: while Settings is composed, system back closes
+ * Settings and returns to Headlines. The presenter is scoped to this route's
+ * composition (created once and disposed on leave) and observes only the
+ * locally cached headlines; no network work is triggered.
+ */
+@Composable
+private fun SettingsRoute(
+    newsRepository: NewsRepository,
+    onBack: () -> Unit,
+) {
+    BackHandler(onBack = onBack)
+
+    val presenter =
+        remember {
+            SettingsPresenter(
+                newsRepository = newsRepository,
+                dispatcher = Dispatchers.Main.immediate,
+            )
+        }
+    DisposableEffect(presenter) {
+        onDispose { presenter.dispose() }
+    }
+
+    val uiState by presenter.uiState.collectAsState()
+
+    SettingsScreen(
+        uiState = uiState,
+        onBack = onBack,
     )
 }

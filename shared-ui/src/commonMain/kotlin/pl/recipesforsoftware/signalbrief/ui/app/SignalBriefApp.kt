@@ -65,7 +65,8 @@ import pl.recipesforsoftware.signalbrief.ui.onboarding.rememberOnboardingPresent
  * 2. Collections -> Collection Details -> Article Details (when selected).
  * 3. [selectedArticle] -> Article Details.
  * 4. [isSearchVisible] -> Search.
- * 5. [currentDestination] -> Headlines, Daily Brief, or Saved.
+ * 5. [isSettingsVisible] -> Settings.
+ * 6. [currentDestination] -> Headlines, Daily Brief, or Saved.
  *
  * Toolbar back and any host-integrated system back both funnel through the
  * same state clear, so there is one shared transition path and no back stack.
@@ -83,6 +84,7 @@ typealias TopHeadlinesContent =
         bottomBar: @Composable () -> Unit,
         onArticleClick: (Article) -> Unit,
         onSearchClick: () -> Unit,
+        onSettingsClick: () -> Unit,
     ) -> Unit
 
 typealias SavedContent =
@@ -125,6 +127,9 @@ typealias ArticleDetailsContent =
         onCollectionsClick: () -> Unit,
     ) -> Unit
 
+typealias SettingsContent =
+    @Composable (onBack: () -> Unit) -> Unit
+
 @Composable
 fun SignalBriefApp(
     onboardingCompleted: Boolean?,
@@ -138,6 +143,7 @@ fun SignalBriefApp(
     collectionDetailsContent: CollectionDetailsContent = { _, _, _ -> },
     topicMonitoringContent: TopicMonitoringContent = { _, _ -> },
     topicMatchesContent: TopicMatchesContent = { _, _, _ -> },
+    settingsContent: SettingsContent = { _ -> },
     savedArticleCount: Int = 0,
     modifier: Modifier = Modifier,
 ) {
@@ -173,6 +179,7 @@ fun SignalBriefApp(
                 collectionDetailsContent = collectionDetailsContent,
                 topicMonitoringContent = topicMonitoringContent,
                 topicMatchesContent = topicMatchesContent,
+                settingsContent = settingsContent,
                 savedArticleCount = savedArticleCount,
             )
         }
@@ -191,6 +198,7 @@ private fun SignalBriefMainContent(
     collectionDetailsContent: CollectionDetailsContent,
     topicMonitoringContent: TopicMonitoringContent,
     topicMatchesContent: TopicMatchesContent,
+    settingsContent: SettingsContent,
     savedArticleCount: Int,
 ) {
     var currentDestination by rememberSaveable(stateSaver = AppDestinationSaver) {
@@ -202,6 +210,7 @@ private fun SignalBriefMainContent(
     var isSearchVisible by rememberSaveable { mutableStateOf(false) }
     var isTopicMonitoringVisible by rememberSaveable { mutableStateOf(false) }
     var isCollectionsVisible by rememberSaveable { mutableStateOf(false) }
+    var isSettingsVisible by rememberSaveable { mutableStateOf(false) }
     var selectedCollection by rememberSaveable(stateSaver = SelectedCollectionSaver) {
         mutableStateOf<Collection?>(null)
     }
@@ -291,35 +300,67 @@ private fun SignalBriefMainContent(
             { isTopicMonitoringVisible = true },
             { isSearchVisible = false },
         )
+    } else if (isSettingsVisible) {
+        settingsContent(
+            { isSettingsVisible = false },
+        )
     } else {
-        val bottomBar: @Composable () -> Unit = {
-            SignalBriefBottomBar(
-                currentDestination = currentDestination,
-                onNavigate = { currentDestination = it },
-                savedArticleCount = savedArticleCount,
+        SignalBriefDestinations(
+            currentDestination = currentDestination,
+            onDestinationChanged = { currentDestination = it },
+            savedArticleCount = savedArticleCount,
+            topHeadlinesContent = topHeadlinesContent,
+            dailyBriefContent = dailyBriefContent,
+            savedContent = savedContent,
+            onArticleClick = { selectedArticle = it },
+            onSearchClick = { isSearchVisible = true },
+            onSettingsClick = { isSettingsVisible = true },
+            onCollectionsClick = { isCollectionsVisible = true },
+        )
+    }
+}
+
+@Composable
+private fun SignalBriefDestinations(
+    currentDestination: AppDestination,
+    onDestinationChanged: (AppDestination) -> Unit,
+    savedArticleCount: Int,
+    topHeadlinesContent: TopHeadlinesContent,
+    dailyBriefContent: DailyBriefContent,
+    savedContent: SavedContent,
+    onArticleClick: (Article) -> Unit,
+    onSearchClick: () -> Unit,
+    onSettingsClick: () -> Unit,
+    onCollectionsClick: () -> Unit,
+) {
+    val bottomBar: @Composable () -> Unit = {
+        SignalBriefBottomBar(
+            currentDestination = currentDestination,
+            onNavigate = onDestinationChanged,
+            savedArticleCount = savedArticleCount,
+        )
+    }
+
+    when (currentDestination) {
+        AppDestination.Headlines -> {
+            topHeadlinesContent(
+                bottomBar,
+                onArticleClick,
+                onSearchClick,
+                onSettingsClick,
             )
         }
 
-        when (currentDestination) {
-            AppDestination.Headlines -> {
-                topHeadlinesContent(
-                    bottomBar,
-                    { article -> selectedArticle = article },
-                    { isSearchVisible = true },
-                )
-            }
+        AppDestination.DailyBrief -> {
+            dailyBriefContent(bottomBar, onArticleClick)
+        }
 
-            AppDestination.DailyBrief -> {
-                dailyBriefContent(bottomBar) { article -> selectedArticle = article }
-            }
-
-            AppDestination.Saved -> {
-                savedContent(
-                    bottomBar,
-                    { article -> selectedArticle = article },
-                    { isCollectionsVisible = true },
-                )
-            }
+        AppDestination.Saved -> {
+            savedContent(
+                bottomBar,
+                onArticleClick,
+                onCollectionsClick,
+            )
         }
     }
 }

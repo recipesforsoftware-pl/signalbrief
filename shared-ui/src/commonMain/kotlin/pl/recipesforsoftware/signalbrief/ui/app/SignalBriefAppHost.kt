@@ -25,6 +25,8 @@ import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesPresenter
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesScreen
 import pl.recipesforsoftware.signalbrief.ui.search.SearchPresenter
 import pl.recipesforsoftware.signalbrief.ui.search.SearchScreen
+import pl.recipesforsoftware.signalbrief.ui.settings.SettingsPresenter
+import pl.recipesforsoftware.signalbrief.ui.settings.SettingsScreen
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesPresenter
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesScreen
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.hasActionableUrl
@@ -55,8 +57,8 @@ fun SignalBriefAppHost(
     SignalBriefApp(
         onboardingCompleted = true,
         onCompleteOnboarding = {},
-        topHeadlinesContent = { bottomBar, onArticleClick, onSearchClick ->
-            Headlines(composition.headlines, bottomBar, onArticleClick, onSearchClick)
+        topHeadlinesContent = { bottomBar, onArticleClick, onSearchClick, onSettingsClick ->
+            Headlines(composition.headlines, bottomBar, onArticleClick, onSearchClick, onSettingsClick)
         },
         savedContent = { bottomBar, onArticleClick, onCollectionsClick ->
             Saved(composition.saved, bottomBar, onArticleClick, onCollectionsClick)
@@ -78,6 +80,9 @@ fun SignalBriefAppHost(
         topicMatchesContent = { topic, articleClick, back ->
             TopicMatches(composition::topicMatches, topic, articleClick, back)
         },
+        settingsContent = { back ->
+            Settings(composition.settings, back)
+        },
         savedArticleCount = savedArticles.size,
     )
 }
@@ -93,6 +98,7 @@ private class PresentationComposition(
     val brief = DailyBriefPresenter(news, savedRepository)
     val collections = CollectionsPresenter(collectionsRepository)
     val topicMonitoring = TopicMonitoringPresenter(topicMonitoringRepository, news)
+    val settings = SettingsPresenter(news)
 
     fun search(query: String) = SearchPresenter(news, savedRepository, query)
 
@@ -104,6 +110,7 @@ private class PresentationComposition(
         brief.dispose()
         collections.dispose()
         topicMonitoring.dispose()
+        settings.dispose()
     }
 }
 
@@ -113,6 +120,7 @@ private fun Headlines(
     bottom: @Composable () -> Unit,
     click: (Article) -> Unit,
     search: () -> Unit,
+    settings: () -> Unit,
 ) {
     val state by p.uiState.collectAsState()
     TopHeadlinesScreen(
@@ -121,6 +129,7 @@ private fun Headlines(
         click,
         onBookmarkClick = p::toggleBookmark,
         onSearchClick = search,
+        onSettingsClick = settings,
         bottomBar = bottom,
     )
 }
@@ -233,6 +242,15 @@ private fun TopicMatches(
     DisposableEffect(p) { onDispose(p::dispose) }
     val state by p.uiState.collectAsState()
     TopicMatchesScreen(state, articleClick, p::toggleBookmark, back)
+}
+
+@Composable
+private fun Settings(
+    presenter: SettingsPresenter,
+    back: () -> Unit,
+) {
+    val state by presenter.uiState.collectAsState()
+    SettingsScreen(state, back)
 }
 
 @Composable private fun Details(

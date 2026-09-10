@@ -5,6 +5,7 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import pl.recipesforsoftware.signalbrief.domain.model.Article
@@ -46,6 +47,7 @@ class TopHeadlinesScreenTest {
         onRefresh: () -> Unit = {},
         onArticleClick: (Article) -> Unit = {},
         onBookmarkClick: ((Article) -> Unit)? = null,
+        onSettingsClick: () -> Unit = {},
         onToggleDarkMode: () -> Unit = {},
     ) {
         composeTestRule.setContent {
@@ -55,6 +57,7 @@ class TopHeadlinesScreenTest {
                     onRefresh = onRefresh,
                     onArticleClick = onArticleClick,
                     onBookmarkClick = onBookmarkClick,
+                    onSettingsClick = onSettingsClick,
                     topBarActions = {
                         DarkModeMenu(
                             isDarkMode = isDarkMode,
@@ -311,5 +314,21 @@ class TopHeadlinesScreenTest {
         assert(clickedArticle == fakeArticles[0]) {
             "Card click should still open the article"
         }
+    }
+
+    @Test
+    fun settingsButton_isDisplayed() {
+        setContent()
+        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SETTINGS).assertIsDisplayed()
+    }
+
+    @Test
+    fun settingsButton_callsOnSettingsClick() {
+        var settingsClicked = false
+        setContent(onSettingsClick = { settingsClicked = true })
+
+        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SETTINGS).performClick()
+
+        assertTrue("onSettingsClick should have been called", settingsClicked)
     }
 }

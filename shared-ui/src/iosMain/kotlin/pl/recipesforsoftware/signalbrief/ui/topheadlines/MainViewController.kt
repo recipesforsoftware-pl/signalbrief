@@ -43,6 +43,8 @@ import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesPresenter
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesScreen
 import pl.recipesforsoftware.signalbrief.ui.search.SearchPresenter
 import pl.recipesforsoftware.signalbrief.ui.search.SearchScreen
+import pl.recipesforsoftware.signalbrief.ui.settings.SettingsPresenter
+import pl.recipesforsoftware.signalbrief.ui.settings.SettingsScreen
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMatchesPresenter
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMatchesScreen
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringPresenter
@@ -88,12 +90,13 @@ fun mainViewController(): UIViewController {
                     setOnboardingCompleted(true)
                     completed = true
                 },
-                topHeadlinesContent = { bottomBar, onArticleClick, onSearchClick ->
+                topHeadlinesContent = { bottomBar, onArticleClick, onSearchClick, onSettingsClick ->
                     HeadlinesRoute(
                         presenter = composition.headlinesPresenter,
                         bottomBar = bottomBar,
                         onArticleClick = onArticleClick,
                         onSearchClick = onSearchClick,
+                        onSettingsClick = onSettingsClick,
                     )
                 },
                 savedContent = { bottomBar, onArticleClick, onCollectionsClick ->
@@ -151,6 +154,12 @@ fun mainViewController(): UIViewController {
                         onBack = onBack,
                     )
                 },
+                settingsContent = { onBack ->
+                    SettingsRoute(
+                        presenter = composition.settingsPresenter,
+                        onBack = onBack,
+                    )
+                },
                 savedArticleCount = savedArticles.size,
             )
         }
@@ -176,6 +185,7 @@ private fun HeadlinesRoute(
     bottomBar: @Composable () -> Unit,
     onArticleClick: (Article) -> Unit,
     onSearchClick: () -> Unit,
+    onSettingsClick: () -> Unit,
 ) {
     val uiState by presenter.uiState.collectAsState()
 
@@ -185,6 +195,7 @@ private fun HeadlinesRoute(
         onArticleClick = onArticleClick,
         onBookmarkClick = presenter::toggleBookmark,
         onSearchClick = onSearchClick,
+        onSettingsClick = onSettingsClick,
         bottomBar = bottomBar,
     )
 }
@@ -297,6 +308,18 @@ private fun TopicMatchesRoute(
 }
 
 @Composable
+private fun SettingsRoute(
+    presenter: SettingsPresenter,
+    onBack: () -> Unit,
+) {
+    val uiState by presenter.uiState.collectAsState()
+    SettingsScreen(
+        uiState = uiState,
+        onBack = onBack,
+    )
+}
+
+@Composable
 private fun ArticleDetailsRoute(
     article: Article,
     savedArticlesRepository: SavedArticlesRepository,
@@ -377,6 +400,7 @@ private class IosComposition(
     val collectionsRepository: CollectionsRepository,
     val collectionsPresenter: CollectionsPresenter,
     val topicMonitoringPresenter: TopicMonitoringPresenter,
+    val settingsPresenter: SettingsPresenter,
     private val newsRepository: NewsRepository,
     private val client: HttpClient,
     private val database: SignalBriefDatabase,
@@ -401,6 +425,7 @@ private class IosComposition(
         dailyBriefPresenter.dispose()
         collectionsPresenter.dispose()
         topicMonitoringPresenter.dispose()
+        settingsPresenter.dispose()
         client.close()
         database.close()
     }
@@ -432,6 +457,7 @@ private fun createIosComposition(): IosComposition {
     val topicMonitoringRepository: TopicMonitoringRepository = RoomTopicMonitoringRepository(database)
     val newsRepository = OfflineFirstNewsRepository(remoteDataSource, localDataSource)
     val topicMonitoringPresenter = TopicMonitoringPresenter(topicMonitoringRepository, newsRepository)
+    val settingsPresenter = SettingsPresenter(newsRepository)
     val headlinesPresenter =
         TopHeadlinesPresenter(
             repository = newsRepository,
@@ -454,6 +480,7 @@ private fun createIosComposition(): IosComposition {
         collectionsRepository,
         collectionsPresenter,
         topicMonitoringPresenter,
+        settingsPresenter,
         newsRepository,
         client,
         database,

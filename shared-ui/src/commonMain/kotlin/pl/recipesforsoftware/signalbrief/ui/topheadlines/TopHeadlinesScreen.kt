@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -72,6 +73,7 @@ fun TopHeadlinesScreen(
     modifier: Modifier = Modifier,
     onBookmarkClick: ((Article) -> Unit)? = null,
     onSearchClick: () -> Unit = {},
+    onSettingsClick: () -> Unit = {},
     topBarActions: @Composable () -> Unit = {},
     bottomBar: @Composable () -> Unit = {},
 ) {
@@ -81,6 +83,7 @@ fun TopHeadlinesScreen(
             TopHeadlinesTopBar(
                 onRefresh = onRefresh,
                 onSearchClick = onSearchClick,
+                onSettingsClick = onSettingsClick,
                 topBarActions = topBarActions,
             )
         },
@@ -120,6 +123,7 @@ fun TopHeadlinesScreen(
 private fun TopHeadlinesTopBar(
     onRefresh: () -> Unit,
     onSearchClick: () -> Unit,
+    onSettingsClick: () -> Unit,
     topBarActions: @Composable () -> Unit,
 ) {
     TopAppBar(
@@ -148,6 +152,12 @@ private fun TopHeadlinesTopBar(
                 Icon(
                     imageVector = Icons.Filled.Refresh,
                     contentDescription = TopHeadlinesStrings.REFRESH,
+                )
+            }
+            IconButton(onClick = onSettingsClick) {
+                Icon(
+                    imageVector = Icons.Filled.Settings,
+                    contentDescription = TopHeadlinesStrings.SETTINGS,
                 )
             }
             topBarActions()
