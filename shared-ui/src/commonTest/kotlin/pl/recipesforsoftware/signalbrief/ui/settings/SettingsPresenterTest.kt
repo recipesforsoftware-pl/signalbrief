@@ -8,6 +8,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import pl.recipesforsoftware.signalbrief.domain.failure.NewsFailure
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.Source
 import pl.recipesforsoftware.signalbrief.domain.model.TopHeadlinesFeed
@@ -19,6 +20,8 @@ private class FakeNewsRepositoryForSettings : NewsRepository {
     private val cachedArticles = MutableStateFlow<List<Article>>(emptyList())
 
     var getTopHeadlinesCallCount: Int = 0
+    var clearCallCount: Int = 0
+    var clearFailure: Result<Unit>? = null
 
     fun seed(articles: List<Article>) {
         cachedArticles.value = articles
@@ -29,11 +32,20 @@ private class FakeNewsRepositoryForSettings : NewsRepository {
         error("Settings must never call the network-first feed path")
     }
 
+    override suspend fun clearCachedTopHeadlines(country: String): Result<Unit> {
+        clearCallCount++
+        clearFailure?.let { return it }
+        cachedArticles.value = emptyList()
+        return Result.success(Unit)
+    }
+
     override fun observeCachedTopHeadlines(country: String): Flow<List<Article>> = cachedArticles
 }
 
 private class FailingNewsRepositoryForSettings : NewsRepository {
     override suspend fun getTopHeadlines(country: String): Result<TopHeadlinesFeed> = error("Not expected")
+
+    override suspend fun clearCachedTopHeadlines(country: String): Result<Unit> = error("Not expected")
 
     override fun observeCachedTopHeadlines(country: String): Flow<List<Article>> = failingFlow()
 
@@ -165,5 +177,77 @@ class SettingsPresenterTest {
             advanceUntilIdle()
 
             assertEquals(SettingsUiState(downloadedHeadlineCount = 1), presenter.uiState.value)
+        }
+
+    @Test
+    fun `clear calls the repository exactly once`() =
+        runTest {
+            val newsRepo = FakeNewsRepositoryForSettings()
+            newsRepo.seed(listOf(article("https://example.com/1")))
+
+            val presenter = createPresenter(newsRepo, this)
+            advanceUntilIdle()
+
+            presenter.clearDownloadedHeadlines()
+            advanceUntilIdle()
+
+            assertEquals(1, newsRepo.clearCallCount)
+            assertEquals(0, newsRepo.getTopHeadlinesCallCount)
+        }
+
+    @Test
+    fun `clear never calls getTopHeadlines`() =
+        runTest {
+            val newsRepo = FakeNewsRepositoryForSettings()
+            newsRepo.seed(listOf(article("https://example.com/1")))
+
+            val presenter = createPresenter(newsRepo, this)
+            advanceUntilIdle()
+
+            presenter.clearDownloadedHeadlines()
+            advanceUntilIdle()
+
+            assertEquals(0, newsRepo.getTopHeadlinesCallCount)
+            assertEquals(SettingsUiState(downloadedHeadlineCount = 0), presenter.uiState.value)
+        }
+
+    @Test
+    fun `count becomes zero only after the cached flow emits an empty list`() =
+        runTest {
+            val newsRepo = FakeNewsRepositoryForSettings()
+            newsRepo.seed(listOf(article("https://example.com/1")))
+
+            val presenter = createPresenter(newsRepo, this)
+            advanceUntilIdle()
+            assertEquals(SettingsUiState(downloadedHeadlineCount = 1), presenter.uiState.value)
+
+            presenter.clearDownloadedHeadlines()
+            assertEquals(
+                SettingsUiState(downloadedHeadlineCount = 1),
+                presenter.uiState.value,
+                "Count must not change until the cached flow emits an empty list",
+            )
+
+            advanceUntilIdle()
+
+            assertEquals(0, presenter.uiState.value.downloadedHeadlineCount)
+        }
+
+    @Test
+    fun `failed clear does not fabricate a zero state`() =
+        runTest {
+            val newsRepo = FakeNewsRepositoryForSettings()
+            newsRepo.seed(listOf(article("https://example.com/1")))
+            newsRepo.clearFailure = Result.failure(NewsFailure.Unknown(IllegalStateException("database unavailable")))
+
+            val presenter = createPresenter(newsRepo, this)
+            advanceUntilIdle()
+            assertEquals(SettingsUiState(downloadedHeadlineCount = 1), presenter.uiState.value)
+
+            presenter.clearDownloadedHeadlines()
+            advanceUntilIdle()
+
+            assertEquals(SettingsUiState(downloadedHeadlineCount = 1), presenter.uiState.value)
+            assertEquals(1, newsRepo.clearCallCount)
         }
 }

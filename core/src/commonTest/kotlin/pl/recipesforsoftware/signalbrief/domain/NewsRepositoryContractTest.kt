@@ -123,5 +123,7 @@ class NewsRepositoryContractTest {
 
         override fun observeCachedTopHeadlines(country: String): Flow<List<Article>> =
             flowOf(configuredResult.getOrNull()?.articles.orEmpty())
+
+        override suspend fun clearCachedTopHeadlines(country: String): Result<Unit> = Result.success(Unit)
     }
 }

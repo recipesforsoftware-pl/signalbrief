@@ -50,6 +50,11 @@ internal class WebNewsRepository(
         )
 
     override fun observeCachedTopHeadlines(country: String): Flow<List<Article>> = cachedArticles
+
+    override suspend fun clearCachedTopHeadlines(country: String): Result<Unit> {
+        cachedArticles.value = emptyList()
+        return Result.success(Unit)
+    }
 }
 
 private suspend fun fetchHeadlines(country: String): List<Article> {

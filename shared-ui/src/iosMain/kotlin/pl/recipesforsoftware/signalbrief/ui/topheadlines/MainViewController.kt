@@ -316,6 +316,7 @@ private fun SettingsRoute(
     SettingsScreen(
         uiState = uiState,
         onBack = onBack,
+        onClearDownloadedHeadlines = presenter::clearDownloadedHeadlines,
     )
 }
 

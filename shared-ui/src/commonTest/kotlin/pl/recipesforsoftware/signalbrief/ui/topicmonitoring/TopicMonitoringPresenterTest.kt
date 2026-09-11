@@ -84,6 +84,8 @@ private class FakeMonitoringNewsRepository : NewsRepository {
         if (failure != null) return flow { throw failure }
         return cachedArticles
     }
+
+    override suspend fun clearCachedTopHeadlines(country: String): Result<Unit> = Result.success(Unit)
 }
 
 private fun testArticle(

@@ -178,6 +178,7 @@ class NavigationTest {
                         SettingsScreen(
                             uiState = SettingsUiState(downloadedHeadlineCount = 0),
                             onBack = onBack,
+                            onClearDownloadedHeadlines = {},
                         )
                     },
                 )

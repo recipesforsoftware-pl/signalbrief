@@ -250,7 +250,7 @@ private fun Settings(
     back: () -> Unit,
 ) {
     val state by presenter.uiState.collectAsState()
-    SettingsScreen(state, back)
+    SettingsScreen(state, back, presenter::clearDownloadedHeadlines)
 }
 
 @Composable private fun Details(

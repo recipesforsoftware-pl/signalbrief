@@ -29,6 +29,8 @@ private class FakeNewsRepositoryForBookmarks : NewsRepository {
 
     override fun observeCachedTopHeadlines(country: String): Flow<List<Article>> = cachedArticles()
 
+    override suspend fun clearCachedTopHeadlines(country: String): Result<Unit> = Result.success(Unit)
+
     private fun cachedArticles(): Flow<List<Article>> = flowOf(nextResult.getOrNull()?.articles.orEmpty())
 }
 

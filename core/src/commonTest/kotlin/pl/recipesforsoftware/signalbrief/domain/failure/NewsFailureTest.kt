@@ -55,6 +55,8 @@ class NewsFailureTest {
                     override suspend fun getTopHeadlines(country: String): Result<TopHeadlinesFeed> = expected
 
                     override fun observeCachedTopHeadlines(country: String): Flow<List<Article>> = flowOf(emptyList())
+
+                    override suspend fun clearCachedTopHeadlines(country: String): Result<Unit> = Result.success(Unit)
                 }
 
             val result = repository.getTopHeadlines("us")
