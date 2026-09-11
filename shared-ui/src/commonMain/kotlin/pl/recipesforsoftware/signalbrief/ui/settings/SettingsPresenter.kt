@@ -47,6 +47,21 @@ class SettingsPresenter(
         scope.cancel()
     }
 
+    /**
+     * Explicitly clears the locally downloaded Top Headlines cache for the
+     * configured [country].
+     *
+     * The count is never forced here: it stays derived from
+     * [NewsRepository.observeCachedTopHeadlines] and falls to zero only when the
+     * local cache actually emits an empty list after the clear. A failed clear
+     * leaves the count untouched and triggers no network refresh.
+     */
+    fun clearDownloadedHeadlines() {
+        scope.launch {
+            newsRepository.clearCachedTopHeadlines(country)
+        }
+    }
+
     private fun observeCachedArticles(): Flow<List<Article>> = cachedArticles().catch { emit(emptyList()) }
 
     private fun cachedArticles(): Flow<List<Article>> = newsRepository.observeCachedTopHeadlines(country)

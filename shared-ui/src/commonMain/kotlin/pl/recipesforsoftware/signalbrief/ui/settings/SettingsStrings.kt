@@ -16,6 +16,13 @@ object SettingsStrings {
 
     const val NO_DOWNLOADED_HEADLINES: String = "No downloaded headlines"
 
+    const val CLEAR_DOWNLOADED_HEADLINES: String = "Clear downloaded headlines"
+    const val CLEAR_CONFIRMATION_TITLE: String = "Clear downloaded headlines?"
+    const val CLEAR_CONFIRMATION_MESSAGE: String =
+        "This removes the downloaded headlines from this device. They become available again only after a refresh."
+    const val CANCEL: String = "Cancel"
+    const val CLEAR: String = "Clear"
+
     fun downloadedHeadlinesCount(count: Int): String =
         if (count == 1) {
             "1 headline available offline"

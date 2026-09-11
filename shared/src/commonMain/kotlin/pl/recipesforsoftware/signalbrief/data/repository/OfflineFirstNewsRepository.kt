@@ -48,6 +48,10 @@ class OfflineFirstNewsRepository(
 
     override fun observeCachedTopHeadlines(country: String): Flow<List<Article>> = cachedHeadlines(country)
 
+    override suspend fun clearCachedTopHeadlines(country: String): Result<Unit> =
+        localDataSource
+            .saveTopHeadlines(country, emptyList())
+
     private fun cachedHeadlines(country: String): Flow<List<Article>> = localDataSource.observeTopHeadlines(country)
 
     private suspend fun storeRemoteSuccess(

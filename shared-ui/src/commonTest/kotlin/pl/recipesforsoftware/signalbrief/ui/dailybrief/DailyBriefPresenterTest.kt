@@ -28,6 +28,8 @@ private class BriefNewsRepository : NewsRepository {
     }
 
     override fun observeCachedTopHeadlines(country: String): Flow<List<Article>> = cached
+
+    override suspend fun clearCachedTopHeadlines(country: String): Result<Unit> = Result.success(Unit)
 }
 
 private class BriefSavedRepository : SavedArticlesRepository {

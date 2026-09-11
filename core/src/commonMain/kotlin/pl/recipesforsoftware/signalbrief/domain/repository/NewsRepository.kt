@@ -32,4 +32,15 @@ interface NewsRepository {
      * source of truth for local search.
      */
     fun observeCachedTopHeadlines(country: String): Flow<List<Article>>
+
+    /**
+     * Clears the locally cached top headlines for [country] (ISO 3166-1 alpha-2).
+     *
+     * This is an explicit local-only operation: no network request is performed
+     * and nothing outside the requested country's Top Headlines cache is touched.
+     * After a successful clear, [observeCachedTopHeadlines] for that country
+     * emits an empty list. Failures are returned as a [Result.failure] and
+     * coroutine cancellation is always rethrown.
+     */
+    suspend fun clearCachedTopHeadlines(country: String): Result<Unit>
 }

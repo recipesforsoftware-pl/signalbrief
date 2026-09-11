@@ -240,6 +240,50 @@ class OfflineFirstNewsRepositoryTest {
         }
 
     @Test
+    fun clearCachedTopHeadlines_clearsOnlyTheRequestedCountryLocally() =
+        runTest {
+            local.seed("us", articles("https://example.com/us"))
+            local.seed("pl", articles("https://example.com/pl"))
+
+            val result = repository.clearCachedTopHeadlines("us")
+
+            assertTrue(result.isSuccess)
+            assertEquals(listOf("us" to emptyList<Article>()), local.saveCalls)
+            assertTrue(local.cached("us").isEmpty())
+            assertEquals(articles("https://example.com/pl"), local.cached("pl"))
+            assertTrue(remote.callLog.isEmpty(), "clear must never touch the remote source")
+        }
+
+    @Test
+    fun clearCachedTopHeadlines_usesTheEmptyListContractWithoutReading() =
+        runTest {
+            local.seed("us", articles("https://example.com/us"))
+
+            val result = repository.clearCachedTopHeadlines("us")
+
+            assertTrue(result.isSuccess)
+            assertTrue(local.readCalls.isEmpty(), "clear must not read the cache first")
+            val saved = local.saveCalls.single()
+            assertEquals(emptyList<Article>(), saved.second)
+        }
+
+    @Test
+    fun clearCachedTopHeadlines_returnsTheLocalFailure() =
+        runTest {
+            local.seed("us", articles("https://example.com/us"))
+            val dbCause = IllegalStateException("database unavailable")
+            local.nextSaveFailure = NewsFailure.Unknown(dbCause)
+
+            val result = repository.clearCachedTopHeadlines("us")
+
+            assertTrue(result.isFailure)
+            val failure = result.exceptionOrNull()
+            assertTrue(failure is NewsFailure.Unknown)
+            assertSame(dbCause, failure.cause)
+            assertTrue(remote.callLog.isEmpty(), "a failed clear must not touch the remote source")
+        }
+
+    @Test
     fun localReadFailureIsHandledAndTheNetworkFailureIsPreserved() =
         runTest {
             remote.nextResult = Result.failure(NewsFailure.Network)
