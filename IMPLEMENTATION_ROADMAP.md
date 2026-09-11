@@ -1,25 +1,14 @@
 # SignalBrief Implementation Roadmap
 
-_Last updated: 2026-08-24_
+_Last updated: 2026-09-11_
 
 ## 1. Executive summary
 
-SignalBrief is evolving incrementally from a verified Android-only news reader into a production-oriented Kotlin Multiplatform application for Android and iOS.
+SignalBrief evolved incrementally from a verified Android-only news reader into a Kotlin Multiplatform application with Android, iOS, and browser/Wasm hosts.
 
-The repository already has a preserved Android baseline, an accurate public README, SignalBrief branding, and Android CI with formatting verification, static analysis, dependency review, JVM coverage reporting, Gradle Wrapper validation, and temporary report artifacts.
+The Kotlin Multiplatform foundation is now established. Android and iOS share the mobile domain/data/presentation path where appropriate, while the Web/Wasm host reuses the portable domain and presentation/UI boundaries behind browser-specific repositories and Cloudflare Pages Functions.
 
-The next priority is not the complete product redesign. It is a small but real end-to-end Kotlin Multiplatform foundation that proves:
-
-- shared code in `commonMain`;
-- Android and iOS targets;
-- shared domain and networking;
-- a deliberate platform-boundary strategy;
-- tests in `commonTest`;
-- one working Compose Multiplatform screen on Android and iOS;
-- Android and iOS CI;
-- clear architecture decisions.
-
-After that foundation is stable, the project continues toward the full SignalBrief MVP: offline-first reading, saved articles, Daily Brief, search, collections, monitoring, adaptive UI, and the later private commercial layer.
+Public product slices through Settings and Offline Management are delivered. The next planned slice is Story Clusters, followed later by the Authentication Boundary and Pro Entitlement Boundary. Commercial backend, billing, cross-device synchronization, analytics, and production release infrastructure remain outside the current public portfolio scope.
 
 The migration must remain incremental. Every pull request must keep the repository buildable, reviewable, testable, and free of production credentials.
 
@@ -41,7 +30,7 @@ The migration must remain incremental. Every pull request must keep the reposito
 - `android-baseline-v1` tag preserved before the migration work.
 - Dagger/Hilt remains the Android dependency-injection choice.
 - `commonMain` is required to remain independent of any DI framework.
-- iOS dependencies will be assembled through an explicit composition root.
+- iOS dependencies are assembled through an explicit composition root.
 
 ### Completed quality-gates phase
 
@@ -51,7 +40,7 @@ Branch:
 ci/android-quality-gates
 ```
 
-Planned outcome:
+Delivered:
 
 - ktlint formatting verification;
 - detekt static analysis;
@@ -68,8 +57,8 @@ Planned outcome:
 > KMP phases below (shared domain and network layer, Compose Multiplatform UI,
 > offline-first Room cache, Android and iOS CI); see the README and
 > `docs/ARCHITECTURE.md` for the current status. What remains **not implemented**
-> today: topic monitoring, payments, synchronization,
-> and a production backend.
+> today: Story Clusters, authentication, Pro entitlements, payments,
+> synchronization, and a production backend.
 > Saved articles persistence foundation (entity, DAO, repository, migration) is
 > implemented; feed bookmark toggle is implemented; the Saved screen and minimal
 > two-destination navigation (Headlines / Saved) are implemented; Article Details
@@ -83,11 +72,10 @@ Current delivery status:
 - Daily Brief reader: implemented
 - Web-safe core extraction: implemented
 - Web demo: implemented
-- Cloudflare Pages deployment: next manual step
-- README + screenshots + product showcase refresh: after live demo URL exists
+- Collections: implemented
+- Topic Monitoring: implemented
+- Settings and Offline Management: implemented
 - Remote Search: future/optional
-- Collections: future
-- Topic Monitoring: future
 
 The original Android-only baseline was:
 
@@ -107,11 +95,9 @@ The roadmap is split into four delivery levels.
 
 ### Priority A — KMP Foundation Slice
 
-This is the immediate technical milestone.
+This milestone is **complete**. It proved the complete Android-to-iOS path with the smallest useful vertical slice.
 
-It proves the complete Android-to-iOS path with the smallest useful vertical slice. It deliberately comes before Room KMP, the full redesign, and advanced product features.
-
-Required outcome:
+Delivered:
 
 - `shared` Kotlin Multiplatform module;
 - `commonMain`, `commonTest`, `androidMain`, and `iosMain`;
@@ -135,11 +121,13 @@ Required outcome:
 
 ### Priority B — Public MVP Core
 
+Status: **substantially delivered** — the core reading flow is in place; the originally listed "personalized Feed" is not yet implemented.
+
 The first coherent product release for Android and iOS:
 
 - onboarding;
 - Brief shell;
-- personalized Feed;
+- personalized Feed — planned, not yet implemented; the feed is currently a configured top-headlines slice for the default country, not a personalized stream;
 - article details;
 - saved articles;
 - basic search;
@@ -149,16 +137,20 @@ The first coherent product release for Android and iOS:
 
 ### Priority C — Public MVP Complete
 
-After MVP Core is stable:
+Status: **partially delivered**
 
-- collections;
-- topic-monitor dashboard;
-- monitor creation and configuration;
-- advanced offline management;
+Completed:
+
+- Collections;
+- Topic Monitoring;
+- Settings and Offline Management.
+
+Still planned:
+
 - notification preferences;
-- adaptive phone and tablet layouts;
-- accessibility review;
-- complete light and dark themes based on the SignalBrief design system.
+- broader adaptive phone and tablet layouts;
+- remaining accessibility review;
+- design-system-wide theme completion (shared light and dark themes and Android theme selection already exist).
 
 ### Priority D — Private commercial layer
 
@@ -461,22 +453,22 @@ Deliver:
 
 Deliver in this order:
 
-1. Feed and article details;
-2. saved articles;
-3. Daily Brief;
-4. search;
-5. collections;
-6. topic monitoring;
-7. settings and offline management;
-8. story clusters;
-9. authentication boundary;
-10. Pro entitlement boundary.
+1. Feed and article details — completed
+2. Saved articles — completed
+3. Daily Brief — completed
+4. Search — completed
+5. Collections — completed
+6. Topic Monitoring — completed
+7. Settings and Offline Management — completed
+8. Story Clusters — next planned
+9. Authentication Boundary — planned
+10. Pro Entitlement Boundary — planned
 
 Do not begin advanced monitoring or commercial features before Feed, Saved, Brief, and offline behavior are stable on both platforms.
 
 ## 6. KMP Foundation Slice acceptance criteria
 
-The immediate milestone is complete only when all of the following are true:
+The KMP Foundation Slice was considered complete when all of the following were true:
 
 ### Structure
 
@@ -688,5 +680,7 @@ Mitigation:
 
 ### Public MVP Complete
 
-- Daily Brief, collections, monitoring, notification preferences, adaptive layouts, and complete offline management are delivered;
+Status: **future completion criterion** — not yet achieved while notification preferences, broader adaptive layouts, and accessibility work remain outstanding.
+
+- Collections, Topic Monitoring, and Settings/Offline Management are delivered; remaining Public MVP Complete items include notification preferences, adaptive layouts, accessibility review, and design-system theme completion;
 - the public repository remains free of private backend, billing, analytics, signing, and deployment secrets.

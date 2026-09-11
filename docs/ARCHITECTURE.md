@@ -38,7 +38,9 @@ iosApp              SwiftUI/Xcode                       iOS host. Embeds the sha
                                                         mobile composition is assembled explicitly.
 
 :webApp             Browser/Wasm                        Browser executable, WebNewsRepository,
-                                                        session-only WebSavedArticlesRepository.
+                                                        browser-local WebSavedArticlesRepository,
+                                                        browser-local WebCollectionsRepository,
+                                                        browser-local WebTopicMonitoringRepository.
 
 functions/           Cloudflare Pages Functions         Public Web backend boundary:
                                                         /api/headlines and /api/image.
@@ -83,9 +85,9 @@ The iOS-specific composition source set in `:shared-ui` may depend on `:shared` 
 
 `:core` contains the portable domain boundary:
 
-- `Article`, `Source`, `TopHeadlinesFeed`, and `FeedSource`.
-- `NewsRepository` and `SavedArticlesRepository` contracts.
-- `NewsFailure` typed failures.
+- `Article`, `Source`, `TopHeadlinesFeed`, `FeedSource`, `Collection`, and `MonitoredTopic`.
+- `NewsRepository`, `SavedArticlesRepository`, `CollectionsRepository`, and `TopicMonitoringRepository` contracts.
+- `NewsFailure`, `CollectionFailure`, and `TopicMonitoringFailure` typed failures.
 - Business logic that does not require Room, Ktor, Compose, Coil, UIKit, Android, or browser APIs.
 
 This module is the architectural seam that allows both the mobile repository and the browser repository to satisfy the same UI-facing contracts.
@@ -108,6 +110,8 @@ This module is the architectural seam that allows both the mobile repository and
 - country-scoped cached headline entities/DAO.
 - transactional feed replacement.
 - persistent mobile Saved Articles storage.
+- Room-backed collections and collection memberships.
+- Room-backed monitored topics.
 
 ### Repository
 
@@ -133,6 +137,8 @@ InvalidData / Unknown
 
 Cancellation is rethrown rather than converted into a domain failure.
 
+`OfflineFirstNewsRepository.clearCachedTopHeadlines(country)` deletes only the requested country's cached headlines in one transaction, performs no network request, and leaves observable cache state emitting an empty list afterward.
+
 ## `:shared-ui` — presentation and Compose UI
 
 `:shared-ui` contains the application presentation surface shared across targets:
@@ -143,6 +149,9 @@ Cancellation is rethrown rather than converted into a domain failure.
 - Saved Articles;
 - Article Details;
 - Daily Brief;
+- Collections;
+- Topic Monitoring;
+- Settings and Offline Management;
 - mobile onboarding;
 - theme and design tokens;
 - article cards and shared actions;
@@ -150,7 +159,9 @@ Cancellation is rethrown rather than converted into a domain failure.
 
 Presenters depend on repository contracts from `:core`, not on concrete data implementations.
 
-The UI uses `StateFlow` and explicit callbacks. Repository state is observed by multiple features so Headlines, Search, Saved, Details, and Daily Brief stay consistent without each screen owning a separate network implementation.
+The UI uses `StateFlow` and explicit callbacks. Repository state is observed by multiple features so Headlines, Search, Saved, Details, Daily Brief, Collections, Topic Monitoring, and Settings stay consistent without each screen owning a separate network implementation.
+
+`SettingsPresenter` observes `NewsRepository.observeCachedTopHeadlines()` reactively to derive the downloaded-headline count and calls `clearCachedTopHeadlines(country)` for explicit local-only cache clearing, which never triggers a network request.
 
 ## Android composition
 
@@ -192,6 +203,8 @@ This keeps the dependency graph equivalent to Android while avoiding a DI framew
 ComposeViewport
   -> WebNewsRepository
   -> WebSavedArticlesRepository
+  -> WebCollectionsRepository
+  -> WebTopicMonitoringRepository
   -> SignalBriefAppHost
 ```
 
@@ -205,17 +218,30 @@ It:
 
 - requests `/api/headlines?country=...` with browser `fetch`;
 - maps the normalized Pages Function response into domain `Article` objects;
-- updates an in-memory `MutableStateFlow`;
-- exposes that flow through `observeCachedTopHeadlines()` so Search and Daily Brief see the same article set;
+- keeps a single current in-memory headline set in a `MutableStateFlow` (no independent per-country Web caches);
+- exposes that flow through `observeCachedTopHeadlines(country)` so Search, Daily Brief, and Settings see the same article set;
+- clears the current in-memory set locally through `clearCachedTopHeadlines(country)` without performing a network request;
 - maps transport/data failures into the shared `NewsFailure` hierarchy.
 
 The browser client does not contain the NewsData API key.
 
 ### `WebSavedArticlesRepository`
 
-Web Saved Articles are intentionally session-only. The repository uses in-memory `StateFlow` state and resets when the Web application reloads.
+Web Saved Articles persist in the browser through the `signalbrief.savedArticles.v1` localStorage key. State is loaded once at construction and updated after every successful write, so Saved Articles survive Web application reloads within the same browser.
 
-This is intentionally different from the persistent mobile implementation.
+This is intentionally parallel to the persistent mobile implementation.
+
+### `WebCollectionsRepository`
+
+`WebCollectionsRepository` persists collections and their article memberships in browser localStorage under the `signalbrief.collections.v1` and `signalbrief.collection-memberships.v1` keys.
+
+Collections and memberships are restored at construction and observable state only changes after a successful storage write. Membership snapshots are independent of saved articles, so an article stays displayable in a collection after it is unsaved.
+
+### `WebTopicMonitoringRepository`
+
+`WebTopicMonitoringRepository` persists monitored topic queries in browser localStorage under the `signalbrief.topic-monitors.v1` key.
+
+The queries are restored at construction; observable state only changes after a successful storage write. Matching against local headlines is done by shared presentation logic, so the Web topic-monitoring flow uses the same repository contract and matching semantics as the mobile flow.
 
 ## Cloudflare Pages Functions
 
@@ -325,14 +351,14 @@ Pure repository-contract/model/failure tests.
 
 ### `:shared-ui`
 
-- presenter tests for Headlines, Search, Saved, Details, and Daily Brief;
+- presenter tests for Headlines, Search, Saved, Details, Daily Brief, Collections, Topic Monitoring, and Settings;
 - shared UI/component behavior;
 - Android/iOS/Wasm compilation of the shared UI boundary.
 
 ### `:webApp`
 
 - `WebNewsRepository` behavior through an injected loader;
-- browser-session Saved repository behavior;
+- localStorage-backed Saved, Collections, and Topic Monitoring repository behavior (including mutation and failure paths);
 - Wasm tests and production browser distribution.
 
 ## CI
@@ -372,7 +398,7 @@ The Web dependency lock deliberately remains free of the Ktor/Coil network depen
 ## Trade-offs and current limitations
 
 - Mobile networking/storage and browser networking are separate implementations behind shared contracts.
-- The Web host has session-only Saved Articles and no cross-device synchronization.
+- The Web host persists Saved Articles, Collections, and Monitored Topics in browser localStorage, but there is no cross-device synchronization.
 - Search operates over locally available headlines rather than a dedicated backend index.
 - The public Web feed currently uses an English/US top-headlines configuration.
 - Android and iOS use a developer-supplied NewsAPI key for local development and are not store-published from this repository.

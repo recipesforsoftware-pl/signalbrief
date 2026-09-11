@@ -14,7 +14,7 @@ This repository is an open-source engineering/portfolio project. The Android and
 
 **[Open SignalBrief Web Demo](https://signalbrief-bj7.pages.dev/)**
 
-The Web demo serves real headlines and supports the same core reading flow: Headlines, Search, Saved Articles, Article Details, and Daily Brief.
+The Web demo serves real headlines and supports the same core reading flow: Headlines, Search, Saved Articles, Article Details, Daily Brief, Collections, Topic Monitoring, and Settings.
 
 ## Engineering case study
 
@@ -48,9 +48,12 @@ A walkthrough of how the original Android application evolved into an offline-fi
 - **Android, iOS, and browser/Wasm targets** with shared Kotlin domain contracts and shared Compose Multiplatform presentation/UI.
 - **Top Headlines** with loading, success, empty, typed error/retry, refresh, article images, and source metadata.
 - **Search** over the locally available headline set.
-- **Saved Articles** with bookmark actions and a dedicated Saved destination. Mobile persistence is durable; Web Saved Articles persist locally in the browser.
+- **Saved Articles** with bookmark actions and a dedicated Saved destination. Mobile persistence is durable; Web Saved Articles persist in browser localStorage.
 - **Article Details** with shared content layout, bookmark state, article image, and safe external article opening.
 - **Daily Brief** generated from the currently available headline set.
+- **Collections** with creation, renaming, deletion, and assigning/removing articles. Web collections persist in browser localStorage; mobile collections persist in Room KMP.
+- **Topic Monitoring** with creation, updating, and deletion of monitored queries. Matching is performed locally against available headlines. Web topics persist in browser localStorage; mobile topics persist in Room KMP.
+- **Settings / Offline Management**: a Settings child screen reachable from Headlines showing the reactive locally downloaded headline count, with explicit clearing of downloaded Top Headlines and confirmation before destructive clear. Cache clearing is local-only and does not trigger a network request.
 - **Mobile offline-first cache**: successful remote results are stored in Room KMP and used as an explicit `FeedSource.CACHE` fallback after network failures.
 - **Two-page mobile onboarding** persisted with DataStore Preferences on Android and NSUserDefaults on iOS. The Web host intentionally skips onboarding.
 - **Light and dark shared themes**, with Android-specific persisted theme selection.
@@ -100,7 +103,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for module ownership, dependenc
 - **`:shared-ui`** — shared Compose Multiplatform UI and presenters. Its common code depends on `:core`; platform source sets provide image/loading and composition details where needed.
 - **`:app`** — Android host and Hilt composition root.
 - **`iosApp`** — SwiftUI host. The iOS composition root is assembled explicitly from Kotlin/Swift-facing code.
-- **`:webApp`** — browser/Wasm executable, `WebNewsRepository`, and browser-local `WebSavedArticlesRepository`. It depends on `:core` and `:shared-ui`, not on the mobile `:shared` data layer.
+- **`:webApp`** — browser/Wasm executable with `WebNewsRepository`, `WebSavedArticlesRepository`, `WebCollectionsRepository`, and `WebTopicMonitoringRepository`. It depends on `:core` and `:shared-ui`, not on the mobile `:shared` data layer.
 - **`functions/`** — Cloudflare Pages Functions used only by the public Web path.
 
 ## Mobile offline-first data flow
@@ -263,7 +266,7 @@ No production API secret is committed to or required by CI.
 
 - Android and iOS are not currently published in the app stores.
 - Mobile clients still use a developer-supplied NewsAPI key directly for local development; this is not a production mobile secret architecture.
-- Web Saved Articles persist locally in the browser, but are not synchronized between browsers, devices, or platforms.
+- Web Saved Articles, Collections, and Topic Monitoring persist in browser localStorage, but are not synchronized between browsers, devices, or platforms.
 - The public Web feed currently targets an English/US top-headlines configuration.
 - Search operates on the headline set already available to the application; there is no separate server-side search index.
 - Payments, account synchronization, analytics, and production mobile signing/release infrastructure are outside this public repository.
