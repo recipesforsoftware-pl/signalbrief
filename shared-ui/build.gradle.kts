@@ -13,6 +13,12 @@ plugins {
 
 @OptIn(ExperimentalWasmDsl::class)
 kotlin {
+    jvm("desktop") {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
+    }
+
     android {
         namespace = "pl.recipesforsoftware.signalbrief.sharedui"
         compileSdk = 37
