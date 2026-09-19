@@ -26,4 +26,6 @@ iosApp/*.xcuserstate
 
 /core/build/
 
+/desktopApp/build/
+
 /webApp/build/

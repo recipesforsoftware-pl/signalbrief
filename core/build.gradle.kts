@@ -11,6 +11,12 @@ plugins {
 
 @OptIn(ExperimentalWasmDsl::class)
 kotlin {
+    jvm("desktop") {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
+    }
+
     android {
         namespace = "pl.recipesforsoftware.signalbrief.core"
         compileSdk = 37
