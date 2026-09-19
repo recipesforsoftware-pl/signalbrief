@@ -15,7 +15,7 @@ import pl.recipesforsoftware.signalbrief.domain.model.Article
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * Ktor-backed [NewsRemoteDataSource] shared by Android and iOS.
+ * Ktor-backed [NewsRemoteDataSource] shared by Android, iOS, and JVM Desktop.
  *
  * Transport concerns stay inside this class: Ktor and serialization exceptions
  * are translated into [NewsFailure] so no raw transport exception reaches the

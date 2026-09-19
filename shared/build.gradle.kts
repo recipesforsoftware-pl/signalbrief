@@ -12,6 +12,12 @@ plugins {
 }
 
 kotlin {
+    jvm("desktop") {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
+    }
+
     android {
         namespace = "pl.recipesforsoftware.signalbrief.shared"
         compileSdk = 37
@@ -52,6 +58,11 @@ kotlin {
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
         }
+        named("desktopMain") {
+            dependencies {
+                implementation(libs.ktor.client.cio)
+            }
+        }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.coroutines.test)
@@ -69,6 +80,7 @@ kotlin {
 
 dependencies {
     add("kspAndroid", libs.room.compiler)
+    add("kspDesktop", libs.room.compiler)
     add("kspIosArm64", libs.room.compiler)
     add("kspIosSimulatorArm64", libs.room.compiler)
     add("kspIosX64", libs.room.compiler)
