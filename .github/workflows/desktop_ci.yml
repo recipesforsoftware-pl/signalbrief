@@ -1,0 +1,86 @@
+name: Desktop CI
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'gradle/**'
+      - '**/build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - 'core/**'
+      - 'shared-ui/**'
+      - 'desktopApp/**'
+      - '.github/workflows/desktop_ci.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'gradle/**'
+      - '**/build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - 'core/**'
+      - 'shared-ui/**'
+      - 'desktopApp/**'
+      - '.github/workflows/desktop_ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  desktop:
+    name: Desktop build and test (${{ matrix.os }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macOS
+            runner: macos-26
+            wrapper: ./gradlew
+            artifact_id: macos
+          - os: Windows
+            runner: windows-2025
+            wrapper: ./gradlew.bat
+            artifact_id: windows
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v3
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Build and test Desktop foundation
+        run: ${{ matrix.wrapper }} :core:compileKotlinDesktop :core:desktopTest :shared-ui:compileKotlinDesktop :shared-ui:desktopTest :desktopApp:compileKotlinDesktop :desktopApp:desktopJar
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-test-reports-${{ matrix.artifact_id }}
+          path: |
+            core/build/reports/tests/
+            shared-ui/build/reports/tests/
+          retention-days: 7
+          if-no-files-found: warn
