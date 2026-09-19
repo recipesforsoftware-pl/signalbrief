@@ -24,9 +24,11 @@ Unit / module       Targets / runtime                   Responsibility
 :core               Android, iOS, Wasm                  Pure domain models, repository contracts,
                                                         typed failures, web-safe behavior.
 
-:shared             Android, iOS                        Mobile data implementations: Ktor networking,
-                                                        kotlinx.serialization, Room KMP cache,
-                                                        offline-first repositories.
+:shared             Android, iOS, JVM Desktop          Mobile (and Desktop) data implementations: Ktor
+                                                        networking, kotlinx.serialization, Room KMP
+                                                        cache, offline-first repositories. The Desktop
+                                                        target is data-layer only and is not yet wired
+                                                        into `:desktopApp`.
 
 :shared-ui          Android, iOS, Wasm                  Compose Multiplatform UI, presenters,
                                                         navigation/screen shell, design system.
@@ -94,13 +96,13 @@ This module is the architectural seam that allows both the mobile repository and
 
 ## `:shared` — mobile data layer
 
-`:shared` depends on `:core` and contains the mobile data implementation.
+`:shared` depends on `:core` and contains the mobile data implementation. It now also exposes a JVM Desktop target with CIO networking and a `BundledSQLiteDriver`-backed Room database, so the same data layer can be consumed by a future explicit Desktop composition root. `:desktopApp` is not connected to `:shared` yet.
 
 ### Remote
 
 - Ktor 3 client.
 - kotlinx.serialization DTOs and mapping.
-- Android and Darwin engines.
+- Android, Darwin, and CIO (JVM Desktop) engines.
 - response validation and timeout configuration.
 - NewsAPI request configuration.
 
@@ -112,6 +114,7 @@ This module is the architectural seam that allows both the mobile repository and
 - persistent mobile Saved Articles storage.
 - Room-backed collections and collection memberships.
 - Room-backed monitored topics.
+- Platform database factories: Android and iOS resolve their own store location; the Desktop factory takes an explicit path from its future composition root and uses `BundledSQLiteDriver`.
 
 ### Repository
 
@@ -363,7 +366,7 @@ Pure repository-contract/model/failure tests.
 
 ## CI
 
-Four pull-request checks protect `main`.
+Five pull-request checks protect `main`.
 
 ### Android CI
 
@@ -382,6 +385,13 @@ Four pull-request checks protect `main`.
 - formatting/static analysis
 - unsigned iOS simulator host build
 
+### Desktop CI
+
+- Desktop compilation of `:core`, `:shared`, `:shared-ui`, and `:desktopApp`
+- Desktop execution of the `:core`, `:shared`, and `:shared-ui` test suites
+- `:desktopApp` jar assembly
+- separate macOS and Windows runners
+
 ### Web CI
 
 - supported JDK/Node environment
@@ -398,6 +408,7 @@ The Web dependency lock deliberately remains free of the Ktor/Coil network depen
 ## Trade-offs and current limitations
 
 - Mobile networking/storage and browser networking are separate implementations behind shared contracts.
+- The JVM Desktop target in `:shared` currently provides only the data-layer foundation (CIO client, Room database, platform clock). `:desktopApp` is not yet connected to `:shared`, has no Desktop composition root or API-key configuration, and does not display network or Room data.
 - The Web host persists Saved Articles, Collections, and Monitored Topics in browser localStorage, but there is no cross-device synchronization.
 - Search operates over locally available headlines rather than a dedicated backend index.
 - The public Web feed currently uses an English/US top-headlines configuration.

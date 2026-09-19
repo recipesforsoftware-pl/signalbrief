@@ -11,12 +11,13 @@ import kotlinx.serialization.json.Json
 
 /**
  * Builds the NewsAPI [HttpClient] backed by the platform engine of the current
- * target (Android engine on Android, Darwin engine on iOS).
+ * target (Android engine on Android, Darwin engine on iOS, CIO engine on JVM
+ * Desktop).
  *
  * The actual engine selection lives in the platform source sets; all shared
  * client configuration (content negotiation, timeouts, response validation,
  * default base URL and API-key header) is applied through
- * [configureNewsApiClient] so Android and iOS behave identically.
+ * [configureNewsApiClient] so every target behaves identically.
  */
 expect fun createHttpClient(config: NewsApiConfig): HttpClient
 
