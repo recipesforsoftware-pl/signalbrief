@@ -1,5 +1,7 @@
 package pl.recipesforsoftware.signalbrief.ui.search
 
+import androidx.lifecycle.ViewModelStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -7,7 +9,9 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.FeedSource
 import pl.recipesforsoftware.signalbrief.domain.model.Source
@@ -17,6 +21,16 @@ import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesReposito
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+
+private fun runViewModelTest(block: suspend TestScope.() -> Unit) =
+    runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            block()
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
 
 private class FakeNewsRepositoryForSearch : NewsRepository {
     private val cachedArticles = MutableStateFlow<List<Article>>(emptyList())
@@ -89,170 +103,168 @@ private fun article(
     )
 
 @OptIn(ExperimentalCoroutinesApi::class)
-private fun createPresenter(
+private fun createViewModel(
     newsRepository: NewsRepository,
     savedArticlesRepository: SavedArticlesRepository,
-    scope: TestScope,
     initialQuery: String = "",
-): SearchPresenter =
-    SearchPresenter(
+): SearchViewModel =
+    SearchViewModel(
         newsRepository = newsRepository,
         savedArticlesRepository = savedArticlesRepository,
         initialQuery = initialQuery,
-        dispatcher = StandardTestDispatcher(scope.testScheduler),
     )
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class SearchPresenterTest {
+class SearchViewModelTest {
     @Test
     fun `blank query with cached articles shows idle`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForSearch()
             val savedRepo = FakeSavedArticlesRepositoryForSearch()
             newsRepo.seed(listOf(article("https://example.com/1")))
 
-            val presenter = createPresenter(newsRepo, savedRepo, this)
+            val viewModel = createViewModel(newsRepo, savedRepo)
             advanceUntilIdle()
 
-            assertEquals(SearchUiState.Idle, presenter.uiState.value)
+            assertEquals(SearchUiState.Idle, viewModel.uiState.value)
             assertEquals(0, newsRepo.getTopHeadlinesCallCount)
         }
 
     @Test
     fun `no local articles shows no local articles state`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForSearch()
             val savedRepo = FakeSavedArticlesRepositoryForSearch()
 
-            val presenter = createPresenter(newsRepo, savedRepo, this)
+            val viewModel = createViewModel(newsRepo, savedRepo)
             advanceUntilIdle()
 
-            assertEquals(SearchUiState.NoLocalArticles, presenter.uiState.value)
+            assertEquals(SearchUiState.NoLocalArticles, viewModel.uiState.value)
             assertEquals(0, newsRepo.getTopHeadlinesCallCount)
         }
 
     @Test
     fun `title match returns results`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForSearch()
             val savedRepo = FakeSavedArticlesRepositoryForSearch()
             val article = article("https://example.com/1", title = "Kotlin Multiplatform rocks")
             newsRepo.seed(listOf(article))
 
-            val presenter = createPresenter(newsRepo, savedRepo, this)
+            val viewModel = createViewModel(newsRepo, savedRepo)
             advanceUntilIdle()
-            presenter.setQuery("Kotlin")
+            viewModel.setQuery("Kotlin")
             advanceUntilIdle()
 
-            val state = assertIs<SearchUiState.Results>(presenter.uiState.value)
+            val state = assertIs<SearchUiState.Results>(viewModel.uiState.value)
             assertEquals(listOf(article), state.articles)
             assertEquals("Kotlin", state.query)
         }
 
     @Test
     fun `description match returns results`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForSearch()
             val savedRepo = FakeSavedArticlesRepositoryForSearch()
             val article = article("https://example.com/1", description = "A detailed Kotlin story")
             newsRepo.seed(listOf(article))
 
-            val presenter = createPresenter(newsRepo, savedRepo, this)
+            val viewModel = createViewModel(newsRepo, savedRepo)
             advanceUntilIdle()
-            presenter.setQuery("detailed")
+            viewModel.setQuery("detailed")
             advanceUntilIdle()
 
-            val state = assertIs<SearchUiState.Results>(presenter.uiState.value)
+            val state = assertIs<SearchUiState.Results>(viewModel.uiState.value)
             assertEquals(listOf(article), state.articles)
         }
 
     @Test
     fun `source name match returns results`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForSearch()
             val savedRepo = FakeSavedArticlesRepositoryForSearch()
             val source = Source(id = "src", name = "Kotlin Weekly")
             val article = article("https://example.com/1", source = source)
             newsRepo.seed(listOf(article))
 
-            val presenter = createPresenter(newsRepo, savedRepo, this)
+            val viewModel = createViewModel(newsRepo, savedRepo)
             advanceUntilIdle()
-            presenter.setQuery("weekly")
+            viewModel.setQuery("weekly")
             advanceUntilIdle()
 
-            val state = assertIs<SearchUiState.Results>(presenter.uiState.value)
+            val state = assertIs<SearchUiState.Results>(viewModel.uiState.value)
             assertEquals(listOf(article), state.articles)
         }
 
     @Test
     fun `match is case insensitive`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForSearch()
             val savedRepo = FakeSavedArticlesRepositoryForSearch()
             val article = article("https://example.com/1", title = "KOTLIN")
             newsRepo.seed(listOf(article))
 
-            val presenter = createPresenter(newsRepo, savedRepo, this)
+            val viewModel = createViewModel(newsRepo, savedRepo)
             advanceUntilIdle()
-            presenter.setQuery("kotlin")
+            viewModel.setQuery("kotlin")
             advanceUntilIdle()
 
-            val state = assertIs<SearchUiState.Results>(presenter.uiState.value)
+            val state = assertIs<SearchUiState.Results>(viewModel.uiState.value)
             assertEquals(listOf(article), state.articles)
         }
 
     @Test
     fun `query is trimmed before matching`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForSearch()
             val savedRepo = FakeSavedArticlesRepositoryForSearch()
             val article = article("https://example.com/1", title = "Kotlin")
             newsRepo.seed(listOf(article))
 
-            val presenter = createPresenter(newsRepo, savedRepo, this)
+            val viewModel = createViewModel(newsRepo, savedRepo)
             advanceUntilIdle()
-            presenter.setQuery("  kotlin  ")
+            viewModel.setQuery("  kotlin  ")
             advanceUntilIdle()
 
-            val state = assertIs<SearchUiState.Results>(presenter.uiState.value)
+            val state = assertIs<SearchUiState.Results>(viewModel.uiState.value)
             assertEquals("kotlin", state.query)
             assertEquals(listOf(article), state.articles)
         }
 
     @Test
     fun `blank trimmed query falls back to idle`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForSearch()
             val savedRepo = FakeSavedArticlesRepositoryForSearch()
             newsRepo.seed(listOf(article("https://example.com/1")))
 
-            val presenter = createPresenter(newsRepo, savedRepo, this)
+            val viewModel = createViewModel(newsRepo, savedRepo)
             advanceUntilIdle()
-            presenter.setQuery("   ")
+            viewModel.setQuery("   ")
             advanceUntilIdle()
 
-            assertEquals(SearchUiState.Idle, presenter.uiState.value)
+            assertEquals(SearchUiState.Idle, viewModel.uiState.value)
         }
 
     @Test
     fun `no matches shows no results`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForSearch()
             val savedRepo = FakeSavedArticlesRepositoryForSearch()
             newsRepo.seed(listOf(article("https://example.com/1", title = "Kotlin")))
 
-            val presenter = createPresenter(newsRepo, savedRepo, this)
+            val viewModel = createViewModel(newsRepo, savedRepo)
             advanceUntilIdle()
-            presenter.setQuery("swift")
+            viewModel.setQuery("swift")
             advanceUntilIdle()
 
-            val state = assertIs<SearchUiState.NoResults>(presenter.uiState.value)
+            val state = assertIs<SearchUiState.NoResults>(viewModel.uiState.value)
             assertEquals("swift", state.query)
         }
 
     @Test
     fun `results preserve source ordering`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForSearch()
             val savedRepo = FakeSavedArticlesRepositoryForSearch()
             val first = article("https://example.com/1", title = "Kotlin first")
@@ -260,63 +272,63 @@ class SearchPresenterTest {
             val third = article("https://example.com/3", title = "Other")
             newsRepo.seed(listOf(first, second, third))
 
-            val presenter = createPresenter(newsRepo, savedRepo, this)
+            val viewModel = createViewModel(newsRepo, savedRepo)
             advanceUntilIdle()
-            presenter.setQuery("Kotlin")
+            viewModel.setQuery("Kotlin")
             advanceUntilIdle()
 
-            val state = assertIs<SearchUiState.Results>(presenter.uiState.value)
+            val state = assertIs<SearchUiState.Results>(viewModel.uiState.value)
             assertEquals(listOf(first, second), state.articles)
         }
 
     @Test
     fun `local article emissions update results`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForSearch()
             val savedRepo = FakeSavedArticlesRepositoryForSearch()
             val first = article("https://example.com/1", title = "Kotlin old")
             newsRepo.seed(listOf(first))
 
-            val presenter = createPresenter(newsRepo, savedRepo, this, initialQuery = "Kotlin")
+            val viewModel = createViewModel(newsRepo, savedRepo, initialQuery = "Kotlin")
             advanceUntilIdle()
 
             val second = article("https://example.com/2", title = "Kotlin new")
             newsRepo.seed(listOf(first, second))
             advanceUntilIdle()
 
-            val state = assertIs<SearchUiState.Results>(presenter.uiState.value)
+            val state = assertIs<SearchUiState.Results>(viewModel.uiState.value)
             assertEquals(2, state.articles.size)
         }
 
     @Test
     fun `saved urls update reactively`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForSearch()
             val savedRepo = FakeSavedArticlesRepositoryForSearch()
             val article = article("https://example.com/1", title = "Kotlin")
             newsRepo.seed(listOf(article))
 
-            val presenter = createPresenter(newsRepo, savedRepo, this, initialQuery = "Kotlin")
+            val viewModel = createViewModel(newsRepo, savedRepo, initialQuery = "Kotlin")
             advanceUntilIdle()
 
             savedRepo.saveArticle(article)
             advanceUntilIdle()
 
-            val state = assertIs<SearchUiState.Results>(presenter.uiState.value)
+            val state = assertIs<SearchUiState.Results>(viewModel.uiState.value)
             assertEquals(setOf("https://example.com/1"), state.savedUrls)
         }
 
     @Test
     fun `bookmark save delegates to repository`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForSearch()
             val savedRepo = FakeSavedArticlesRepositoryForSearch()
             val article = article("https://example.com/1", title = "Kotlin")
             newsRepo.seed(listOf(article))
 
-            val presenter = createPresenter(newsRepo, savedRepo, this)
+            val viewModel = createViewModel(newsRepo, savedRepo)
             advanceUntilIdle()
-            presenter.toggleBookmark(article)
+            viewModel.toggleBookmark(article)
             advanceUntilIdle()
 
             assertEquals(article, savedRepo.lastSavedArticle)
@@ -324,16 +336,16 @@ class SearchPresenterTest {
 
     @Test
     fun `bookmark remove delegates to repository`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForSearch()
             val savedRepo = FakeSavedArticlesRepositoryForSearch()
             val article = article("https://example.com/1", title = "Kotlin")
             newsRepo.seed(listOf(article))
             savedRepo.saveArticle(article)
 
-            val presenter = createPresenter(newsRepo, savedRepo, this)
+            val viewModel = createViewModel(newsRepo, savedRepo)
             advanceUntilIdle()
-            presenter.toggleBookmark(article)
+            viewModel.toggleBookmark(article)
             advanceUntilIdle()
 
             assertEquals("https://example.com/1", savedRepo.lastRemovedUrl)
@@ -341,51 +353,54 @@ class SearchPresenterTest {
 
     @Test
     fun `persistence failure does not falsely flip saved state`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForSearch()
             val savedRepo = FailingSavedArticlesRepository()
             val article = article("https://example.com/1", title = "Kotlin")
             newsRepo.seed(listOf(article))
 
-            val presenter = createPresenter(newsRepo, savedRepo, this, initialQuery = "Kotlin")
+            val viewModel = createViewModel(newsRepo, savedRepo, initialQuery = "Kotlin")
             advanceUntilIdle()
-            presenter.toggleBookmark(article)
+            viewModel.toggleBookmark(article)
             advanceUntilIdle()
 
-            val state = assertIs<SearchUiState.Results>(presenter.uiState.value)
+            val state = assertIs<SearchUiState.Results>(viewModel.uiState.value)
             assertEquals(emptySet<String>(), state.savedUrls)
         }
 
     @Test
     fun `dispose cancels collection`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForSearch()
             val savedRepo = FakeSavedArticlesRepositoryForSearch()
             newsRepo.seed(listOf(article("https://example.com/1")))
 
-            val presenter = createPresenter(newsRepo, savedRepo, this)
+            val viewModel = createViewModel(newsRepo, savedRepo)
             advanceUntilIdle()
 
-            presenter.dispose()
+            ViewModelStore().apply {
+                put("viewModel", viewModel)
+                clear()
+            }
             advanceUntilIdle()
 
             newsRepo.seed(listOf(article("https://example.com/2")))
             advanceUntilIdle()
 
-            assertEquals(SearchUiState.Idle, presenter.uiState.value)
+            assertEquals(SearchUiState.Idle, viewModel.uiState.value)
         }
 
     @Test
     fun `initial query is reflected in query state`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForSearch()
             val savedRepo = FakeSavedArticlesRepositoryForSearch()
             newsRepo.seed(listOf(article("https://example.com/1", title = "Kotlin")))
 
-            val presenter = createPresenter(newsRepo, savedRepo, this, initialQuery = "Kotlin")
+            val viewModel = createViewModel(newsRepo, savedRepo, initialQuery = "Kotlin")
             advanceUntilIdle()
 
-            assertEquals("Kotlin", presenter.query.value)
-            assertIs<SearchUiState.Results>(presenter.uiState.value)
+            assertEquals("Kotlin", viewModel.query.value)
+            assertIs<SearchUiState.Results>(viewModel.uiState.value)
         }
 }

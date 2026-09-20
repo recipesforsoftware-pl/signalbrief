@@ -55,7 +55,7 @@ private val SigbyStateSize = 120.dp
  * is invoked when the user taps any article card; the host decides how to open
  * [Article.url] (for example through a platform URI handler). [onBookmarkClick]
  * is invoked when the user taps the bookmark action on an article with a valid
- * URL; the host delegates to the presenter's toggle logic. [onSearchClick]
+ * URL; the host delegates to the ViewModel's toggle logic. [onSearchClick]
  * opens the Local Search child screen. [topBarActions] is an optional
  * host-provided slot (for example the Android dark-mode menu); it defaults to
  * nothing so both platforms render the same core screen.

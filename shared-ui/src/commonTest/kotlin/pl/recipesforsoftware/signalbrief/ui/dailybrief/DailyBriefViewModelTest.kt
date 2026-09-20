@@ -1,5 +1,7 @@
 package pl.recipesforsoftware.signalbrief.ui.dailybrief
 
+import androidx.lifecycle.ViewModelStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -7,7 +9,9 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.FeedSource
 import pl.recipesforsoftware.signalbrief.domain.model.Source
@@ -17,6 +21,16 @@ import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesReposito
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+
+private fun runViewModelTest(block: suspend TestScope.() -> Unit) =
+    runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            block()
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
 
 private class BriefNewsRepository : NewsRepository {
     val cached = MutableStateFlow<List<Article>>(emptyList())
@@ -61,107 +75,109 @@ private class BriefSavedRepository : SavedArticlesRepository {
 private fun briefArticle(url: String) = Article("Title $url", "Description", url, null, Source("source", "Source"))
 
 @OptIn(ExperimentalCoroutinesApi::class)
-private fun presenter(
+private fun viewModel(
     news: NewsRepository,
     saved: SavedArticlesRepository,
-    scope: TestScope,
-) = DailyBriefPresenter(news, saved, dispatcher = StandardTestDispatcher(scope.testScheduler))
+) = DailyBriefViewModel(news, saved)
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class DailyBriefPresenterTest {
+class DailyBriefViewModelTest {
     @Test fun `empty cache maps to empty`() =
-        runTest {
+        runViewModelTest {
             val news = BriefNewsRepository()
             val saved = BriefSavedRepository()
-            val presenter = presenter(news, saved, this)
+            val viewModel = viewModel(news, saved)
             advanceUntilIdle()
-            assertEquals(DailyBriefUiState.Empty, presenter.uiState.value)
+            assertEquals(DailyBriefUiState.Empty, viewModel.uiState.value)
             assertEquals(0, news.remoteCalls)
         }
 
     @Test fun `cached headlines are selected in capped source order`() =
-        runTest {
+        runViewModelTest {
             val news = BriefNewsRepository()
             val saved = BriefSavedRepository()
             news.cached.value = (1..6).map { briefArticle("https://example.com/$it") }
-            val presenter = presenter(news, saved, this)
+            val viewModel = viewModel(news, saved)
             advanceUntilIdle()
-            val state = assertIs<DailyBriefUiState.Content>(presenter.uiState.value)
+            val state = assertIs<DailyBriefUiState.Content>(viewModel.uiState.value)
             assertEquals((1..5).map { "https://example.com/$it" }, state.articles.map { it.url })
         }
 
     @Test fun `cache and saved emissions update state reactively`() =
-        runTest {
+        runViewModelTest {
             val news = BriefNewsRepository()
             val saved = BriefSavedRepository()
             val article = briefArticle("https://example.com/1")
-            val presenter = presenter(news, saved, this)
+            val viewModel = viewModel(news, saved)
             advanceUntilIdle()
             news.cached.value = listOf(article)
             advanceUntilIdle()
             saved.saved.value = listOf(article)
             advanceUntilIdle()
-            assertEquals(setOf(article.url), assertIs<DailyBriefUiState.Content>(presenter.uiState.value).savedUrls)
+            assertEquals(setOf(article.url), assertIs<DailyBriefUiState.Content>(viewModel.uiState.value).savedUrls)
         }
 
     @Test fun `bookmark save and remove delegate through persistence`() =
-        runTest {
+        runViewModelTest {
             val news = BriefNewsRepository()
             val saved = BriefSavedRepository()
             val article = briefArticle("https://example.com/1")
             news.cached.value = listOf(article)
-            val presenter = presenter(news, saved, this)
+            val viewModel = viewModel(news, saved)
             advanceUntilIdle()
-            presenter.toggleBookmark(article)
+            viewModel.toggleBookmark(article)
             advanceUntilIdle()
             assertEquals(1, saved.saveCalls)
-            presenter.toggleBookmark(article)
+            viewModel.toggleBookmark(article)
             advanceUntilIdle()
             assertEquals(1, saved.removeCalls)
         }
 
     @Test fun `failed save leaves article unsaved`() =
-        runTest {
+        runViewModelTest {
             val news = BriefNewsRepository()
             val saved = BriefSavedRepository()
             val article = briefArticle("https://example.com/1")
             news.cached.value = listOf(article)
             saved.saveResult = Result.failure(IllegalStateException("save failed"))
-            val presenter = presenter(news, saved, this)
+            val viewModel = viewModel(news, saved)
             advanceUntilIdle()
 
-            presenter.toggleBookmark(article)
+            viewModel.toggleBookmark(article)
             advanceUntilIdle()
 
-            assertEquals(emptySet(), assertIs<DailyBriefUiState.Content>(presenter.uiState.value).savedUrls)
+            assertEquals(emptySet(), assertIs<DailyBriefUiState.Content>(viewModel.uiState.value).savedUrls)
         }
 
     @Test fun `failed remove leaves article saved`() =
-        runTest {
+        runViewModelTest {
             val news = BriefNewsRepository()
             val saved = BriefSavedRepository()
             val article = briefArticle("https://example.com/1")
             news.cached.value = listOf(article)
             saved.saved.value = listOf(article)
             saved.removeResult = Result.failure(IllegalStateException("remove failed"))
-            val presenter = presenter(news, saved, this)
+            val viewModel = viewModel(news, saved)
             advanceUntilIdle()
 
-            presenter.toggleBookmark(article)
+            viewModel.toggleBookmark(article)
             advanceUntilIdle()
 
-            assertEquals(setOf(article.url), assertIs<DailyBriefUiState.Content>(presenter.uiState.value).savedUrls)
+            assertEquals(setOf(article.url), assertIs<DailyBriefUiState.Content>(viewModel.uiState.value).savedUrls)
         }
 
     @Test fun `dispose stops collecting cache`() =
-        runTest {
+        runViewModelTest {
             val news = BriefNewsRepository()
             val saved = BriefSavedRepository()
-            val presenter = presenter(news, saved, this)
+            val viewModel = viewModel(news, saved)
             advanceUntilIdle()
-            presenter.dispose()
+            ViewModelStore().apply {
+                put("viewModel", viewModel)
+                clear()
+            }
             news.cached.value = listOf(briefArticle("https://example.com/1"))
             advanceUntilIdle()
-            assertEquals(DailyBriefUiState.Empty, presenter.uiState.value)
+            assertEquals(DailyBriefUiState.Empty, viewModel.uiState.value)
         }
 }

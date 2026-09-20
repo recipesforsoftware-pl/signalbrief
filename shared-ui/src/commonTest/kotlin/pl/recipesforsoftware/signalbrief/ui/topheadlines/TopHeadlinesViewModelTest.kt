@@ -1,7 +1,9 @@
 package pl.recipesforsoftware.signalbrief.ui.topheadlines
 
+import androidx.lifecycle.ViewModelStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -9,7 +11,9 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import pl.recipesforsoftware.signalbrief.domain.failure.NewsFailure
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.FeedSource
@@ -31,6 +35,17 @@ import kotlin.test.assertTrue
  * needs no synchronization. Cancellation is rethrown (never swallowed) and
  * recorded so tests can assert structured-concurrency behaviour.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
+private fun runTopHeadlinesViewModelTest(block: suspend TestScope.() -> Unit) =
+    runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            block()
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
 private class FakeNewsRepository : NewsRepository {
     private val gates = mutableListOf<CompletableDeferred<Unit>>()
 
@@ -66,7 +81,7 @@ private class FakeNewsRepository : NewsRepository {
     }
 }
 
-private class FakeSavedArticlesRepositoryForPresenterTests : SavedArticlesRepository {
+private class FakeSavedArticlesRepositoryForViewModelTests : SavedArticlesRepository {
     private val savedArticles = MutableStateFlow<List<Article>>(emptyList())
 
     override fun observeAllSavedArticles() = savedArticles
@@ -101,44 +116,42 @@ private fun feed(
 ): Result<TopHeadlinesFeed> = Result.success(TopHeadlinesFeed(articles, source))
 
 @OptIn(ExperimentalCoroutinesApi::class)
-private fun createPresenter(
+private fun createViewModel(
     repository: NewsRepository,
-    scope: TestScope,
-    savedArticlesRepository: SavedArticlesRepository = FakeSavedArticlesRepositoryForPresenterTests(),
+    savedArticlesRepository: SavedArticlesRepository = FakeSavedArticlesRepositoryForViewModelTests(),
     country: String = DEFAULT_NEWS_COUNTRY,
-): TopHeadlinesPresenter =
-    TopHeadlinesPresenter(
+): TopHeadlinesViewModel =
+    TopHeadlinesViewModel(
         repository = repository,
         savedArticlesRepository = savedArticlesRepository,
         country = country,
-        dispatcher = StandardTestDispatcher(scope.testScheduler),
     )
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class TopHeadlinesPresenterTest {
+class TopHeadlinesViewModelTest {
     @Test
     fun `loading is shown while the initial fetch is in flight`() =
-        runTest {
+        runTopHeadlinesViewModelTest {
             val repository = FakeNewsRepository()
-            val presenter = createPresenter(repository, this)
+            val viewModel = createViewModel(repository)
 
-            assertEquals(TopHeadlinesUiState.Loading, presenter.uiState.value)
+            assertEquals(TopHeadlinesUiState.Loading, viewModel.uiState.value)
             advanceUntilIdle()
             assertEquals(1, repository.callCount)
-            assertEquals(TopHeadlinesUiState.Loading, presenter.uiState.value)
+            assertEquals(TopHeadlinesUiState.Loading, viewModel.uiState.value)
 
             repository.nextResult = feed(listOf(article(1)))
             repository.releaseCall(0)
             advanceUntilIdle()
 
-            assertIs<TopHeadlinesUiState.Success>(presenter.uiState.value)
+            assertIs<TopHeadlinesUiState.Success>(viewModel.uiState.value)
         }
 
     @Test
     fun `success exposes the loaded articles and the configured country`() =
-        runTest {
+        runTopHeadlinesViewModelTest {
             val repository = FakeNewsRepository()
-            val presenter = createPresenter(repository, this, country = "de")
+            val viewModel = createViewModel(repository, country = "de")
             advanceUntilIdle()
 
             repository.nextResult = feed(listOf(article(1), article(2)))
@@ -146,46 +159,46 @@ class TopHeadlinesPresenterTest {
             advanceUntilIdle()
 
             assertEquals("de", repository.lastCountry)
-            val state = assertIs<TopHeadlinesUiState.Success>(presenter.uiState.value)
+            val state = assertIs<TopHeadlinesUiState.Success>(viewModel.uiState.value)
             assertEquals(listOf(article(1), article(2)), state.articles)
             assertEquals(FeedSource.NETWORK, state.source)
         }
 
     @Test
     fun `cached feed exposes the cache provenance in the success state`() =
-        runTest {
+        runTopHeadlinesViewModelTest {
             val repository = FakeNewsRepository()
-            val presenter = createPresenter(repository, this)
+            val viewModel = createViewModel(repository)
             advanceUntilIdle()
 
             repository.nextResult = feed(listOf(article(1)), source = FeedSource.CACHE)
             repository.releaseCall(0)
             advanceUntilIdle()
 
-            val state = assertIs<TopHeadlinesUiState.Success>(presenter.uiState.value)
+            val state = assertIs<TopHeadlinesUiState.Success>(viewModel.uiState.value)
             assertEquals(listOf(article(1)), state.articles)
             assertEquals(FeedSource.CACHE, state.source)
         }
 
     @Test
     fun `empty feed maps to the empty state`() =
-        runTest {
+        runTopHeadlinesViewModelTest {
             val repository = FakeNewsRepository()
-            val presenter = createPresenter(repository, this)
+            val viewModel = createViewModel(repository)
             advanceUntilIdle()
 
             repository.nextResult = feed(emptyList())
             repository.releaseCall(0)
             advanceUntilIdle()
 
-            assertEquals(TopHeadlinesUiState.Empty, presenter.uiState.value)
+            assertEquals(TopHeadlinesUiState.Empty, viewModel.uiState.value)
         }
 
     @Test
     fun `network failure maps to the network error state`() =
-        runTest {
+        runTopHeadlinesViewModelTest {
             val repository = FakeNewsRepository()
-            val presenter = createPresenter(repository, this)
+            val viewModel = createViewModel(repository)
             advanceUntilIdle()
 
             repository.nextResult = Result.failure(NewsFailure.Network)
@@ -194,15 +207,15 @@ class TopHeadlinesPresenterTest {
 
             assertEquals(
                 TopHeadlinesUiState.Error(TopHeadlinesError.Network),
-                presenter.uiState.value,
+                viewModel.uiState.value,
             )
         }
 
     @Test
     fun `invalid data failure maps to the invalid data error state`() =
-        runTest {
+        runTopHeadlinesViewModelTest {
             val repository = FakeNewsRepository()
-            val presenter = createPresenter(repository, this)
+            val viewModel = createViewModel(repository)
             advanceUntilIdle()
 
             repository.nextResult = Result.failure(NewsFailure.InvalidData)
@@ -211,15 +224,15 @@ class TopHeadlinesPresenterTest {
 
             assertEquals(
                 TopHeadlinesUiState.Error(TopHeadlinesError.InvalidData),
-                presenter.uiState.value,
+                viewModel.uiState.value,
             )
         }
 
     @Test
     fun `unknown typed failure maps to the unknown error state`() =
-        runTest {
+        runTopHeadlinesViewModelTest {
             val repository = FakeNewsRepository()
-            val presenter = createPresenter(repository, this)
+            val viewModel = createViewModel(repository)
             advanceUntilIdle()
 
             repository.nextResult = Result.failure(NewsFailure.Unknown(IllegalStateException("boom")))
@@ -228,15 +241,15 @@ class TopHeadlinesPresenterTest {
 
             assertEquals(
                 TopHeadlinesUiState.Error(TopHeadlinesError.Unknown),
-                presenter.uiState.value,
+                viewModel.uiState.value,
             )
         }
 
     @Test
     fun `unclassified failure maps to the unknown error state`() =
-        runTest {
+        runTopHeadlinesViewModelTest {
             val repository = FakeNewsRepository()
-            val presenter = createPresenter(repository, this)
+            val viewModel = createViewModel(repository)
             advanceUntilIdle()
 
             repository.nextResult = Result.failure(IllegalStateException("boom"))
@@ -245,42 +258,45 @@ class TopHeadlinesPresenterTest {
 
             assertEquals(
                 TopHeadlinesUiState.Error(TopHeadlinesError.Unknown),
-                presenter.uiState.value,
+                viewModel.uiState.value,
             )
         }
 
     @Test
     fun `retry after a failure loads fresh data`() =
-        runTest {
+        runTopHeadlinesViewModelTest {
             val repository = FakeNewsRepository()
-            val presenter = createPresenter(repository, this)
+            val viewModel = createViewModel(repository)
             advanceUntilIdle()
 
             repository.nextResult = Result.failure(NewsFailure.Network)
             repository.releaseCall(0)
             advanceUntilIdle()
-            assertEquals(TopHeadlinesUiState.Error(TopHeadlinesError.Network), presenter.uiState.value)
+            assertEquals(TopHeadlinesUiState.Error(TopHeadlinesError.Network), viewModel.uiState.value)
 
-            presenter.refresh()
+            viewModel.refresh()
             advanceUntilIdle()
             repository.nextResult = feed(listOf(article(1)))
             repository.releaseCall(1)
             advanceUntilIdle()
 
-            val state = assertIs<TopHeadlinesUiState.Success>(presenter.uiState.value)
+            val state = assertIs<TopHeadlinesUiState.Success>(viewModel.uiState.value)
             assertEquals(listOf(article(1)), state.articles)
         }
 
     @Test
     fun `dispose cancels the in-flight repository call`() =
-        runTest {
+        runTopHeadlinesViewModelTest {
             val repository = FakeNewsRepository()
-            val presenter = createPresenter(repository, this)
+            val viewModel = createViewModel(repository)
 
             advanceUntilIdle()
             assertEquals(1, repository.callCount)
 
-            presenter.dispose()
+            ViewModelStore().apply {
+                put("viewModel", viewModel)
+                clear()
+            }
             advanceUntilIdle()
 
             assertTrue(repository.lastCancelled, "In-flight call was not cancelled by dispose")
@@ -288,12 +304,15 @@ class TopHeadlinesPresenterTest {
 
     @Test
     fun `refresh after dispose is ignored`() =
-        runTest {
+        runTopHeadlinesViewModelTest {
             val repository = FakeNewsRepository()
-            val presenter = createPresenter(repository, this)
+            val viewModel = createViewModel(repository)
 
-            presenter.dispose()
-            presenter.refresh()
+            ViewModelStore().apply {
+                put("viewModel", viewModel)
+                clear()
+            }
+            viewModel.refresh()
             advanceUntilIdle()
 
             assertEquals(0, repository.callCount, "No call should be started once the scope is cancelled")
@@ -301,34 +320,34 @@ class TopHeadlinesPresenterTest {
 
     @Test
     fun `stale response does not overwrite a newer one`() =
-        runTest {
+        runTopHeadlinesViewModelTest {
             val repository = FakeNewsRepository()
-            val presenter = createPresenter(repository, this)
+            val viewModel = createViewModel(repository)
 
             advanceUntilIdle()
             repository.nextResult = feed(listOf(article(1)))
             repository.releaseCall(0)
             advanceUntilIdle()
-            assertIs<TopHeadlinesUiState.Success>(presenter.uiState.value)
+            assertIs<TopHeadlinesUiState.Success>(viewModel.uiState.value)
 
-            presenter.refresh()
+            viewModel.refresh()
             advanceUntilIdle()
             assertEquals(2, repository.callCount)
 
-            presenter.refresh()
+            viewModel.refresh()
             advanceUntilIdle()
             assertEquals(3, repository.callCount)
 
             repository.nextResult = feed(listOf(article(3)))
             repository.releaseCall(2)
             advanceUntilIdle()
-            assertEquals(listOf(article(3)), assertIs<TopHeadlinesUiState.Success>(presenter.uiState.value).articles)
+            assertEquals(listOf(article(3)), assertIs<TopHeadlinesUiState.Success>(viewModel.uiState.value).articles)
 
             repository.nextResult = Result.failure(NewsFailure.Network)
             repository.releaseCall(1)
             advanceUntilIdle()
 
-            val state = assertIs<TopHeadlinesUiState.Success>(presenter.uiState.value)
+            val state = assertIs<TopHeadlinesUiState.Success>(viewModel.uiState.value)
             assertEquals(listOf(article(3)), state.articles, "Stale response must not replace newer data")
         }
 }

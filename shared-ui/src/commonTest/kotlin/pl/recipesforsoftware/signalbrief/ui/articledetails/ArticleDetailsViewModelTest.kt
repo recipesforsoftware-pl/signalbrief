@@ -1,5 +1,7 @@
 package pl.recipesforsoftware.signalbrief.ui.articledetails
 
+import androidx.lifecycle.ViewModelStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -9,7 +11,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.Source
 import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
@@ -18,6 +22,16 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+
+private fun runViewModelTest(block: suspend TestScope.() -> Unit) =
+    runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            block()
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
 
 private class FakeSavedArticlesRepositoryForDetailsTests : SavedArticlesRepository {
     private val _savedArticles = MutableStateFlow<List<Article>>(emptyList())
@@ -86,78 +100,76 @@ private fun testArticle(id: Int): Article =
     )
 
 @OptIn(ExperimentalCoroutinesApi::class)
-private fun createPresenter(
+private fun createViewModel(
     savedArticlesRepository: SavedArticlesRepository,
     article: Article,
-    scope: TestScope,
-): ArticleDetailsPresenter =
-    ArticleDetailsPresenter(
+): ArticleDetailsViewModel =
+    ArticleDetailsViewModel(
         savedArticlesRepository = savedArticlesRepository,
         article = article,
-        dispatcher = StandardTestDispatcher(scope.testScheduler),
     )
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class ArticleDetailsPresenterTest {
+class ArticleDetailsViewModelTest {
     @Test
     fun `unsaved article starts as unsaved`() =
-        runTest {
+        runViewModelTest {
             val savedRepo = FakeSavedArticlesRepositoryForDetailsTests()
             val article = testArticle(1)
 
-            val presenter = createPresenter(savedRepo, article, this)
+            val viewModel = createViewModel(savedRepo, article)
             advanceUntilIdle()
 
-            val state = assertIs<ArticleDetailsUiState>(presenter.uiState.value)
+            val state = assertIs<ArticleDetailsUiState>(viewModel.uiState.value)
             assertFalse(state.isSaved, "Unsaved article should not be marked saved")
             assertEquals(article, state.article)
         }
 
     @Test
     fun `persisted article appears as saved`() =
-        runTest {
+        runViewModelTest {
             val savedRepo = FakeSavedArticlesRepositoryForDetailsTests()
             val article = testArticle(1)
             savedRepo.saveArticle(article)
 
-            val presenter = createPresenter(savedRepo, article, this)
+            val viewModel = createViewModel(savedRepo, article)
             advanceUntilIdle()
 
-            val state = assertIs<ArticleDetailsUiState>(presenter.uiState.value)
+            val state = assertIs<ArticleDetailsUiState>(viewModel.uiState.value)
             assertTrue(state.isSaved, "Persisted article should be marked saved")
         }
 
     @Test
     fun `repository emission updates bookmark state reactively`() =
-        runTest {
+        runViewModelTest {
             val savedRepo = FakeSavedArticlesRepositoryForDetailsTests()
             val article = testArticle(1)
 
-            val presenter = createPresenter(savedRepo, article, this)
+            val viewModel = createViewModel(savedRepo, article)
             advanceUntilIdle()
-            assertFalse(presenter.uiState.value.isSaved)
+            assertFalse(viewModel.uiState.value.isSaved)
 
             savedRepo.saveArticle(article)
             advanceUntilIdle()
 
-            assertTrue(presenter.uiState.value.isSaved, "Save emission should flip details state to saved")
+            assertTrue(viewModel.uiState.value.isSaved, "Save emission should flip details state to saved")
 
             savedRepo.removeSavedArticle(article.url)
             advanceUntilIdle()
 
-            assertFalse(presenter.uiState.value.isSaved, "Remove emission should flip details state to unsaved")
+            assertFalse(viewModel.uiState.value.isSaved, "Remove emission should flip details state to unsaved")
         }
 
     @Test
     fun `toggle on unsaved article delegates to saveArticle`() =
-        runTest {
+        runViewModelTest {
             val savedRepo = FakeSavedArticlesRepositoryForDetailsTests()
             val article = testArticle(1)
 
-            val presenter = createPresenter(savedRepo, article, this)
+            val viewModel = createViewModel(savedRepo, article)
             advanceUntilIdle()
 
-            presenter.toggleBookmark()
+            viewModel.toggleBookmark()
             advanceUntilIdle()
 
             assertEquals(1, savedRepo.saveCalls.size)
@@ -167,15 +179,15 @@ class ArticleDetailsPresenterTest {
 
     @Test
     fun `toggle on saved article delegates to removeSavedArticle`() =
-        runTest {
+        runViewModelTest {
             val savedRepo = FakeSavedArticlesRepositoryForDetailsTests()
             val article = testArticle(1)
             savedRepo.saveArticle(article)
 
-            val presenter = createPresenter(savedRepo, article, this)
+            val viewModel = createViewModel(savedRepo, article)
             advanceUntilIdle()
 
-            presenter.toggleBookmark()
+            viewModel.toggleBookmark()
             advanceUntilIdle()
 
             assertEquals(1, savedRepo.removeCalls.size)
@@ -185,89 +197,92 @@ class ArticleDetailsPresenterTest {
 
     @Test
     fun `save failure does not falsely mark article saved`() =
-        runTest {
+        runViewModelTest {
             val failingRepo = FailingSavedArticlesRepositoryForDetails()
             val article = testArticle(1)
 
-            val presenter = createPresenter(failingRepo, article, this)
+            val viewModel = createViewModel(failingRepo, article)
             advanceUntilIdle()
 
-            presenter.toggleBookmark()
+            viewModel.toggleBookmark()
             advanceUntilIdle()
 
             assertFalse(
-                presenter.uiState.value.isSaved,
+                viewModel.uiState.value.isSaved,
                 "Failed save must not leave the details state saved",
             )
         }
 
     @Test
     fun `remove failure does not falsely mark article unsaved`() =
-        runTest {
+        runViewModelTest {
             val article = testArticle(1)
             val failingRepo =
                 object : SavedArticlesRepository by FailingSavedArticlesRepositoryForDetails() {
                     override fun isArticleSaved(url: String): Flow<Boolean> = flowOf(true)
                 }
 
-            val presenter = createPresenter(failingRepo, article, this)
+            val viewModel = createViewModel(failingRepo, article)
             advanceUntilIdle()
-            assertTrue(presenter.uiState.value.isSaved)
+            assertTrue(viewModel.uiState.value.isSaved)
 
-            presenter.toggleBookmark()
+            viewModel.toggleBookmark()
             advanceUntilIdle()
 
             assertTrue(
-                presenter.uiState.value.isSaved,
+                viewModel.uiState.value.isSaved,
                 "Failed remove must keep the persisted saved state",
             )
         }
 
     @Test
     fun `state converges to persistence truth after initial emission`() =
-        runTest {
+        runViewModelTest {
             val article = testArticle(1)
             val slowRepo = SlowEmissionSavedArticlesRepository(savedValue = true)
 
-            val presenter = createPresenter(slowRepo, article, this)
+            val viewModel = createViewModel(slowRepo, article)
 
             assertFalse(
-                presenter.uiState.value.isSaved,
-                "Before the first emission the presenter must not guess the saved state",
+                viewModel.uiState.value.isSaved,
+                "Before the first emission the viewModel must not guess the saved state",
             )
 
             advanceUntilIdle()
 
             assertTrue(
-                presenter.uiState.value.isSaved,
+                viewModel.uiState.value.isSaved,
                 "After the persistence emission the state must mirror the repository",
             )
         }
 
     @Test
     fun `dispose cancels the collection`() =
-        runTest {
+        runViewModelTest {
             val savedRepo = FakeSavedArticlesRepositoryForDetailsTests()
             val article = testArticle(1)
 
-            val presenter = createPresenter(savedRepo, article, this)
+            val viewModel = createViewModel(savedRepo, article)
             advanceUntilIdle()
 
-            presenter.dispose()
+            ViewModelStore().apply {
+                put("viewModel", viewModel)
+                clear()
+            }
             advanceUntilIdle()
 
             savedRepo.saveArticle(article)
             advanceUntilIdle()
 
             assertFalse(
-                presenter.uiState.value.isSaved,
-                "After dispose the presenter must stop observing persistence changes",
+                viewModel.uiState.value.isSaved,
+                "After dispose the viewModel must stop observing persistence changes",
             )
         }
 
     @Test
     fun `bookmark toggle is blocked for non actionable url`() =
-        runTest {
+        runViewModelTest {
             val savedRepo = FakeSavedArticlesRepositoryForDetailsTests()
             val article =
                 Article(
@@ -278,10 +293,10 @@ class ArticleDetailsPresenterTest {
                     source = null,
                 )
 
-            val presenter = createPresenter(savedRepo, article, this)
+            val viewModel = createViewModel(savedRepo, article)
             advanceUntilIdle()
 
-            presenter.toggleBookmark()
+            viewModel.toggleBookmark()
             advanceUntilIdle()
 
             assertEquals(0, savedRepo.saveCalls.size, "Blank URL must not be saved")

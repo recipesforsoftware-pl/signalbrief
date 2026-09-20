@@ -50,7 +50,7 @@ private val SigbyStateSize = 120.dp
  *
  * Stateless: receives the current query, [SearchUiState], and user callbacks
  * from the host, renders every state, and never fetches data itself. Search
- * operates only over the locally cached headlines supplied by the presenter.
+ * operates only over the locally cached headlines supplied by the ViewModel.
  *
  * The search field requests focus when the screen first appears so the user
  * can start typing immediately. Result cards reuse [ArticleCard] and mirror

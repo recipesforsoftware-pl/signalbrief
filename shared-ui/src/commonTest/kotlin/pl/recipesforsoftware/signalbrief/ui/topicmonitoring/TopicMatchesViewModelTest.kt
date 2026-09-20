@@ -1,5 +1,7 @@
 package pl.recipesforsoftware.signalbrief.ui.topicmonitoring
 
+import androidx.lifecycle.ViewModelStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -7,7 +9,9 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.FeedSource
 import pl.recipesforsoftware.signalbrief.domain.model.MonitoredTopic
@@ -18,6 +22,16 @@ import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesReposito
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+
+private fun runViewModelTest(block: suspend TestScope.() -> Unit) =
+    runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            block()
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
 
 private class FakeNewsRepositoryForMatches : NewsRepository {
     private val cachedArticles = MutableStateFlow<List<Article>>(emptyList())
@@ -78,24 +92,22 @@ private fun article(
     )
 
 @OptIn(ExperimentalCoroutinesApi::class)
-private fun createPresenter(
+private fun createViewModel(
     topic: MonitoredTopic,
     newsRepository: NewsRepository,
     savedArticlesRepository: SavedArticlesRepository,
-    scope: TestScope,
-): TopicMatchesPresenter =
-    TopicMatchesPresenter(
+): TopicMatchesViewModel =
+    TopicMatchesViewModel(
         topic = topic,
         newsRepository = newsRepository,
         savedArticlesRepository = savedArticlesRepository,
-        dispatcher = StandardTestDispatcher(scope.testScheduler),
     )
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class TopicMatchesPresenterTest {
+class TopicMatchesViewModelTest {
     @Test
     fun `initial cached emission returns expected matches`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForMatches()
             val savedRepo = FakeSavedArticlesRepositoryForMatches()
             val topic = MonitoredTopic("1", "Kotlin")
@@ -103,10 +115,10 @@ class TopicMatchesPresenterTest {
             val other = article("https://example.com/2", title = "Swift news")
             newsRepo.seed(listOf(matching, other))
 
-            val presenter = createPresenter(topic, newsRepo, savedRepo, this)
+            val viewModel = createViewModel(topic, newsRepo, savedRepo)
             advanceUntilIdle()
 
-            val state = assertIs<TopicMatchesUiState.Content>(presenter.uiState.value)
+            val state = assertIs<TopicMatchesUiState.Content>(viewModel.uiState.value)
             assertEquals(topic, state.topic)
             assertEquals(listOf(matching), state.articles)
             assertEquals(0, newsRepo.getTopHeadlinesCallCount)
@@ -114,37 +126,37 @@ class TopicMatchesPresenterTest {
 
     @Test
     fun `no local articles shows no local articles state`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForMatches()
             val savedRepo = FakeSavedArticlesRepositoryForMatches()
             val topic = MonitoredTopic("1", "Kotlin")
 
-            val presenter = createPresenter(topic, newsRepo, savedRepo, this)
+            val viewModel = createViewModel(topic, newsRepo, savedRepo)
             advanceUntilIdle()
 
-            val state = assertIs<TopicMatchesUiState.NoLocalArticles>(presenter.uiState.value)
+            val state = assertIs<TopicMatchesUiState.NoLocalArticles>(viewModel.uiState.value)
             assertEquals(topic, state.topic)
             assertEquals(0, newsRepo.getTopHeadlinesCallCount)
         }
 
     @Test
     fun `local articles with zero matches shows no matches state`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForMatches()
             val savedRepo = FakeSavedArticlesRepositoryForMatches()
             val topic = MonitoredTopic("1", "Kotlin")
             newsRepo.seed(listOf(article("https://example.com/1", title = "Swift news")))
 
-            val presenter = createPresenter(topic, newsRepo, savedRepo, this)
+            val viewModel = createViewModel(topic, newsRepo, savedRepo)
             advanceUntilIdle()
 
-            val state = assertIs<TopicMatchesUiState.NoMatches>(presenter.uiState.value)
+            val state = assertIs<TopicMatchesUiState.NoMatches>(viewModel.uiState.value)
             assertEquals(topic, state.topic)
         }
 
     @Test
     fun `matching is case insensitive`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForMatches()
             val savedRepo = FakeSavedArticlesRepositoryForMatches()
             val topic = MonitoredTopic("1", "kotlin")
@@ -152,37 +164,37 @@ class TopicMatchesPresenterTest {
 
             newsRepo.seed(listOf(matching))
 
-            val presenter = createPresenter(topic, newsRepo, savedRepo, this)
+            val viewModel = createViewModel(topic, newsRepo, savedRepo)
             advanceUntilIdle()
 
-            val state = assertIs<TopicMatchesUiState.Content>(presenter.uiState.value)
+            val state = assertIs<TopicMatchesUiState.Content>(viewModel.uiState.value)
             assertEquals(listOf(matching), state.articles)
         }
 
     @Test
     fun `cached feed updates recompute matches reactively`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForMatches()
             val savedRepo = FakeSavedArticlesRepositoryForMatches()
             val topic = MonitoredTopic("1", "Kotlin")
             val first = article("https://example.com/1", title = "Kotlin old")
             newsRepo.seed(listOf(first))
 
-            val presenter = createPresenter(topic, newsRepo, savedRepo, this)
+            val viewModel = createViewModel(topic, newsRepo, savedRepo)
             advanceUntilIdle()
-            assertIs<TopicMatchesUiState.Content>(presenter.uiState.value)
+            assertIs<TopicMatchesUiState.Content>(viewModel.uiState.value)
 
             val second = article("https://example.com/2", title = "Kotlin new")
             newsRepo.seed(listOf(first, second))
             advanceUntilIdle()
 
-            val state = assertIs<TopicMatchesUiState.Content>(presenter.uiState.value)
+            val state = assertIs<TopicMatchesUiState.Content>(viewModel.uiState.value)
             assertEquals(2, state.articles.size)
         }
 
     @Test
     fun `result order follows cached feed order`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForMatches()
             val savedRepo = FakeSavedArticlesRepositoryForMatches()
             val topic = MonitoredTopic("1", "Kotlin")
@@ -191,16 +203,16 @@ class TopicMatchesPresenterTest {
             val third = article("https://example.com/3", title = "Kotlin second")
             newsRepo.seed(listOf(first, second, third))
 
-            val presenter = createPresenter(topic, newsRepo, savedRepo, this)
+            val viewModel = createViewModel(topic, newsRepo, savedRepo)
             advanceUntilIdle()
 
-            val state = assertIs<TopicMatchesUiState.Content>(presenter.uiState.value)
+            val state = assertIs<TopicMatchesUiState.Content>(viewModel.uiState.value)
             assertEquals(listOf(first, third), state.articles)
         }
 
     @Test
     fun `saved urls are reflected in content`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForMatches()
             val savedRepo = FakeSavedArticlesRepositoryForMatches()
             val topic = MonitoredTopic("1", "Kotlin")
@@ -208,25 +220,25 @@ class TopicMatchesPresenterTest {
             newsRepo.seed(listOf(matching))
             savedRepo.saveArticle(matching)
 
-            val presenter = createPresenter(topic, newsRepo, savedRepo, this)
+            val viewModel = createViewModel(topic, newsRepo, savedRepo)
             advanceUntilIdle()
 
-            val state = assertIs<TopicMatchesUiState.Content>(presenter.uiState.value)
+            val state = assertIs<TopicMatchesUiState.Content>(viewModel.uiState.value)
             assertEquals(setOf("https://example.com/1"), state.savedUrls)
         }
 
     @Test
     fun `bookmark save delegates to repository`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForMatches()
             val savedRepo = FakeSavedArticlesRepositoryForMatches()
             val topic = MonitoredTopic("1", "Kotlin")
             val matching = article("https://example.com/1", title = "Kotlin Multiplatform")
             newsRepo.seed(listOf(matching))
 
-            val presenter = createPresenter(topic, newsRepo, savedRepo, this)
+            val viewModel = createViewModel(topic, newsRepo, savedRepo)
             advanceUntilIdle()
-            presenter.toggleBookmark(matching)
+            viewModel.toggleBookmark(matching)
             advanceUntilIdle()
 
             assertEquals(matching, savedRepo.lastSavedArticle)
@@ -234,7 +246,7 @@ class TopicMatchesPresenterTest {
 
     @Test
     fun `bookmark remove delegates to repository`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForMatches()
             val savedRepo = FakeSavedArticlesRepositoryForMatches()
             val topic = MonitoredTopic("1", "Kotlin")
@@ -242,9 +254,9 @@ class TopicMatchesPresenterTest {
             newsRepo.seed(listOf(matching))
             savedRepo.saveArticle(matching)
 
-            val presenter = createPresenter(topic, newsRepo, savedRepo, this)
+            val viewModel = createViewModel(topic, newsRepo, savedRepo)
             advanceUntilIdle()
-            presenter.toggleBookmark(matching)
+            viewModel.toggleBookmark(matching)
             advanceUntilIdle()
 
             assertEquals("https://example.com/1", savedRepo.lastRemovedUrl)
@@ -252,13 +264,13 @@ class TopicMatchesPresenterTest {
 
     @Test
     fun `topic matching never calls getTopHeadlines`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForMatches()
             val savedRepo = FakeSavedArticlesRepositoryForMatches()
             val topic = MonitoredTopic("1", "Kotlin")
             newsRepo.seed(listOf(article("https://example.com/1", title = "Kotlin")))
 
-            val presenter = createPresenter(topic, newsRepo, savedRepo, this)
+            val viewModel = createViewModel(topic, newsRepo, savedRepo)
             advanceUntilIdle()
 
             assertEquals(0, newsRepo.getTopHeadlinesCallCount)
@@ -266,16 +278,19 @@ class TopicMatchesPresenterTest {
 
     @Test
     fun `dispose cancels collection`() =
-        runTest {
+        runViewModelTest {
             val newsRepo = FakeNewsRepositoryForMatches()
             val savedRepo = FakeSavedArticlesRepositoryForMatches()
             val topic = MonitoredTopic("1", "Kotlin")
             newsRepo.seed(listOf(article("https://example.com/1", title = "Kotlin")))
 
-            val presenter = createPresenter(topic, newsRepo, savedRepo, this)
+            val viewModel = createViewModel(topic, newsRepo, savedRepo)
             advanceUntilIdle()
 
-            presenter.dispose()
+            ViewModelStore().apply {
+                put("viewModel", viewModel)
+                clear()
+            }
             advanceUntilIdle()
 
             newsRepo.seed(listOf(article("https://example.com/2", title = "Kotlin two")))
@@ -283,7 +298,7 @@ class TopicMatchesPresenterTest {
 
             assertEquals(
                 1,
-                assertIs<TopicMatchesUiState.Content>(presenter.uiState.value).articles.size,
+                assertIs<TopicMatchesUiState.Content>(viewModel.uiState.value).articles.size,
             )
         }
 }

@@ -1,5 +1,6 @@
 package pl.recipesforsoftware.signalbrief.ui.topheadlines
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -8,7 +9,9 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.FeedSource
 import pl.recipesforsoftware.signalbrief.domain.model.Source
@@ -20,6 +23,17 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+
+@OptIn(ExperimentalCoroutinesApi::class)
+private fun runTopHeadlinesBookmarkViewModelTest(block: suspend TestScope.() -> Unit) =
+    runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            block()
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
 
 private class FakeNewsRepositoryForBookmarks : NewsRepository {
     var nextResult: Result<TopHeadlinesFeed> =
@@ -70,22 +84,20 @@ private fun testArticle(id: Int): Article =
     )
 
 @OptIn(ExperimentalCoroutinesApi::class)
-private fun createPresenterWithBookmarks(
+private fun createViewModelWithBookmarks(
     newsRepository: NewsRepository,
     savedArticlesRepository: SavedArticlesRepository,
-    scope: TestScope,
-): TopHeadlinesPresenter =
-    TopHeadlinesPresenter(
+): TopHeadlinesViewModel =
+    TopHeadlinesViewModel(
         repository = newsRepository,
         savedArticlesRepository = savedArticlesRepository,
-        dispatcher = StandardTestDispatcher(scope.testScheduler),
     )
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class TopHeadlinesBookmarkPresenterTest {
+class TopHeadlinesBookmarkViewModelTest {
     @Test
     fun `initially unsaved article appears as unsaved in success state`() =
-        runTest {
+        runTopHeadlinesBookmarkViewModelTest {
             val newsRepo = FakeNewsRepositoryForBookmarks()
             val savedRepo = FakeSavedArticlesRepositoryForBookmarks()
             newsRepo.nextResult =
@@ -93,16 +105,16 @@ class TopHeadlinesBookmarkPresenterTest {
                     TopHeadlinesFeed(listOf(testArticle(1), testArticle(2)), FeedSource.NETWORK),
                 )
 
-            val presenter = createPresenterWithBookmarks(newsRepo, savedRepo, this)
+            val viewModel = createViewModelWithBookmarks(newsRepo, savedRepo)
             advanceUntilIdle()
 
-            val state = assertIs<TopHeadlinesUiState.Success>(presenter.uiState.value)
+            val state = assertIs<TopHeadlinesUiState.Success>(viewModel.uiState.value)
             assertTrue(state.savedUrls.isEmpty(), "No articles should be saved initially")
         }
 
     @Test
     fun `persisted saved article appears as saved in success state`() =
-        runTest {
+        runTopHeadlinesBookmarkViewModelTest {
             val newsRepo = FakeNewsRepositoryForBookmarks()
             val savedRepo = FakeSavedArticlesRepositoryForBookmarks()
             val article = testArticle(1)
@@ -111,27 +123,27 @@ class TopHeadlinesBookmarkPresenterTest {
             newsRepo.nextResult =
                 Result.success(TopHeadlinesFeed(listOf(article, testArticle(2)), FeedSource.NETWORK))
 
-            val presenter = createPresenterWithBookmarks(newsRepo, savedRepo, this)
+            val viewModel = createViewModelWithBookmarks(newsRepo, savedRepo)
             advanceUntilIdle()
 
-            val state = assertIs<TopHeadlinesUiState.Success>(presenter.uiState.value)
+            val state = assertIs<TopHeadlinesUiState.Success>(viewModel.uiState.value)
             assertTrue(article.url in state.savedUrls, "Saved article should be in savedUrls")
             assertFalse("https://example.com/2" in state.savedUrls)
         }
 
     @Test
     fun `save toggle delegates to saveArticle`() =
-        runTest {
+        runTopHeadlinesBookmarkViewModelTest {
             val newsRepo = FakeNewsRepositoryForBookmarks()
             val savedRepo = FakeSavedArticlesRepositoryForBookmarks()
             val article = testArticle(1)
             newsRepo.nextResult =
                 Result.success(TopHeadlinesFeed(listOf(article), FeedSource.NETWORK))
 
-            val presenter = createPresenterWithBookmarks(newsRepo, savedRepo, this)
+            val viewModel = createViewModelWithBookmarks(newsRepo, savedRepo)
             advanceUntilIdle()
 
-            presenter.toggleBookmark(article)
+            viewModel.toggleBookmark(article)
             advanceUntilIdle()
 
             assertEquals(1, savedRepo.saveCalls.size)
@@ -140,7 +152,7 @@ class TopHeadlinesBookmarkPresenterTest {
 
     @Test
     fun `remove toggle delegates to removeSavedArticle`() =
-        runTest {
+        runTopHeadlinesBookmarkViewModelTest {
             val newsRepo = FakeNewsRepositoryForBookmarks()
             val savedRepo = FakeSavedArticlesRepositoryForBookmarks()
             val article = testArticle(1)
@@ -149,10 +161,10 @@ class TopHeadlinesBookmarkPresenterTest {
             newsRepo.nextResult =
                 Result.success(TopHeadlinesFeed(listOf(article), FeedSource.NETWORK))
 
-            val presenter = createPresenterWithBookmarks(newsRepo, savedRepo, this)
+            val viewModel = createViewModelWithBookmarks(newsRepo, savedRepo)
             advanceUntilIdle()
 
-            presenter.toggleBookmark(article)
+            viewModel.toggleBookmark(article)
             advanceUntilIdle()
 
             assertEquals(1, savedRepo.removeCalls.size)
@@ -161,29 +173,29 @@ class TopHeadlinesBookmarkPresenterTest {
 
     @Test
     fun `reactive saved state changes update the feed state`() =
-        runTest {
+        runTopHeadlinesBookmarkViewModelTest {
             val newsRepo = FakeNewsRepositoryForBookmarks()
             val savedRepo = FakeSavedArticlesRepositoryForBookmarks()
             val article = testArticle(1)
             newsRepo.nextResult =
                 Result.success(TopHeadlinesFeed(listOf(article), FeedSource.NETWORK))
 
-            val presenter = createPresenterWithBookmarks(newsRepo, savedRepo, this)
+            val viewModel = createViewModelWithBookmarks(newsRepo, savedRepo)
             advanceUntilIdle()
 
-            val initial = assertIs<TopHeadlinesUiState.Success>(presenter.uiState.value)
+            val initial = assertIs<TopHeadlinesUiState.Success>(viewModel.uiState.value)
             assertTrue(initial.savedUrls.isEmpty())
 
             savedRepo.saveArticle(article)
             advanceUntilIdle()
 
-            val updated = assertIs<TopHeadlinesUiState.Success>(presenter.uiState.value)
+            val updated = assertIs<TopHeadlinesUiState.Success>(viewModel.uiState.value)
             assertTrue(article.url in updated.savedUrls, "Saved URL should appear after persistence")
         }
 
     @Test
     fun `invalid blank URL cannot trigger save`() =
-        runTest {
+        runTopHeadlinesBookmarkViewModelTest {
             val newsRepo = FakeNewsRepositoryForBookmarks()
             val savedRepo = FakeSavedArticlesRepositoryForBookmarks()
             newsRepo.nextResult =
@@ -202,13 +214,13 @@ class TopHeadlinesBookmarkPresenterTest {
                     ),
                 )
 
-            val presenter = createPresenterWithBookmarks(newsRepo, savedRepo, this)
+            val viewModel = createViewModelWithBookmarks(newsRepo, savedRepo)
             advanceUntilIdle()
 
-            val state = assertIs<TopHeadlinesUiState.Success>(presenter.uiState.value)
+            val state = assertIs<TopHeadlinesUiState.Success>(viewModel.uiState.value)
             val blankArticle = state.articles.first()
 
-            presenter.toggleBookmark(blankArticle)
+            viewModel.toggleBookmark(blankArticle)
             advanceUntilIdle()
 
             assertEquals(0, savedRepo.saveCalls.size, "Blank URL should not be saved")
@@ -216,7 +228,7 @@ class TopHeadlinesBookmarkPresenterTest {
 
     @Test
     fun `persistence failure does not falsely mark article saved`() =
-        runTest {
+        runTopHeadlinesBookmarkViewModelTest {
             val newsRepo = FakeNewsRepositoryForBookmarks()
             val failingSavedRepo =
                 object : SavedArticlesRepository {
@@ -239,13 +251,13 @@ class TopHeadlinesBookmarkPresenterTest {
             newsRepo.nextResult =
                 Result.success(TopHeadlinesFeed(listOf(article), FeedSource.NETWORK))
 
-            val presenter = createPresenterWithBookmarks(newsRepo, failingSavedRepo, this)
+            val viewModel = createViewModelWithBookmarks(newsRepo, failingSavedRepo)
             advanceUntilIdle()
 
-            presenter.toggleBookmark(article)
+            viewModel.toggleBookmark(article)
             advanceUntilIdle()
 
-            val state = assertIs<TopHeadlinesUiState.Success>(presenter.uiState.value)
+            val state = assertIs<TopHeadlinesUiState.Success>(viewModel.uiState.value)
             assertFalse(
                 article.url in state.savedUrls,
                 "Failed save must not leave article in savedUrls",

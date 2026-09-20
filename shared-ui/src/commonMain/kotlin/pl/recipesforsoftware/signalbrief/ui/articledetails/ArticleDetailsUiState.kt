@@ -5,7 +5,7 @@ import pl.recipesforsoftware.signalbrief.domain.model.Article
 /**
  * Framework-independent renderable state of the Article Details screen.
  *
- * Produced by [ArticleDetailsPresenter] and consumed by any Compose host
+ * Produced by [ArticleDetailsViewModel] and consumed by any Compose host
  * (Android and iOS). [article] is the locally available snapshot selected in
  * the originating destination; it is never refetched or enriched. [isSaved] is
  * derived from the persistence layer, never from a transient UI flag.

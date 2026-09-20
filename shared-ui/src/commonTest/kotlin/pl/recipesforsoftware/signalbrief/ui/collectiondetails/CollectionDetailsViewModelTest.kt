@@ -1,12 +1,16 @@
 package pl.recipesforsoftware.signalbrief.ui.collectiondetails
 
+import androidx.lifecycle.ViewModelStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.Collection
 import pl.recipesforsoftware.signalbrief.domain.repository.CollectionsRepository
@@ -47,22 +51,30 @@ private class DetailsCollectionsRepository : CollectionsRepository {
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class CollectionDetailsPresenterTest {
+class CollectionDetailsViewModelTest {
     @Test
     fun `initial empty and reactive article snapshots are rendered`() =
         runTest {
-            val repository = DetailsCollectionsRepository()
-            val collection = Collection("1", "Reading")
-            val presenter = CollectionDetailsPresenter(collection, repository, StandardTestDispatcher(testScheduler))
+            Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+            try {
+                val repository = DetailsCollectionsRepository()
+                val collection = Collection("1", "Reading")
+                val viewModel = CollectionDetailsViewModel(collection, repository)
 
-            advanceUntilIdle()
-            assertEquals(collection, presenter.uiState.value.collection)
-            assertEquals(emptyList(), presenter.uiState.value.articles)
+                advanceUntilIdle()
+                assertEquals(collection, viewModel.uiState.value.collection)
+                assertEquals(emptyList(), viewModel.uiState.value.articles)
 
-            val article = Article("A title", null, "https://example.com/a", null, null)
-            repository.emit(listOf(article))
-            advanceUntilIdle()
-            assertEquals(listOf(article), presenter.uiState.value.articles)
-            presenter.dispose()
+                val article = Article("A title", null, "https://example.com/a", null, null)
+                repository.emit(listOf(article))
+                advanceUntilIdle()
+                assertEquals(listOf(article), viewModel.uiState.value.articles)
+                ViewModelStore().apply {
+                    put("details", viewModel)
+                    clear()
+                }
+            } finally {
+                Dispatchers.resetMain()
+            }
         }
 }

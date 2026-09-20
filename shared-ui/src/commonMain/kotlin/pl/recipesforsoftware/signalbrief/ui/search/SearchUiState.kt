@@ -5,7 +5,7 @@ import pl.recipesforsoftware.signalbrief.domain.model.Article
 /**
  * Framework-independent renderable state of the Local Search screen.
  *
- * Produced by [SearchPresenter] and consumed by any Compose host (Android and
+ * Produced by [SearchViewModel] and consumed by any Compose host (Android and
  * iOS). Search operates only on locally cached headlines; there is no network
  * branch and no remote error state.
  */
