@@ -1,10 +1,7 @@
 package pl.recipesforsoftware.signalbrief.ui.collections
 
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,19 +10,17 @@ import pl.recipesforsoftware.signalbrief.domain.failure.CollectionFailure
 import pl.recipesforsoftware.signalbrief.domain.model.Collection
 import pl.recipesforsoftware.signalbrief.domain.repository.CollectionsRepository
 
-/** Framework-independent state holder for the Collections management screen. */
-class CollectionsPresenter(
+/** Lifecycle-aware state holder for the Collections management screen. */
+class CollectionsViewModel(
     private val collectionsRepository: CollectionsRepository,
-    dispatcher: CoroutineDispatcher = Dispatchers.Default,
-) {
-    private val scope = CoroutineScope(dispatcher + SupervisorJob())
+) : ViewModel() {
     private val _uiState = MutableStateFlow(CollectionsUiState())
     val uiState: StateFlow<CollectionsUiState> = _uiState.asStateFlow()
 
     init {
-        scope.launch {
+        viewModelScope.launch {
             collectionsRepository.observeAllCollections().collect { collections ->
-                _uiState.value = _uiState.value.copy(collections = collections)
+                update { copy(collections = collections) }
             }
         }
     }
@@ -59,7 +54,7 @@ class CollectionsPresenter(
         val editor = state.editor ?: return
         if (state.isSubmitting) return
         update { copy(isSubmitting = true, error = null) }
-        scope.launch {
+        viewModelScope.launch {
             val result =
                 when (editor) {
                     is CollectionsEditor.Create -> {
@@ -92,7 +87,7 @@ class CollectionsPresenter(
         val collection = state.collectionPendingDeletion ?: return
         if (state.isSubmitting) return
         update { copy(isSubmitting = true, error = null) }
-        scope.launch {
+        viewModelScope.launch {
             collectionsRepository.deleteCollection(collection.id).fold(
                 onSuccess = { update { copy(collectionPendingDeletion = null, isSubmitting = false) } },
                 onFailure = { failure -> update { copy(isSubmitting = false, error = failure.toUiError()) } },
@@ -101,8 +96,6 @@ class CollectionsPresenter(
     }
 
     fun dismissError() = update { copy(error = null) }
-
-    fun dispose() = scope.cancel()
 
     private fun update(transform: CollectionsUiState.() -> CollectionsUiState) {
         _uiState.value = _uiState.value.transform()
