@@ -23,8 +23,8 @@ import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsViewModel
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefPresenter
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefScreen
 import pl.recipesforsoftware.signalbrief.ui.lifecycle.ScreenViewModelScope
-import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesPresenter
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesScreen
+import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesViewModel
 import pl.recipesforsoftware.signalbrief.ui.search.SearchPresenter
 import pl.recipesforsoftware.signalbrief.ui.search.SearchScreen
 import pl.recipesforsoftware.signalbrief.ui.settings.SettingsScreen
@@ -62,7 +62,7 @@ fun SignalBriefAppHost(
             Headlines(composition.headlines, bottomBar, onArticleClick, onSearchClick, onSettingsClick)
         },
         savedContent = { bottomBar, onArticleClick, onCollectionsClick ->
-            Saved(composition.saved, bottomBar, onArticleClick, onCollectionsClick)
+            Saved(savedArticlesRepository, bottomBar, onArticleClick, onCollectionsClick)
         },
         dailyBriefContent = { bottomBar, onArticleClick -> Brief(composition.brief, bottomBar, onArticleClick) },
         searchContent = { initial, queryChanged, articleClick, monitoring, back ->
@@ -94,7 +94,6 @@ private class PresentationComposition(
     topicMonitoringRepository: TopicMonitoringRepository,
 ) {
     val headlines = TopHeadlinesPresenter(news, savedRepository)
-    val saved = SavedArticlesPresenter(savedRepository)
     val brief = DailyBriefPresenter(news, savedRepository)
     val topicMonitoring = TopicMonitoringPresenter(topicMonitoringRepository, news)
 
@@ -104,7 +103,6 @@ private class PresentationComposition(
 
     fun dispose() {
         headlines.dispose()
-        saved.dispose()
         brief.dispose()
         topicMonitoring.dispose()
     }
@@ -131,13 +129,16 @@ private fun Headlines(
 }
 
 @Composable private fun Saved(
-    p: SavedArticlesPresenter,
+    savedArticlesRepository: SavedArticlesRepository,
     bottom: @Composable () -> Unit,
     click: (Article) -> Unit,
     collections: () -> Unit,
 ) {
-    val state by p.uiState.collectAsState()
-    SavedArticlesScreen(state, click, { p.removeArticle(it.url) }, collections, bottomBar = bottom)
+    ScreenViewModelScope {
+        val viewModel: SavedArticlesViewModel = viewModel { SavedArticlesViewModel(savedArticlesRepository) }
+        val state by viewModel.uiState.collectAsState()
+        SavedArticlesScreen(state, click, { viewModel.removeArticle(it.url) }, collections, bottomBar = bottom)
+    }
 }
 
 @Composable

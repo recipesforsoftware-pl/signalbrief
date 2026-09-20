@@ -118,6 +118,7 @@ class MainActivity : ComponentActivity() {
                 },
                 savedContent = { bottomBar, onArticleClick, onCollectionsClick ->
                     SavedArticlesRoute(
+                        savedArticlesRepository = savedArticlesRepository,
                         bottomBar = bottomBar,
                         onArticleClick = onArticleClick,
                         onCollectionsClick = onCollectionsClick,
@@ -213,20 +214,23 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun SavedArticlesRoute(
+        savedArticlesRepository: SavedArticlesRepository,
         bottomBar: @Composable () -> Unit,
         onArticleClick: (Article) -> Unit,
         onCollectionsClick: () -> Unit,
     ) {
-        val viewModel: SavedArticlesViewModel = hiltViewModel()
-        val uiState by viewModel.uiState.collectAsState()
+        ScreenViewModelScope {
+            val viewModel: SavedArticlesViewModel = viewModel { SavedArticlesViewModel(savedArticlesRepository) }
+            val uiState by viewModel.uiState.collectAsState()
 
-        SavedArticlesScreen(
-            uiState = uiState,
-            onArticleClick = onArticleClick,
-            onRemoveClick = { viewModel.removeArticle(it.url) },
-            onCollectionsClick = onCollectionsClick,
-            bottomBar = bottomBar,
-        )
+            SavedArticlesScreen(
+                uiState = uiState,
+                onArticleClick = onArticleClick,
+                onRemoveClick = { viewModel.removeArticle(it.url) },
+                onCollectionsClick = onCollectionsClick,
+                bottomBar = bottomBar,
+            )
+        }
     }
 
     @Composable

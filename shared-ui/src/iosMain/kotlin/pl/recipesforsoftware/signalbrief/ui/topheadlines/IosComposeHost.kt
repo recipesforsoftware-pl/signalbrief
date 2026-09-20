@@ -40,8 +40,8 @@ import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsRoute
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefPresenter
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefScreen
 import pl.recipesforsoftware.signalbrief.ui.lifecycle.ScreenViewModelScope
-import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesPresenter
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesScreen
+import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesViewModel
 import pl.recipesforsoftware.signalbrief.ui.search.SearchPresenter
 import pl.recipesforsoftware.signalbrief.ui.search.SearchScreen
 import pl.recipesforsoftware.signalbrief.ui.settings.SettingsScreen
@@ -66,8 +66,8 @@ private const val ONBOARDING_KEY = "pl.recipesforsoftware.signalbrief.onboarding
  * The iOS composition is created exactly once at the root of this Compose host and
  * disposed only when the whole Compose host is torn down. Headlines, Saved, Search,
  * and Article Details share the same [SignalBriefDatabase], the same
- * [RoomSavedArticlesRepository], and the same presenters, so switching tabs or
- * opening details never closes or recreates persistence layers.
+ * [RoomSavedArticlesRepository], and root-scoped presenters, so switching tabs
+ * or opening details never closes or recreates persistence layers.
  */
 @Suppress("LongMethod")
 fun createIosComposeHost(): UIViewController {
@@ -102,7 +102,7 @@ fun createIosComposeHost(): UIViewController {
                 },
                 savedContent = { bottomBar, onArticleClick, onCollectionsClick ->
                     SavedRoute(
-                        presenter = composition.savedPresenter,
+                        savedArticlesRepository = composition.savedArticlesRepository,
                         bottomBar = bottomBar,
                         onArticleClick = onArticleClick,
                         onCollectionsClick = onCollectionsClick,
@@ -203,20 +203,23 @@ private fun HeadlinesRoute(
 
 @Composable
 private fun SavedRoute(
-    presenter: SavedArticlesPresenter,
+    savedArticlesRepository: SavedArticlesRepository,
     bottomBar: @Composable () -> Unit,
     onArticleClick: (Article) -> Unit,
     onCollectionsClick: () -> Unit,
 ) {
-    val uiState by presenter.uiState.collectAsState()
+    ScreenViewModelScope {
+        val viewModel: SavedArticlesViewModel = viewModel { SavedArticlesViewModel(savedArticlesRepository) }
+        val uiState by viewModel.uiState.collectAsState()
 
-    SavedArticlesScreen(
-        uiState = uiState,
-        onArticleClick = onArticleClick,
-        onRemoveClick = { presenter.removeArticle(it.url) },
-        onCollectionsClick = onCollectionsClick,
-        bottomBar = bottomBar,
-    )
+        SavedArticlesScreen(
+            uiState = uiState,
+            onArticleClick = onArticleClick,
+            onRemoveClick = { viewModel.removeArticle(it.url) },
+            onCollectionsClick = onCollectionsClick,
+            bottomBar = bottomBar,
+        )
+    }
 }
 
 @Composable
@@ -386,20 +389,19 @@ private fun rememberOpenFullArticleAction(
  * Holds the single iOS composition root and its externally owned resources.
  *
  * The shared HTTP client, the Room database, and the single
- * [RoomSavedArticlesRepository] instance are created once and live here. Both
- * presenters share the same repository instance so the Saved flow synchronizes
- * Headlines bookmark state through the same persistence layer.
+ * [RoomSavedArticlesRepository] instance are created once and live here. Saved
+ * and Headlines use the same repository instance so bookmark state synchronizes
+ * through the same persistence layer.
  *
  * Article Details presenters are scoped to the details route composition and
  * are not held here; they receive the same repository instance without creating
  * a second database or repository.
  *
  * [dispose] must be called exactly once, when the owning composition root is
- * torn down; it cancels both presenters and then closes the client and database.
+ * torn down; it cancels root-scoped presenters and then closes the client and database.
  */
 private class IosComposition(
     val headlinesPresenter: TopHeadlinesPresenter,
-    val savedPresenter: SavedArticlesPresenter,
     val dailyBriefPresenter: DailyBriefPresenter,
     val savedArticlesRepository: SavedArticlesRepository,
     val collectionsRepository: CollectionsRepository,
@@ -424,7 +426,6 @@ private class IosComposition(
 
     fun dispose() {
         headlinesPresenter.dispose()
-        savedPresenter.dispose()
         dailyBriefPresenter.dispose()
         topicMonitoringPresenter.dispose()
         client.close()
@@ -436,7 +437,7 @@ private class IosComposition(
  * Creates the single iOS composition graph.
  *
  * This factory is called exactly once by [createIosComposeHost]. It constructs one
- * database, one repository, one HTTP client, and both presenters, then returns
+ * database, one repository, one HTTP client, and root-scoped presenters, then returns
  * an [IosComposition] that owns disposal of all those resources.
  */
 private fun createIosComposition(): IosComposition {
@@ -462,10 +463,6 @@ private fun createIosComposition(): IosComposition {
             repository = newsRepository,
             savedArticlesRepository = savedArticlesRepository,
         )
-    val savedPresenter =
-        SavedArticlesPresenter(
-            savedArticlesRepository = savedArticlesRepository,
-        )
     val dailyBriefPresenter =
         DailyBriefPresenter(
             newsRepository = newsRepository,
@@ -473,7 +470,6 @@ private fun createIosComposition(): IosComposition {
         )
     return IosComposition(
         headlinesPresenter,
-        savedPresenter,
         dailyBriefPresenter,
         savedArticlesRepository,
         collectionsRepository,
