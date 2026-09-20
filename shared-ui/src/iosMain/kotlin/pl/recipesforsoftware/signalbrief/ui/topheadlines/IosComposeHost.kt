@@ -36,7 +36,6 @@ import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsPresent
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsScreen
 import pl.recipesforsoftware.signalbrief.ui.collectiondetails.CollectionDetailsPresenter
 import pl.recipesforsoftware.signalbrief.ui.collectiondetails.CollectionDetailsScreen
-import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsPresenter
 import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsRoute
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefPresenter
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefScreen
@@ -136,7 +135,7 @@ fun createIosComposeHost(): UIViewController {
                     )
                 },
                 collectionsContent = { onBack, onCollectionClick ->
-                    CollectionsRoute(composition.collectionsPresenter, onBack, onCollectionClick)
+                    CollectionsRoute(composition.collectionsRepository, onBack, onCollectionClick)
                 },
                 collectionDetailsContent = { collection, onArticleClick, onBack ->
                     CollectionDetailsRoute(collection, composition.collectionsRepository, onArticleClick, onBack)
@@ -404,7 +403,6 @@ private class IosComposition(
     val dailyBriefPresenter: DailyBriefPresenter,
     val savedArticlesRepository: SavedArticlesRepository,
     val collectionsRepository: CollectionsRepository,
-    val collectionsPresenter: CollectionsPresenter,
     val topicMonitoringPresenter: TopicMonitoringPresenter,
     val newsRepository: NewsRepository,
     private val client: HttpClient,
@@ -428,7 +426,6 @@ private class IosComposition(
         headlinesPresenter.dispose()
         savedPresenter.dispose()
         dailyBriefPresenter.dispose()
-        collectionsPresenter.dispose()
         topicMonitoringPresenter.dispose()
         client.close()
         database.close()
@@ -457,7 +454,6 @@ private fun createIosComposition(): IosComposition {
     val localDataSource = RoomNewsLocalDataSource(database)
     val savedArticlesRepository = RoomSavedArticlesRepository(database)
     val collectionsRepository: CollectionsRepository = RoomCollectionsRepository(database)
-    val collectionsPresenter = CollectionsPresenter(collectionsRepository)
     val topicMonitoringRepository: TopicMonitoringRepository = RoomTopicMonitoringRepository(database)
     val newsRepository = OfflineFirstNewsRepository(remoteDataSource, localDataSource)
     val topicMonitoringPresenter = TopicMonitoringPresenter(topicMonitoringRepository, newsRepository)
@@ -481,7 +477,6 @@ private fun createIosComposition(): IosComposition {
         dailyBriefPresenter,
         savedArticlesRepository,
         collectionsRepository,
-        collectionsPresenter,
         topicMonitoringPresenter,
         newsRepository,
         client,

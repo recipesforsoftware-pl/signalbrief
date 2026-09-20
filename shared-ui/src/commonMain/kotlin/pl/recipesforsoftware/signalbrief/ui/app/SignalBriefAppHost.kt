@@ -18,8 +18,8 @@ import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsPresent
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsScreen
 import pl.recipesforsoftware.signalbrief.ui.collectiondetails.CollectionDetailsPresenter
 import pl.recipesforsoftware.signalbrief.ui.collectiondetails.CollectionDetailsScreen
-import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsPresenter
 import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsScreen
+import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsViewModel
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefPresenter
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefScreen
 import pl.recipesforsoftware.signalbrief.ui.lifecycle.ScreenViewModelScope
@@ -51,7 +51,6 @@ fun SignalBriefAppHost(
             PresentationComposition(
                 newsRepository,
                 savedArticlesRepository,
-                collectionsRepository,
                 topicMonitoringRepository,
             )
         }
@@ -72,7 +71,7 @@ fun SignalBriefAppHost(
         articleDetailsContent = { article, back, collections ->
             Details(article, savedArticlesRepository, collectionsRepository, back, collections)
         },
-        collectionsContent = { back, open -> Collections(composition.collections, back, open) },
+        collectionsContent = { back, open -> Collections(collectionsRepository, back, open) },
         collectionDetailsContent = { collection, articleClick, back ->
             CollectionDetails(collection, collectionsRepository, articleClick, back)
         },
@@ -92,13 +91,11 @@ fun SignalBriefAppHost(
 private class PresentationComposition(
     private val news: NewsRepository,
     private val savedRepository: SavedArticlesRepository,
-    collectionsRepository: CollectionsRepository,
     topicMonitoringRepository: TopicMonitoringRepository,
 ) {
     val headlines = TopHeadlinesPresenter(news, savedRepository)
     val saved = SavedArticlesPresenter(savedRepository)
     val brief = DailyBriefPresenter(news, savedRepository)
-    val collections = CollectionsPresenter(collectionsRepository)
     val topicMonitoring = TopicMonitoringPresenter(topicMonitoringRepository, news)
 
     fun search(query: String) = SearchPresenter(news, savedRepository, query)
@@ -109,7 +106,6 @@ private class PresentationComposition(
         headlines.dispose()
         saved.dispose()
         brief.dispose()
-        collections.dispose()
         topicMonitoring.dispose()
     }
 }
@@ -146,25 +142,28 @@ private fun Headlines(
 
 @Composable
 private fun Collections(
-    p: CollectionsPresenter,
+    collectionsRepository: CollectionsRepository,
     back: () -> Unit,
     open: (pl.recipesforsoftware.signalbrief.domain.model.Collection) -> Unit,
 ) {
-    val state by p.uiState.collectAsState()
-    CollectionsScreen(
-        uiState = state,
-        onOpenCreateEditor = p::openCreateEditor,
-        onOpenRenameEditor = p::openRenameEditor,
-        onUpdateEditorName = p::updateEditorName,
-        onConfirmEditor = p::confirmEditor,
-        onDismissEditor = p::dismissEditor,
-        onOpenDeleteConfirmation = p::openDeleteConfirmation,
-        onConfirmDelete = p::confirmDelete,
-        onDismissDeleteConfirmation = p::dismissDeleteConfirmation,
-        onDismissError = p::dismissError,
-        onOpenCollection = open,
-        onBack = back,
-    )
+    ScreenViewModelScope {
+        val viewModel: CollectionsViewModel = viewModel { CollectionsViewModel(collectionsRepository) }
+        val state by viewModel.uiState.collectAsState()
+        CollectionsScreen(
+            uiState = state,
+            onOpenCreateEditor = viewModel::openCreateEditor,
+            onOpenRenameEditor = viewModel::openRenameEditor,
+            onUpdateEditorName = viewModel::updateEditorName,
+            onConfirmEditor = viewModel::confirmEditor,
+            onDismissEditor = viewModel::dismissEditor,
+            onOpenDeleteConfirmation = viewModel::openDeleteConfirmation,
+            onConfirmDelete = viewModel::confirmDelete,
+            onDismissDeleteConfirmation = viewModel::dismissDeleteConfirmation,
+            onDismissError = viewModel::dismissError,
+            onOpenCollection = open,
+            onBack = back,
+        )
+    }
 }
 
 @Composable

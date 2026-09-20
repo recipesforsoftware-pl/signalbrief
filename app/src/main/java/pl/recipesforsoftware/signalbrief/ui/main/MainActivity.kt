@@ -235,22 +235,24 @@ class MainActivity : ComponentActivity() {
         onCollectionClick: (pl.recipesforsoftware.signalbrief.domain.model.Collection) -> Unit,
     ) {
         BackHandler(onBack = onBack)
-        val viewModel: CollectionsViewModel = hiltViewModel()
-        val uiState by viewModel.uiState.collectAsState()
-        CollectionsScreen(
-            uiState = uiState,
-            onOpenCreateEditor = viewModel::openCreateEditor,
-            onOpenRenameEditor = viewModel::openRenameEditor,
-            onUpdateEditorName = viewModel::updateEditorName,
-            onConfirmEditor = viewModel::confirmEditor,
-            onDismissEditor = viewModel::dismissEditor,
-            onOpenDeleteConfirmation = viewModel::openDeleteConfirmation,
-            onConfirmDelete = viewModel::confirmDelete,
-            onDismissDeleteConfirmation = viewModel::dismissDeleteConfirmation,
-            onDismissError = viewModel::dismissError,
-            onOpenCollection = onCollectionClick,
-            onBack = onBack,
-        )
+        ScreenViewModelScope {
+            val viewModel: CollectionsViewModel = viewModel { CollectionsViewModel(collectionsRepository) }
+            val uiState by viewModel.uiState.collectAsState()
+            CollectionsScreen(
+                uiState = uiState,
+                onOpenCreateEditor = viewModel::openCreateEditor,
+                onOpenRenameEditor = viewModel::openRenameEditor,
+                onUpdateEditorName = viewModel::updateEditorName,
+                onConfirmEditor = viewModel::confirmEditor,
+                onDismissEditor = viewModel::dismissEditor,
+                onOpenDeleteConfirmation = viewModel::openDeleteConfirmation,
+                onConfirmDelete = viewModel::confirmDelete,
+                onDismissDeleteConfirmation = viewModel::dismissDeleteConfirmation,
+                onDismissError = viewModel::dismissError,
+                onOpenCollection = onCollectionClick,
+                onBack = onBack,
+            )
+        }
     }
 
     @Composable

@@ -1,5 +1,7 @@
 package pl.recipesforsoftware.signalbrief.ui.collections
 
+import androidx.lifecycle.ViewModelStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -7,7 +9,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import pl.recipesforsoftware.signalbrief.domain.failure.CollectionFailure
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.Collection
@@ -40,8 +44,7 @@ private class FakeCollectionsRepository : CollectionsRepository {
         collectionId: String,
     ): Result<Unit> {
         val perArticle = memberships.value.toMutableMap()
-        val articleIds = perArticle[article.url].orEmpty() + collectionId
-        perArticle[article.url] = articleIds
+        perArticle[article.url] = perArticle[article.url].orEmpty() + collectionId
         memberships.value = perArticle
         return Result.success(Unit)
     }
@@ -98,32 +101,39 @@ private class FakeCollectionsRepository : CollectionsRepository {
     }
 }
 
-@OptIn(ExperimentalCoroutinesApi::class)
-private fun presenter(
-    repository: CollectionsRepository,
-    scope: TestScope,
-) = CollectionsPresenter(repository, StandardTestDispatcher(scope.testScheduler))
+private fun createViewModel(repository: CollectionsRepository) = CollectionsViewModel(repository)
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class CollectionsPresenterTest {
+private fun runCollectionsViewModelTest(block: suspend TestScope.() -> Unit) =
+    runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            block()
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class CollectionsViewModelTest {
     @Test
     fun `initial empty repository observation is rendered`() =
-        runTest {
-            val presenter = presenter(FakeCollectionsRepository(), this)
+        runCollectionsViewModelTest {
+            val viewModel = createViewModel(FakeCollectionsRepository())
             advanceUntilIdle()
-            assertEquals(emptyList(), presenter.uiState.value.collections)
+            assertEquals(emptyList(), viewModel.uiState.value.collections)
         }
 
     @Test
     fun `populated and subsequent repository observations are rendered`() =
-        runTest {
+        runCollectionsViewModelTest {
             val repository = FakeCollectionsRepository()
             repository.emit(listOf(Collection("1", "Read later")))
-            val presenter = presenter(repository, this)
+            val viewModel = createViewModel(repository)
             advanceUntilIdle()
             assertEquals(
                 "Read later",
-                presenter.uiState.value.collections
+                viewModel.uiState.value.collections
                     .single()
                     .name,
             )
@@ -131,7 +141,7 @@ class CollectionsPresenterTest {
             advanceUntilIdle()
             assertEquals(
                 "Weekend",
-                presenter.uiState.value.collections
+                viewModel.uiState.value.collections
                     .single()
                     .name,
             )
@@ -139,17 +149,17 @@ class CollectionsPresenterTest {
 
     @Test
     fun `create success closes editor and updates through repository observation`() =
-        runTest {
+        runCollectionsViewModelTest {
             val repository = FakeCollectionsRepository()
-            val presenter = presenter(repository, this)
-            presenter.openCreateEditor()
-            presenter.updateEditorName("  Read later  ")
-            presenter.confirmEditor()
+            val viewModel = createViewModel(repository)
+            viewModel.openCreateEditor()
+            viewModel.updateEditorName("  Read later  ")
+            viewModel.confirmEditor()
             advanceUntilIdle()
-            assertNull(presenter.uiState.value.editor)
+            assertNull(viewModel.uiState.value.editor)
             assertEquals(
                 "Read later",
-                presenter.uiState.value.collections
+                viewModel.uiState.value.collections
                     .single()
                     .name,
             )
@@ -157,51 +167,49 @@ class CollectionsPresenterTest {
 
     @Test
     fun `two immediate editor confirmations trigger one create`() =
-        runTest {
+        runCollectionsViewModelTest {
             val repository = FakeCollectionsRepository()
-            val presenter = presenter(repository, this)
-            presenter.openCreateEditor()
-            presenter.updateEditorName("Reading")
-
-            presenter.confirmEditor()
-            presenter.confirmEditor()
+            val viewModel = createViewModel(repository)
+            viewModel.openCreateEditor()
+            viewModel.updateEditorName("Reading")
+            viewModel.confirmEditor()
+            viewModel.confirmEditor()
             advanceUntilIdle()
-
             assertEquals(1, repository.createCalls)
         }
 
     @Test
     fun `invalid and unknown create failures retain editor and expose mapped error`() =
-        runTest {
+        runCollectionsViewModelTest {
             val repository = FakeCollectionsRepository()
-            val presenter = presenter(repository, this)
-            presenter.openCreateEditor()
-            presenter.confirmEditor()
+            val viewModel = createViewModel(repository)
+            viewModel.openCreateEditor()
+            viewModel.confirmEditor()
             advanceUntilIdle()
-            assertEquals(CollectionsError.InvalidName, presenter.uiState.value.error)
-            assertIs<CollectionsEditor.Create>(presenter.uiState.value.editor)
+            assertEquals(CollectionsError.InvalidName, viewModel.uiState.value.error)
+            assertIs<CollectionsEditor.Create>(viewModel.uiState.value.editor)
             repository.createFailure = IllegalStateException()
-            presenter.updateEditorName("Reading")
-            presenter.confirmEditor()
+            viewModel.updateEditorName("Reading")
+            viewModel.confirmEditor()
             advanceUntilIdle()
-            assertEquals(CollectionsError.Unknown, presenter.uiState.value.error)
+            assertEquals(CollectionsError.Unknown, viewModel.uiState.value.error)
         }
 
     @Test
     fun `rename opens prefilled editor and success closes it`() =
-        runTest {
+        runCollectionsViewModelTest {
             val repository = FakeCollectionsRepository().also { it.emit(listOf(Collection("1", "Old"))) }
-            val presenter = presenter(repository, this)
+            val viewModel = createViewModel(repository)
             advanceUntilIdle()
-            presenter.openRenameEditor(Collection("1", "Old"))
-            assertEquals("Old", (presenter.uiState.value.editor as CollectionsEditor.Rename).name)
-            presenter.updateEditorName("New")
-            presenter.confirmEditor()
+            viewModel.openRenameEditor(Collection("1", "Old"))
+            assertEquals("Old", (viewModel.uiState.value.editor as CollectionsEditor.Rename).name)
+            viewModel.updateEditorName("New")
+            viewModel.confirmEditor()
             advanceUntilIdle()
-            assertNull(presenter.uiState.value.editor)
+            assertNull(viewModel.uiState.value.editor)
             assertEquals(
                 "New",
-                presenter.uiState.value.collections
+                viewModel.uiState.value.collections
                     .single()
                     .name,
             )
@@ -209,60 +217,84 @@ class CollectionsPresenterTest {
 
     @Test
     fun `invalid rename failure retains editor`() =
-        runTest {
-            val presenter = presenter(FakeCollectionsRepository(), this)
-            presenter.openRenameEditor(Collection("1", "Old"))
-            presenter.updateEditorName(" ")
-            presenter.confirmEditor()
+        runCollectionsViewModelTest {
+            val viewModel = createViewModel(FakeCollectionsRepository())
+            viewModel.openRenameEditor(Collection("1", "Old"))
+            viewModel.updateEditorName(" ")
+            viewModel.confirmEditor()
             advanceUntilIdle()
-            assertEquals(CollectionsError.InvalidName, presenter.uiState.value.error)
-            assertIs<CollectionsEditor.Rename>(presenter.uiState.value.editor)
+            assertEquals(CollectionsError.InvalidName, viewModel.uiState.value.error)
+            assertIs<CollectionsEditor.Rename>(viewModel.uiState.value.editor)
         }
 
     @Test
     fun `delete can be cancelled and success closes confirmation`() =
-        runTest {
+        runCollectionsViewModelTest {
             val repository = FakeCollectionsRepository().also { it.emit(listOf(Collection("1", "Old"))) }
-            val presenter = presenter(repository, this)
+            val viewModel = createViewModel(repository)
             advanceUntilIdle()
-            presenter.openDeleteConfirmation(Collection("1", "Old"))
-            presenter.dismissDeleteConfirmation()
-            assertNull(presenter.uiState.value.collectionPendingDeletion)
-            presenter.openDeleteConfirmation(Collection("1", "Old"))
-            presenter.confirmDelete()
+            viewModel.openDeleteConfirmation(Collection("1", "Old"))
+            viewModel.dismissDeleteConfirmation()
+            assertNull(viewModel.uiState.value.collectionPendingDeletion)
+            viewModel.openDeleteConfirmation(Collection("1", "Old"))
+            viewModel.confirmDelete()
             advanceUntilIdle()
-            assertNull(presenter.uiState.value.collectionPendingDeletion)
-            assertEquals(emptyList(), presenter.uiState.value.collections)
+            assertNull(viewModel.uiState.value.collectionPendingDeletion)
+            assertEquals(emptyList(), viewModel.uiState.value.collections)
         }
 
     @Test
     fun `delete failure retains confirmation and exposes error`() =
-        runTest {
+        runCollectionsViewModelTest {
             val repository = FakeCollectionsRepository().also { it.deleteFailure = CollectionFailure.NotFound }
-            val presenter = presenter(repository, this)
-            presenter.openDeleteConfirmation(Collection("1", "Old"))
-            presenter.confirmDelete()
+            val viewModel = createViewModel(repository)
+            viewModel.openDeleteConfirmation(Collection("1", "Old"))
+            viewModel.confirmDelete()
             advanceUntilIdle()
-            assertEquals(CollectionsError.NotFound, presenter.uiState.value.error)
+            assertEquals(CollectionsError.NotFound, viewModel.uiState.value.error)
             assertEquals(
                 "1",
-                presenter.uiState.value.collectionPendingDeletion
+                viewModel.uiState.value.collectionPendingDeletion
                     ?.id,
             )
         }
 
     @Test
     fun `two immediate delete confirmations trigger one delete`() =
-        runTest {
+        runCollectionsViewModelTest {
             val repository = FakeCollectionsRepository().also { it.emit(listOf(Collection("1", "Old"))) }
-            val presenter = presenter(repository, this)
+            val viewModel = createViewModel(repository)
             advanceUntilIdle()
-            presenter.openDeleteConfirmation(Collection("1", "Old"))
-
-            presenter.confirmDelete()
-            presenter.confirmDelete()
+            viewModel.openDeleteConfirmation(Collection("1", "Old"))
+            viewModel.confirmDelete()
+            viewModel.confirmDelete()
             advanceUntilIdle()
-
             assertEquals(1, repository.deleteCalls)
+        }
+
+    @Test
+    fun `clearing the lifecycle owner stops later observation updates`() =
+        runCollectionsViewModelTest {
+            val repository = FakeCollectionsRepository().also { it.emit(listOf(Collection("1", "Read later"))) }
+            val viewModel = createViewModel(repository)
+            val viewModelStore = ViewModelStore()
+            viewModelStore.put("collections", viewModel)
+            advanceUntilIdle()
+            assertEquals(
+                "Read later",
+                viewModel.uiState.value.collections
+                    .single()
+                    .name,
+            )
+            viewModelStore.clear()
+            advanceUntilIdle()
+            repository.emit(listOf(Collection("2", "Weekend")))
+            advanceUntilIdle()
+            assertEquals(
+                "Read later",
+                viewModel.uiState.value.collections
+                    .single()
+                    .name,
+            )
         }
 }
