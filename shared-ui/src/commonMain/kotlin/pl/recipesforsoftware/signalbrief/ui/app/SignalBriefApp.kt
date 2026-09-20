@@ -32,7 +32,6 @@ import pl.recipesforsoftware.signalbrief.domain.model.MonitoredTopic
 import pl.recipesforsoftware.signalbrief.ui.images.installSignalBriefImageLoader
 import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingCompletion
 import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingScreen
-import pl.recipesforsoftware.signalbrief.ui.onboarding.rememberOnboardingPresenter
 
 /**
  * Shared application shell for SignalBrief.
@@ -158,11 +157,13 @@ fun SignalBriefApp(
         }
 
         if (onboardingCompleted == false) {
-            val onboardingPresenter = rememberOnboardingPresenter()
+            var onboardingPageIndex by rememberSaveable { mutableStateOf(0) }
             val completion = remember { OnboardingCompletion(onCompleteOnboarding) }
 
             OnboardingScreen(
-                presenter = onboardingPresenter,
+                pageIndex = onboardingPageIndex,
+                onContinue = { onboardingPageIndex = 1 },
+                onBack = { onboardingPageIndex = 0 },
                 onSkip = completion::complete,
                 onComplete = completion::complete,
             )

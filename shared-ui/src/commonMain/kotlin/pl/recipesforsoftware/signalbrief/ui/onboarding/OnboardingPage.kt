@@ -38,6 +38,7 @@ import pl.recipesforsoftware.signalbrief.ui.designsystem.tokens.SignalBriefSpaci
 
 private const val SIGBY_FULL_WIDTH_RATIO = 0.55f
 private const val SIGBY_COMPACT_WIDTH_RATIO = 0.42f
+internal const val ONBOARDING_PAGE_COUNT = 2
 private val sigbyFullMaxSize = 200.dp
 private val sigbyCompactMaxSize = 150.dp
 private val touchTargetMinHeight = 48.dp
@@ -197,7 +198,7 @@ private fun ActionArea(
         verticalArrangement = Arrangement.spacedBy(SignalBriefSpacing.m),
     ) {
         OnboardingPageIndicator(
-            pageCount = OnboardingState.PAGE_COUNT,
+            pageCount = ONBOARDING_PAGE_COUNT,
             currentPage = pageIndex,
         )
 

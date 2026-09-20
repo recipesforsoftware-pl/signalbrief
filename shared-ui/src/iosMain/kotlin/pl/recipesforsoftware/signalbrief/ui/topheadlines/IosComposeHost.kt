@@ -413,7 +413,7 @@ private fun rememberOpenFullArticleAction(
  * a second database or repository.
  *
  * [dispose] must be called exactly once, when the owning composition root is
- * torn down; it cancels the legacy Headlines presenter and then closes the client and database.
+ * torn down; it closes the client and database.
  */
 private class IosComposition(
     val savedArticlesRepository: SavedArticlesRepository,

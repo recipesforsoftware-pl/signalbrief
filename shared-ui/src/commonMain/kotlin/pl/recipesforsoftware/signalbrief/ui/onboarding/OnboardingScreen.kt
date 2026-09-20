@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import pl.recipesforsoftware.signalbrief.ui.designsystem.components.SigbyVariant
 
@@ -86,28 +84,4 @@ fun OnboardingScreen(
             }
         }
     }
-}
-
-/**
- * Stateful version of the onboarding screen driven by an [OnboardingPresenter].
- *
- * Useful for hosts that want to delegate page navigation to the shared presenter.
- */
-@Composable
-fun OnboardingScreen(
-    presenter: OnboardingPresenter,
-    onSkip: () -> Unit,
-    onComplete: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val state by presenter.state.collectAsState()
-
-    OnboardingScreen(
-        pageIndex = state.pageIndex,
-        onContinue = presenter::nextPage,
-        onBack = presenter::previousPage,
-        onSkip = onSkip,
-        onComplete = onComplete,
-        modifier = modifier,
-    )
 }
