@@ -18,6 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import pl.recipesforsoftware.signalbrief.domain.model.Article
@@ -36,13 +37,14 @@ import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsScreen
 import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsViewModel
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefPresenter
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefScreen
+import pl.recipesforsoftware.signalbrief.ui.lifecycle.ScreenViewModelScope
 import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingViewModel
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesScreen
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesViewModel
 import pl.recipesforsoftware.signalbrief.ui.search.SearchPresenter
 import pl.recipesforsoftware.signalbrief.ui.search.SearchScreen
-import pl.recipesforsoftware.signalbrief.ui.settings.SettingsPresenter
 import pl.recipesforsoftware.signalbrief.ui.settings.SettingsScreen
+import pl.recipesforsoftware.signalbrief.ui.settings.SettingsViewModel
 import pl.recipesforsoftware.signalbrief.ui.theme.SignalBriefAndroidTheme
 import pl.recipesforsoftware.signalbrief.ui.theme.ThemeViewModel
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.DarkModeMenu
@@ -480,9 +482,10 @@ private fun ArticleDetailsRoute(
  *
  * [BackHandler] integrates the Android system back gesture with the shared
  * child-navigation state: while Settings is composed, system back closes
- * Settings and returns to Headlines. The presenter is scoped to this route's
- * composition (created once and disposed on leave) and observes only the
- * locally cached headlines; no network work is triggered.
+ * Settings and returns to Headlines. [ScreenViewModelScope] owns the Settings
+ * ViewModel only while this route is composed, clearing it when the route
+ * leaves composition. It observes only locally cached headlines; no network
+ * work is triggered.
  */
 @Composable
 private fun SettingsRoute(
@@ -491,22 +494,14 @@ private fun SettingsRoute(
 ) {
     BackHandler(onBack = onBack)
 
-    val presenter =
-        remember {
-            SettingsPresenter(
-                newsRepository = newsRepository,
-                dispatcher = Dispatchers.Main.immediate,
-            )
-        }
-    DisposableEffect(presenter) {
-        onDispose { presenter.dispose() }
+    ScreenViewModelScope {
+        val viewModel: SettingsViewModel = viewModel { SettingsViewModel(newsRepository) }
+        val uiState by viewModel.uiState.collectAsState()
+
+        SettingsScreen(
+            uiState = uiState,
+            onBack = onBack,
+            onClearDownloadedHeadlines = viewModel::clearDownloadedHeadlines,
+        )
     }
-
-    val uiState by presenter.uiState.collectAsState()
-
-    SettingsScreen(
-        uiState = uiState,
-        onBack = onBack,
-        onClearDownloadedHeadlines = presenter::clearDownloadedHeadlines,
-    )
 }

@@ -1,10 +1,7 @@
 package pl.recipesforsoftware.signalbrief.ui.settings
 
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,35 +13,27 @@ import pl.recipesforsoftware.signalbrief.domain.repository.NewsRepository
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.DEFAULT_NEWS_COUNTRY
 
 /**
- * Framework-independent state holder for the Settings screen.
+ * Lifecycle-aware state holder for the Settings screen.
  *
  * Observes the locally cached top-headlines flow reactively to derive the
  * downloaded-headline count. Never calls [NewsRepository.getTopHeadlines];
  * the count is derived state only.
  *
- * Callers must call [dispose] when the screen is torn down so in-flight
- * collection is cancelled.
+ * Its work is cancelled when its lifecycle owner clears this ViewModel.
  */
-class SettingsPresenter(
+class SettingsViewModel(
     private val newsRepository: NewsRepository,
     private val country: String = DEFAULT_NEWS_COUNTRY,
-    dispatcher: CoroutineDispatcher = Dispatchers.Default,
-) {
-    private val scope = CoroutineScope(dispatcher + SupervisorJob())
-
+) : ViewModel() {
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
     init {
-        scope.launch {
+        viewModelScope.launch {
             observeCachedArticles().collect { articles ->
                 _uiState.value = SettingsUiState(downloadedHeadlineCount = articles.size)
             }
         }
-    }
-
-    fun dispose() {
-        scope.cancel()
     }
 
     /**
@@ -57,7 +46,7 @@ class SettingsPresenter(
      * leaves the count untouched and triggers no network refresh.
      */
     fun clearDownloadedHeadlines() {
-        scope.launch {
+        viewModelScope.launch {
             newsRepository.clearCachedTopHeadlines(country)
         }
     }

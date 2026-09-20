@@ -6,6 +6,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.lifecycle.viewmodel.compose.viewModel
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.MonitoredTopic
 import pl.recipesforsoftware.signalbrief.domain.repository.CollectionsRepository
@@ -21,12 +22,13 @@ import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsPresenter
 import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsScreen
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefPresenter
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefScreen
+import pl.recipesforsoftware.signalbrief.ui.lifecycle.ScreenViewModelScope
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesPresenter
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesScreen
 import pl.recipesforsoftware.signalbrief.ui.search.SearchPresenter
 import pl.recipesforsoftware.signalbrief.ui.search.SearchScreen
-import pl.recipesforsoftware.signalbrief.ui.settings.SettingsPresenter
 import pl.recipesforsoftware.signalbrief.ui.settings.SettingsScreen
+import pl.recipesforsoftware.signalbrief.ui.settings.SettingsViewModel
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesPresenter
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesScreen
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.hasActionableUrl
@@ -81,7 +83,7 @@ fun SignalBriefAppHost(
             TopicMatches(composition::topicMatches, topic, articleClick, back)
         },
         settingsContent = { back ->
-            Settings(composition.settings, back)
+            Settings(newsRepository, back)
         },
         savedArticleCount = savedArticles.size,
     )
@@ -98,7 +100,6 @@ private class PresentationComposition(
     val brief = DailyBriefPresenter(news, savedRepository)
     val collections = CollectionsPresenter(collectionsRepository)
     val topicMonitoring = TopicMonitoringPresenter(topicMonitoringRepository, news)
-    val settings = SettingsPresenter(news)
 
     fun search(query: String) = SearchPresenter(news, savedRepository, query)
 
@@ -110,7 +111,6 @@ private class PresentationComposition(
         brief.dispose()
         collections.dispose()
         topicMonitoring.dispose()
-        settings.dispose()
     }
 }
 
@@ -246,11 +246,14 @@ private fun TopicMatches(
 
 @Composable
 private fun Settings(
-    presenter: SettingsPresenter,
+    newsRepository: NewsRepository,
     back: () -> Unit,
 ) {
-    val state by presenter.uiState.collectAsState()
-    SettingsScreen(state, back, presenter::clearDownloadedHeadlines)
+    ScreenViewModelScope {
+        val viewModel: SettingsViewModel = viewModel { SettingsViewModel(newsRepository) }
+        val state by viewModel.uiState.collectAsState()
+        SettingsScreen(state, back, viewModel::clearDownloadedHeadlines)
+    }
 }
 
 @Composable private fun Details(
