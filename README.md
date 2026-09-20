@@ -70,11 +70,11 @@ A walkthrough of how the original Android application evolved into an offline-fi
 The current project deliberately does **not** maximize shared-code percentage at all costs. Pure domain behavior lives in `:core`; mobile data/network/storage implementations live in `:shared`; common presentation and UI live in `:shared-ui`; each host owns platform-specific composition.
 
 ```text
-                          ┌──────────────────────────────┐
-                          │ :app — Android host / Hilt   │
-                          └──────────────┬───────────────┘
-                                         │
-                                         ▼
+                          ┌───────────────────────────────────┐
+                          │ :androidApp — Android host / Hilt │
+                          └─────────────────┬─────────────────┘
+                                              │
+                                              ▼
 ┌──────────────┐                 ┌───────────────────────┐
 │    :core     │◄────────────────│      :shared-ui       │
 │ pure domain  │                 │ Compose + presenters  │
@@ -103,7 +103,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for module ownership, dependenc
 - **`:shared`** — mobile data layer. Depends on `:core` and owns Ktor networking, serialization, Room KMP persistence, and `OfflineFirstNewsRepository`.
 - **`:shared-ui`** — shared Compose Multiplatform UI and presenters. Its common code depends on `:core`; platform source sets provide image/loading and composition details where needed.
 - **`:desktopApp`** — macOS/Windows Desktop host with manual composition, runtime `NEWS_API_KEY`, and an application-data Room database.
-- **`:app`** — Android host and Hilt composition root.
+- **`:androidApp`** — Android host and Hilt composition root.
 - **`iosApp`** — SwiftUI host. The iOS composition root is assembled explicitly from Kotlin/Swift-facing code.
 - **`:webApp`** — browser/Wasm executable with `WebNewsRepository`, `WebSavedArticlesRepository`, `WebCollectionsRepository`, and `WebTopicMonitoringRepository`. It depends on `:core` and `:shared-ui`, not on the mobile `:shared` data layer.
 - **`functions/`** — Cloudflare Pages Functions used only by the public Web path.
@@ -267,7 +267,7 @@ The public Web deployment uses Cloudflare Pages Functions and encrypted producti
 ./gradlew :webApp:wasmJsTest :shared-ui:compileKotlinWasmJs :webApp:wasmJsBrowserDistribution
 
 # Coverage
-./gradlew :app:koverHtmlReportAll :app:koverXmlReportAll :app:koverVerifyAll
+./gradlew :androidApp:koverHtmlReportAll :androidApp:koverXmlReportAll :androidApp:koverVerifyAll
 
 # Instrumented Android tests — require a device/emulator
 ./gradlew connectedDebugAndroidTest

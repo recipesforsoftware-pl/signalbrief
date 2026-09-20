@@ -44,23 +44,23 @@ jobs:
         run: ./gradlew test
 
       - name: Run Android lint
-        run: ./gradlew lintDebug
+        run: ./gradlew :androidApp:lintDebug
 
       - name: Assemble debug APK
-        run: ./gradlew assembleDebug
+        run: ./gradlew :androidApp:assembleDebug
 
       - name: Generate coverage reports
-        run: ./gradlew :app:koverHtmlReportAll :app:koverXmlReportAll
+        run: ./gradlew :androidApp:koverHtmlReportAll :androidApp:koverXmlReportAll
 
       - name: Verify coverage
-        run: ./gradlew :app:koverVerifyAll
+        run: ./gradlew :androidApp:koverVerifyAll
 
       - name: Upload unit-test reports
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: unit-test-reports
-          path: app/build/reports/tests/
+          path: androidApp/build/reports/tests/
           retention-days: 7
           if-no-files-found: warn
 
@@ -69,7 +69,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: android-lint-reports
-          path: app/build/reports/lint-results-debug.*
+          path: androidApp/build/reports/lint-results-debug.*
           retention-days: 7
           if-no-files-found: warn
 
@@ -78,7 +78,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ktlint-reports
-          path: app/build/reports/ktlint/
+          path: androidApp/build/reports/ktlint/
           retention-days: 7
           if-no-files-found: warn
 
@@ -87,7 +87,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: detekt-reports
-          path: app/build/reports/detekt/
+          path: androidApp/build/reports/detekt/
           retention-days: 7
           if-no-files-found: warn
 
@@ -96,6 +96,6 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: kover-reports
-          path: app/build/reports/kover/
+          path: androidApp/build/reports/kover/
           retention-days: 7
           if-no-files-found: warn
