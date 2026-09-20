@@ -58,20 +58,20 @@ import platform.UIKit.UIViewController
 private const val ONBOARDING_KEY = "pl.recipesforsoftware.signalbrief.onboarding.completed"
 
 /**
- * iOS composition root, invoked from SwiftUI as `MainViewControllerKt.mainViewController()`.
+ * iOS composition root, invoked from SwiftUI as `IosComposeHostKt.createIosComposeHost()`.
  *
  * Assembles the shared data layer and the shared app shell. Onboarding completion
  * is read synchronously from [NSUserDefaults] before Compose starts, so returning
  * users never see an onboarding flash.
  *
- * The iOS composition is created exactly once at the root of this controller and
- * disposed only when the whole controller is torn down. Headlines, Saved, Search,
+ * The iOS composition is created exactly once at the root of this Compose host and
+ * disposed only when the whole Compose host is torn down. Headlines, Saved, Search,
  * and Article Details share the same [SignalBriefDatabase], the same
  * [RoomSavedArticlesRepository], and the same presenters, so switching tabs or
  * opening details never closes or recreates persistence layers.
  */
 @Suppress("LongMethod")
-fun mainViewController(): UIViewController {
+fun createIosComposeHost(): UIViewController {
     val onboardingCompleted = readOnboardingCompleted()
 
     return ComposeUIViewController {
@@ -438,7 +438,7 @@ private class IosComposition(
 /**
  * Creates the single iOS composition graph.
  *
- * This factory is called exactly once by [mainViewController]. It constructs one
+ * This factory is called exactly once by [createIosComposeHost]. It constructs one
  * database, one repository, one HTTP client, and both presenters, then returns
  * an [IosComposition] that owns disposal of all those resources.
  */

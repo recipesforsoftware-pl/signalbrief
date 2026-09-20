@@ -4,7 +4,7 @@ import SignalBriefSharedUi
 
 struct ComposeView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIViewController {
-        MainViewControllerKt.mainViewController()
+        IosComposeHostKt.createIosComposeHost()
     }
 
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
