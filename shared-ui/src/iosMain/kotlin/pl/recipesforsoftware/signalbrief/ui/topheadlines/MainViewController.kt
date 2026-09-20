@@ -12,6 +12,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.window.ComposeUIViewController
+import androidx.lifecycle.viewmodel.compose.viewModel
 import io.ktor.client.HttpClient
 import pl.recipesforsoftware.signalbrief.data.local.RoomNewsLocalDataSource
 import pl.recipesforsoftware.signalbrief.data.local.db.SignalBriefDatabase
@@ -39,12 +40,13 @@ import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsPresenter
 import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsRoute
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefPresenter
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefScreen
+import pl.recipesforsoftware.signalbrief.ui.lifecycle.ScreenViewModelScope
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesPresenter
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesScreen
 import pl.recipesforsoftware.signalbrief.ui.search.SearchPresenter
 import pl.recipesforsoftware.signalbrief.ui.search.SearchScreen
-import pl.recipesforsoftware.signalbrief.ui.settings.SettingsPresenter
 import pl.recipesforsoftware.signalbrief.ui.settings.SettingsScreen
+import pl.recipesforsoftware.signalbrief.ui.settings.SettingsViewModel
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMatchesPresenter
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMatchesScreen
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringPresenter
@@ -156,7 +158,7 @@ fun mainViewController(): UIViewController {
                 },
                 settingsContent = { onBack ->
                     SettingsRoute(
-                        presenter = composition.settingsPresenter,
+                        newsRepository = composition.newsRepository,
                         onBack = onBack,
                     )
                 },
@@ -309,15 +311,18 @@ private fun TopicMatchesRoute(
 
 @Composable
 private fun SettingsRoute(
-    presenter: SettingsPresenter,
+    newsRepository: NewsRepository,
     onBack: () -> Unit,
 ) {
-    val uiState by presenter.uiState.collectAsState()
-    SettingsScreen(
-        uiState = uiState,
-        onBack = onBack,
-        onClearDownloadedHeadlines = presenter::clearDownloadedHeadlines,
-    )
+    ScreenViewModelScope {
+        val viewModel: SettingsViewModel = viewModel { SettingsViewModel(newsRepository) }
+        val uiState by viewModel.uiState.collectAsState()
+        SettingsScreen(
+            uiState = uiState,
+            onBack = onBack,
+            onClearDownloadedHeadlines = viewModel::clearDownloadedHeadlines,
+        )
+    }
 }
 
 @Composable
@@ -401,8 +406,7 @@ private class IosComposition(
     val collectionsRepository: CollectionsRepository,
     val collectionsPresenter: CollectionsPresenter,
     val topicMonitoringPresenter: TopicMonitoringPresenter,
-    val settingsPresenter: SettingsPresenter,
-    private val newsRepository: NewsRepository,
+    val newsRepository: NewsRepository,
     private val client: HttpClient,
     private val database: SignalBriefDatabase,
 ) {
@@ -426,7 +430,6 @@ private class IosComposition(
         dailyBriefPresenter.dispose()
         collectionsPresenter.dispose()
         topicMonitoringPresenter.dispose()
-        settingsPresenter.dispose()
         client.close()
         database.close()
     }
@@ -458,7 +461,6 @@ private fun createIosComposition(): IosComposition {
     val topicMonitoringRepository: TopicMonitoringRepository = RoomTopicMonitoringRepository(database)
     val newsRepository = OfflineFirstNewsRepository(remoteDataSource, localDataSource)
     val topicMonitoringPresenter = TopicMonitoringPresenter(topicMonitoringRepository, newsRepository)
-    val settingsPresenter = SettingsPresenter(newsRepository)
     val headlinesPresenter =
         TopHeadlinesPresenter(
             repository = newsRepository,
@@ -481,7 +483,6 @@ private fun createIosComposition(): IosComposition {
         collectionsRepository,
         collectionsPresenter,
         topicMonitoringPresenter,
-        settingsPresenter,
         newsRepository,
         client,
         database,

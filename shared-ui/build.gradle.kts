@@ -60,6 +60,7 @@ kotlin {
             implementation(libs.compose.material.icons.core)
             implementation(libs.compose.multiplatform.resources)
             implementation(libs.coil.compose)
+            implementation(libs.compose.lifecycle.viewmodel.compose)
         }
         androidMain.dependencies {
             implementation(libs.coil.network.ktor3)
@@ -71,6 +72,7 @@ kotlin {
         named("desktopMain") {
             dependencies {
                 implementation(libs.coil.network.ktor3)
+                implementation(libs.kotlinx.coroutines.swing)
             }
         }
         commonTest.dependencies {

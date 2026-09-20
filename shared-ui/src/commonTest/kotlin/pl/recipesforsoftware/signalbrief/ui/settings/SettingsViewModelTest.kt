@@ -1,5 +1,7 @@
 package pl.recipesforsoftware.signalbrief.ui.settings
 
+import androidx.lifecycle.ViewModelStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -7,7 +9,9 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import pl.recipesforsoftware.signalbrief.domain.failure.NewsFailure
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.Source
@@ -69,21 +73,24 @@ private fun article(
         source = testSource,
     )
 
-@OptIn(ExperimentalCoroutinesApi::class)
-private fun createPresenter(
-    newsRepository: NewsRepository,
-    scope: TestScope,
-): SettingsPresenter =
-    SettingsPresenter(
-        newsRepository = newsRepository,
-        dispatcher = StandardTestDispatcher(scope.testScheduler),
-    )
+private fun createViewModel(repo: NewsRepository): SettingsViewModel = SettingsViewModel(repo)
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class SettingsPresenterTest {
+private fun runSettingsViewModelTest(block: suspend TestScope.() -> Unit) =
+    runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            block()
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class SettingsViewModelTest {
     @Test
     fun `cached list produces correct count`() =
-        runTest {
+        runSettingsViewModelTest {
             val newsRepo = FakeNewsRepositoryForSettings()
             newsRepo.seed(
                 listOf(
@@ -93,34 +100,34 @@ class SettingsPresenterTest {
                 ),
             )
 
-            val presenter = createPresenter(newsRepo, this)
+            val viewModel = createViewModel(newsRepo)
             advanceUntilIdle()
 
-            assertEquals(SettingsUiState(downloadedHeadlineCount = 3), presenter.uiState.value)
+            assertEquals(SettingsUiState(downloadedHeadlineCount = 3), viewModel.uiState.value)
             assertEquals(0, newsRepo.getTopHeadlinesCallCount)
         }
 
     @Test
     fun `empty cache produces zero count`() =
-        runTest {
+        runSettingsViewModelTest {
             val newsRepo = FakeNewsRepositoryForSettings()
 
-            val presenter = createPresenter(newsRepo, this)
+            val viewModel = createViewModel(newsRepo)
             advanceUntilIdle()
 
-            assertEquals(SettingsUiState(downloadedHeadlineCount = 0), presenter.uiState.value)
+            assertEquals(SettingsUiState(downloadedHeadlineCount = 0), viewModel.uiState.value)
             assertEquals(0, newsRepo.getTopHeadlinesCallCount)
         }
 
     @Test
     fun `later cache emission updates count reactively`() =
-        runTest {
+        runSettingsViewModelTest {
             val newsRepo = FakeNewsRepositoryForSettings()
             newsRepo.seed(listOf(article("https://example.com/1")))
 
-            val presenter = createPresenter(newsRepo, this)
+            val viewModel = createViewModel(newsRepo)
             advanceUntilIdle()
-            assertEquals(SettingsUiState(downloadedHeadlineCount = 1), presenter.uiState.value)
+            assertEquals(SettingsUiState(downloadedHeadlineCount = 1), viewModel.uiState.value)
 
             newsRepo.seed(
                 listOf(
@@ -129,43 +136,45 @@ class SettingsPresenterTest {
                 ),
             )
             advanceUntilIdle()
-            assertEquals(SettingsUiState(downloadedHeadlineCount = 2), presenter.uiState.value)
+            assertEquals(SettingsUiState(downloadedHeadlineCount = 2), viewModel.uiState.value)
         }
 
     @Test
     fun `observation failure results in zero state`() =
-        runTest {
+        runSettingsViewModelTest {
             val newsRepo = FailingNewsRepositoryForSettings()
 
-            val presenter = createPresenter(newsRepo, this)
+            val viewModel = createViewModel(newsRepo)
             advanceUntilIdle()
 
-            assertEquals(SettingsUiState(downloadedHeadlineCount = 0), presenter.uiState.value)
+            assertEquals(SettingsUiState(downloadedHeadlineCount = 0), viewModel.uiState.value)
         }
 
     @Test
     fun `getTopHeadlines is never called`() =
-        runTest {
+        runSettingsViewModelTest {
             val newsRepo = FakeNewsRepositoryForSettings()
             newsRepo.seed(listOf(article("https://example.com/1")))
 
-            val presenter = createPresenter(newsRepo, this)
+            val viewModel = createViewModel(newsRepo)
             advanceUntilIdle()
 
             assertEquals(0, newsRepo.getTopHeadlinesCallCount)
         }
 
     @Test
-    fun `dispose stops later observation updates`() =
-        runTest {
+    fun `clearing the lifecycle owner stops later observation updates`() =
+        runSettingsViewModelTest {
             val newsRepo = FakeNewsRepositoryForSettings()
             newsRepo.seed(listOf(article("https://example.com/1")))
 
-            val presenter = createPresenter(newsRepo, this)
+            val viewModel = createViewModel(newsRepo)
+            val viewModelStore = ViewModelStore()
+            viewModelStore.put("settings", viewModel)
             advanceUntilIdle()
-            assertEquals(SettingsUiState(downloadedHeadlineCount = 1), presenter.uiState.value)
+            assertEquals(SettingsUiState(downloadedHeadlineCount = 1), viewModel.uiState.value)
 
-            presenter.dispose()
+            viewModelStore.clear()
             advanceUntilIdle()
 
             newsRepo.seed(
@@ -176,19 +185,19 @@ class SettingsPresenterTest {
             )
             advanceUntilIdle()
 
-            assertEquals(SettingsUiState(downloadedHeadlineCount = 1), presenter.uiState.value)
+            assertEquals(SettingsUiState(downloadedHeadlineCount = 1), viewModel.uiState.value)
         }
 
     @Test
     fun `clear calls the repository exactly once`() =
-        runTest {
+        runSettingsViewModelTest {
             val newsRepo = FakeNewsRepositoryForSettings()
             newsRepo.seed(listOf(article("https://example.com/1")))
 
-            val presenter = createPresenter(newsRepo, this)
+            val viewModel = createViewModel(newsRepo)
             advanceUntilIdle()
 
-            presenter.clearDownloadedHeadlines()
+            viewModel.clearDownloadedHeadlines()
             advanceUntilIdle()
 
             assertEquals(1, newsRepo.clearCallCount)
@@ -197,57 +206,57 @@ class SettingsPresenterTest {
 
     @Test
     fun `clear never calls getTopHeadlines`() =
-        runTest {
+        runSettingsViewModelTest {
             val newsRepo = FakeNewsRepositoryForSettings()
             newsRepo.seed(listOf(article("https://example.com/1")))
 
-            val presenter = createPresenter(newsRepo, this)
+            val viewModel = createViewModel(newsRepo)
             advanceUntilIdle()
 
-            presenter.clearDownloadedHeadlines()
+            viewModel.clearDownloadedHeadlines()
             advanceUntilIdle()
 
             assertEquals(0, newsRepo.getTopHeadlinesCallCount)
-            assertEquals(SettingsUiState(downloadedHeadlineCount = 0), presenter.uiState.value)
+            assertEquals(SettingsUiState(downloadedHeadlineCount = 0), viewModel.uiState.value)
         }
 
     @Test
     fun `count becomes zero only after the cached flow emits an empty list`() =
-        runTest {
+        runSettingsViewModelTest {
             val newsRepo = FakeNewsRepositoryForSettings()
             newsRepo.seed(listOf(article("https://example.com/1")))
 
-            val presenter = createPresenter(newsRepo, this)
+            val viewModel = createViewModel(newsRepo)
             advanceUntilIdle()
-            assertEquals(SettingsUiState(downloadedHeadlineCount = 1), presenter.uiState.value)
+            assertEquals(SettingsUiState(downloadedHeadlineCount = 1), viewModel.uiState.value)
 
-            presenter.clearDownloadedHeadlines()
+            viewModel.clearDownloadedHeadlines()
             assertEquals(
                 SettingsUiState(downloadedHeadlineCount = 1),
-                presenter.uiState.value,
+                viewModel.uiState.value,
                 "Count must not change until the cached flow emits an empty list",
             )
 
             advanceUntilIdle()
 
-            assertEquals(0, presenter.uiState.value.downloadedHeadlineCount)
+            assertEquals(0, viewModel.uiState.value.downloadedHeadlineCount)
         }
 
     @Test
     fun `failed clear does not fabricate a zero state`() =
-        runTest {
+        runSettingsViewModelTest {
             val newsRepo = FakeNewsRepositoryForSettings()
             newsRepo.seed(listOf(article("https://example.com/1")))
             newsRepo.clearFailure = Result.failure(NewsFailure.Unknown(IllegalStateException("database unavailable")))
 
-            val presenter = createPresenter(newsRepo, this)
+            val viewModel = createViewModel(newsRepo)
             advanceUntilIdle()
-            assertEquals(SettingsUiState(downloadedHeadlineCount = 1), presenter.uiState.value)
+            assertEquals(SettingsUiState(downloadedHeadlineCount = 1), viewModel.uiState.value)
 
-            presenter.clearDownloadedHeadlines()
+            viewModel.clearDownloadedHeadlines()
             advanceUntilIdle()
 
-            assertEquals(SettingsUiState(downloadedHeadlineCount = 1), presenter.uiState.value)
+            assertEquals(SettingsUiState(downloadedHeadlineCount = 1), viewModel.uiState.value)
             assertEquals(1, newsRepo.clearCallCount)
         }
 }
