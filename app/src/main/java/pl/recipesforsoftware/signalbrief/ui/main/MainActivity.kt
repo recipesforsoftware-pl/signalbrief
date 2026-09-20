@@ -8,10 +8,10 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -20,7 +20,6 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.Dispatchers
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.MonitoredTopic
 import pl.recipesforsoftware.signalbrief.domain.repository.CollectionsRepository
@@ -28,21 +27,21 @@ import pl.recipesforsoftware.signalbrief.domain.repository.NewsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.TopicMonitoringRepository
 import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefApp
-import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleCollectionAssignmentPresenter
-import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsPresenter
+import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleCollectionAssignmentViewModel
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsScreen
-import pl.recipesforsoftware.signalbrief.ui.collectiondetails.CollectionDetailsPresenter
+import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsViewModel
 import pl.recipesforsoftware.signalbrief.ui.collectiondetails.CollectionDetailsScreen
+import pl.recipesforsoftware.signalbrief.ui.collectiondetails.CollectionDetailsViewModel
 import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsScreen
 import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsViewModel
-import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefPresenter
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefScreen
+import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefViewModel
 import pl.recipesforsoftware.signalbrief.ui.lifecycle.ScreenViewModelScope
 import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingViewModel
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesScreen
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesViewModel
-import pl.recipesforsoftware.signalbrief.ui.search.SearchPresenter
 import pl.recipesforsoftware.signalbrief.ui.search.SearchScreen
+import pl.recipesforsoftware.signalbrief.ui.search.SearchViewModel
 import pl.recipesforsoftware.signalbrief.ui.settings.SettingsScreen
 import pl.recipesforsoftware.signalbrief.ui.settings.SettingsViewModel
 import pl.recipesforsoftware.signalbrief.ui.theme.SignalBriefAndroidTheme
@@ -51,10 +50,10 @@ import pl.recipesforsoftware.signalbrief.ui.topheadlines.DarkModeMenu
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesScreen
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesViewModel
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.hasActionableUrl
-import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMatchesPresenter
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMatchesScreen
-import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringPresenter
+import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMatchesViewModel
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringScreen
+import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringViewModel
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -192,24 +191,26 @@ class MainActivity : ComponentActivity() {
         onSearchClick: () -> Unit,
         onSettingsClick: () -> Unit,
     ) {
-        val viewModel: TopHeadlinesViewModel = hiltViewModel()
-        val uiState by viewModel.uiState.collectAsState()
-
-        TopHeadlinesScreen(
-            uiState = uiState,
-            onRefresh = viewModel::refresh,
-            onArticleClick = onArticleClick,
-            onBookmarkClick = viewModel::toggleBookmark,
-            onSearchClick = onSearchClick,
-            onSettingsClick = onSettingsClick,
-            topBarActions = {
-                DarkModeMenu(
-                    isDarkMode = isDarkMode,
-                    onToggleDarkMode = onToggleDarkMode,
-                )
-            },
-            bottomBar = bottomBar,
-        )
+        ScreenViewModelScope {
+            val viewModel: TopHeadlinesViewModel =
+                viewModel { TopHeadlinesViewModel(newsRepository, savedArticlesRepository) }
+            val uiState by viewModel.uiState.collectAsState()
+            TopHeadlinesScreen(
+                uiState = uiState,
+                onRefresh = viewModel::refresh,
+                onArticleClick = onArticleClick,
+                onBookmarkClick = viewModel::toggleBookmark,
+                onSearchClick = onSearchClick,
+                onSettingsClick = onSettingsClick,
+                topBarActions = {
+                    DarkModeMenu(
+                        isDarkMode = isDarkMode,
+                        onToggleDarkMode = onToggleDarkMode,
+                    )
+                },
+                bottomBar = bottomBar,
+            )
+        }
     }
 
     @Composable
@@ -266,13 +267,14 @@ class MainActivity : ComponentActivity() {
         onBack: () -> Unit,
     ) {
         BackHandler(onBack = onBack)
-        val presenter =
-            remember(collection.id) {
-                CollectionDetailsPresenter(collection, collectionsRepository, Dispatchers.Main.immediate)
+        key(collection.id) {
+            ScreenViewModelScope {
+                val viewModel: CollectionDetailsViewModel =
+                    viewModel { CollectionDetailsViewModel(collection, collectionsRepository) }
+                val uiState by viewModel.uiState.collectAsState()
+                CollectionDetailsScreen(uiState, onArticleClick, onBack)
             }
-        DisposableEffect(presenter) { onDispose(presenter::dispose) }
-        val uiState by presenter.uiState.collectAsState()
-        CollectionDetailsScreen(uiState, onArticleClick, onBack)
+        }
     }
 
     @Composable
@@ -280,22 +282,17 @@ class MainActivity : ComponentActivity() {
         bottomBar: @Composable () -> Unit,
         onArticleClick: (Article) -> Unit,
     ) {
-        val presenter =
-            remember {
-                DailyBriefPresenter(
-                    newsRepository = newsRepository,
-                    savedArticlesRepository = savedArticlesRepository,
-                    dispatcher = Dispatchers.Main.immediate,
-                )
-            }
-        DisposableEffect(presenter) { onDispose { presenter.dispose() } }
-        val uiState by presenter.uiState.collectAsState()
-        DailyBriefScreen(
-            uiState = uiState,
-            onArticleClick = onArticleClick,
-            onBookmarkClick = presenter::toggleBookmark,
-            bottomBar = bottomBar,
-        )
+        ScreenViewModelScope {
+            val viewModel: DailyBriefViewModel =
+                viewModel { DailyBriefViewModel(newsRepository, savedArticlesRepository) }
+            val uiState by viewModel.uiState.collectAsState()
+            DailyBriefScreen(
+                uiState = uiState,
+                onArticleClick = onArticleClick,
+                onBookmarkClick = viewModel::toggleBookmark,
+                bottomBar = bottomBar,
+            )
+        }
     }
 
     /**
@@ -303,7 +300,7 @@ class MainActivity : ComponentActivity() {
      *
      * [BackHandler] integrates the Android system back gesture with the shared
      * child-navigation state: while Search is composed, system back closes Search
-     * and returns to Headlines. The presenter is scoped to this route's
+     * and returns to Headlines. The ViewModel is scoped to this route's
      * composition (created once and disposed on leave) so query state lives only
      * as long as the screen is visible. The query itself is hoisted into
      * [rememberSaveable] by [SignalBriefApp] so it survives configuration changes
@@ -319,34 +316,24 @@ class MainActivity : ComponentActivity() {
     ) {
         BackHandler(onBack = onBack)
 
-        val presenter =
-            remember {
-                SearchPresenter(
-                    newsRepository = newsRepository,
-                    savedArticlesRepository = savedArticlesRepository,
-                    initialQuery = initialQuery,
-                    dispatcher = Dispatchers.Main.immediate,
-                )
-            }
-        DisposableEffect(presenter) {
-            onDispose { presenter.dispose() }
+        ScreenViewModelScope {
+            val viewModel: SearchViewModel =
+                viewModel { SearchViewModel(newsRepository, savedArticlesRepository, initialQuery) }
+            val query by viewModel.query.collectAsState()
+            val uiState by viewModel.uiState.collectAsState()
+            SearchScreen(
+                query = query,
+                onQueryChange = {
+                    viewModel.setQuery(it)
+                    onQueryChange(it)
+                },
+                uiState = uiState,
+                onArticleClick = onArticleClick,
+                onBookmarkClick = viewModel::toggleBookmark,
+                onOpenTopicMonitoring = onOpenTopicMonitoring,
+                onBack = onBack,
+            )
         }
-
-        val query by presenter.query.collectAsState()
-        val uiState by presenter.uiState.collectAsState()
-
-        SearchScreen(
-            query = query,
-            onQueryChange = {
-                presenter.setQuery(it)
-                onQueryChange(it)
-            },
-            uiState = uiState,
-            onArticleClick = onArticleClick,
-            onBookmarkClick = presenter::toggleBookmark,
-            onOpenTopicMonitoring = onOpenTopicMonitoring,
-            onBack = onBack,
-        )
     }
 
     @Composable
@@ -355,30 +342,25 @@ class MainActivity : ComponentActivity() {
         onBack: () -> Unit,
     ) {
         BackHandler(onBack = onBack)
-        val presenter =
-            remember {
-                TopicMonitoringPresenter(
-                    topicMonitoringRepository,
-                    newsRepository,
-                    dispatcher = Dispatchers.Main.immediate,
-                )
-            }
-        DisposableEffect(presenter) { onDispose(presenter::dispose) }
-        val uiState by presenter.uiState.collectAsState()
-        TopicMonitoringScreen(
-            uiState,
-            presenter::openCreateEditor,
-            presenter::openRenameEditor,
-            presenter::updateEditorQuery,
-            presenter::confirmEditor,
-            presenter::dismissEditor,
-            presenter::openDeleteConfirmation,
-            presenter::confirmDelete,
-            presenter::dismissDeleteConfirmation,
-            presenter::dismissError,
-            onOpenTopicMatches,
-            onBack,
-        )
+        ScreenViewModelScope {
+            val viewModel: TopicMonitoringViewModel =
+                viewModel { TopicMonitoringViewModel(topicMonitoringRepository, newsRepository) }
+            val uiState by viewModel.uiState.collectAsState()
+            TopicMonitoringScreen(
+                uiState,
+                viewModel::openCreateEditor,
+                viewModel::openRenameEditor,
+                viewModel::updateEditorQuery,
+                viewModel::confirmEditor,
+                viewModel::dismissEditor,
+                viewModel::openDeleteConfirmation,
+                viewModel::confirmDelete,
+                viewModel::dismissDeleteConfirmation,
+                viewModel::dismissError,
+                onOpenTopicMatches,
+                onBack,
+            )
+        }
     }
 
     @Composable
@@ -388,23 +370,19 @@ class MainActivity : ComponentActivity() {
         onBack: () -> Unit,
     ) {
         BackHandler(onBack = onBack)
-        val presenter =
-            remember(topic.id) {
-                TopicMatchesPresenter(
-                    topic = topic,
-                    newsRepository = newsRepository,
-                    savedArticlesRepository = savedArticlesRepository,
-                    dispatcher = Dispatchers.Main.immediate,
+        key(topic.id) {
+            ScreenViewModelScope {
+                val viewModel: TopicMatchesViewModel =
+                    viewModel { TopicMatchesViewModel(topic, newsRepository, savedArticlesRepository) }
+                val uiState by viewModel.uiState.collectAsState()
+                TopicMatchesScreen(
+                    uiState = uiState,
+                    onArticleClick = onArticleClick,
+                    onBookmarkClick = viewModel::toggleBookmark,
+                    onBack = onBack,
                 )
             }
-        DisposableEffect(presenter) { onDispose(presenter::dispose) }
-        val uiState by presenter.uiState.collectAsState()
-        TopicMatchesScreen(
-            uiState = uiState,
-            onArticleClick = onArticleClick,
-            onBookmarkClick = presenter::toggleBookmark,
-            onBack = onBack,
-        )
+        }
     }
 }
 
@@ -418,8 +396,8 @@ class MainActivity : ComponentActivity() {
  * disables itself, so back behaves normally everywhere else. No navigation
  * library and no back stack are involved.
  *
- * The presenter is scoped to this route's composition (created per article URL
- * and disposed on leave) so bookmark observation never outlives the screen;
+ * The ViewModels are scoped to this route's composition (created per article URL)
+ * so bookmark observation never outlives the screen;
  * persistence itself stays in the existing Hilt singleton repository.
  */
 @Composable
@@ -432,55 +410,35 @@ private fun ArticleDetailsRoute(
 ) {
     BackHandler(onBack = onBack)
 
-    val presenter =
-        remember(article.url) {
-            ArticleDetailsPresenter(
-                savedArticlesRepository = savedArticlesRepository,
-                article = article,
-                dispatcher = Dispatchers.Main.immediate,
+    key(article.url) {
+        ScreenViewModelScope {
+            val viewModel: ArticleDetailsViewModel =
+                viewModel { ArticleDetailsViewModel(savedArticlesRepository, article) }
+            val assignmentViewModel: ArticleCollectionAssignmentViewModel =
+                viewModel { ArticleCollectionAssignmentViewModel(collectionsRepository, article) }
+            val uiState by viewModel.uiState.collectAsState()
+            val assignmentUiState by assignmentViewModel.uiState.collectAsState()
+            val uriHandler = LocalUriHandler.current
+            val openFullArticle =
+                remember(article.url, uriHandler) {
+                    { if (article.hasActionableUrl()) uriHandler.openUri(article.url) }
+                }
+            ArticleDetailsScreen(
+                uiState = uiState,
+                onBack = onBack,
+                onBookmarkClick = viewModel::toggleBookmark,
+                onOpenFullArticle = openFullArticle,
+                collectionAssignmentUiState = assignmentUiState,
+                onCollectionAssignmentClick = assignmentViewModel::showPicker,
+                onToggleCollection = assignmentViewModel::toggleCollection,
+                onDismissCollectionAssignment = assignmentViewModel::dismissPicker,
+                onManageCollections = {
+                    assignmentViewModel.dismissPicker()
+                    onManageCollections()
+                },
             )
-        }
-    val assignmentPresenter =
-        remember(article.url) {
-            ArticleCollectionAssignmentPresenter(
-                collectionsRepository = collectionsRepository,
-                article = article,
-                dispatcher = Dispatchers.Main.immediate,
-            )
-        }
-    DisposableEffect(presenter, assignmentPresenter) {
-        onDispose {
-            presenter.dispose()
-            assignmentPresenter.dispose()
         }
     }
-
-    val uiState by presenter.uiState.collectAsState()
-    val assignmentUiState by assignmentPresenter.uiState.collectAsState()
-    val uriHandler = LocalUriHandler.current
-    val openFullArticle =
-        remember(article.url, uriHandler) {
-            {
-                if (article.hasActionableUrl()) {
-                    uriHandler.openUri(article.url)
-                }
-            }
-        }
-
-    ArticleDetailsScreen(
-        uiState = uiState,
-        onBack = onBack,
-        onBookmarkClick = presenter::toggleBookmark,
-        onOpenFullArticle = openFullArticle,
-        collectionAssignmentUiState = assignmentUiState,
-        onCollectionAssignmentClick = assignmentPresenter::showPicker,
-        onToggleCollection = assignmentPresenter::toggleCollection,
-        onDismissCollectionAssignment = assignmentPresenter::dismissPicker,
-        onManageCollections = {
-            assignmentPresenter.dismissPicker()
-            onManageCollections()
-        },
-    )
 }
 
 /**

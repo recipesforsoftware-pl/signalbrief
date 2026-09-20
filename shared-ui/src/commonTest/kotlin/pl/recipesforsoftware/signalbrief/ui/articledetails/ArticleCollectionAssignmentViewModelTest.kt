@@ -1,6 +1,7 @@
 package pl.recipesforsoftware.signalbrief.ui.articledetails
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -8,7 +9,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.Collection
 import pl.recipesforsoftware.signalbrief.domain.model.Source
@@ -17,6 +20,16 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+
+private fun runViewModelTest(block: suspend TestScope.() -> Unit) =
+    runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            block()
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
 
 private class FakeAssignmentCollectionsRepository : CollectionsRepository {
     private val collections = MutableStateFlow<List<Collection>>(emptyList())
@@ -86,76 +99,77 @@ private val assignmentArticle =
     )
 
 @OptIn(ExperimentalCoroutinesApi::class)
-private fun assignmentPresenter(
-    repository: CollectionsRepository,
-    scope: TestScope,
-) = ArticleCollectionAssignmentPresenter(repository, assignmentArticle, StandardTestDispatcher(scope.testScheduler))
+private fun assignmentViewModel(repository: CollectionsRepository): ArticleCollectionAssignmentViewModel =
+    ArticleCollectionAssignmentViewModel(
+        repository,
+        assignmentArticle,
+    )
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class ArticleCollectionAssignmentPresenterTest {
+class ArticleCollectionAssignmentViewModelTest {
     @Test
     fun `repository collections and membership form initial picker state`() =
-        runTest {
+        runViewModelTest {
             val repository = FakeAssignmentCollectionsRepository()
             repository.emitCollections(Collection("read", "Read later"))
             repository.emitMembership(assignmentArticle.url, setOf("read"))
-            val presenter = assignmentPresenter(repository, this)
+            val viewModel = assignmentViewModel(repository)
 
             advanceUntilIdle()
 
-            assertEquals(listOf(Collection("read", "Read later")), presenter.uiState.value.collections)
-            assertEquals(setOf("read"), presenter.uiState.value.selectedCollectionIds)
-            assertFalse(presenter.uiState.value.isLoadingCollections)
+            assertEquals(listOf(Collection("read", "Read later")), viewModel.uiState.value.collections)
+            assertEquals(setOf("read"), viewModel.uiState.value.selectedCollectionIds)
+            assertFalse(viewModel.uiState.value.isLoadingCollections)
         }
 
     @Test
     fun `adding calls repository and waits for membership emission to select`() =
-        runTest {
+        runViewModelTest {
             val repository = FakeAssignmentCollectionsRepository()
             repository.emitCollections(Collection("read", "Read later"))
             val emission = CompletableDeferred<Result<Unit>>()
             repository.addResult = { emission.await() }
-            val presenter = assignmentPresenter(repository, this)
+            val viewModel = assignmentViewModel(repository)
             advanceUntilIdle()
 
-            presenter.toggleCollection("read")
+            viewModel.toggleCollection("read")
             advanceUntilIdle()
             assertEquals(listOf(assignmentArticle to "read"), repository.addCalls)
-            assertFalse("read" in presenter.uiState.value.selectedCollectionIds)
+            assertFalse("read" in viewModel.uiState.value.selectedCollectionIds)
 
             emission.complete(Result.success(Unit))
             advanceUntilIdle()
-            assertTrue("read" in presenter.uiState.value.selectedCollectionIds)
+            assertTrue("read" in viewModel.uiState.value.selectedCollectionIds)
         }
 
     @Test
     fun `removing calls repository and waits for membership emission to unselect`() =
-        runTest {
+        runViewModelTest {
             val repository = FakeAssignmentCollectionsRepository()
             repository.emitCollections(Collection("read", "Read later"))
             repository.emitMembership(assignmentArticle.url, setOf("read"))
-            val presenter = assignmentPresenter(repository, this)
+            val viewModel = assignmentViewModel(repository)
             advanceUntilIdle()
 
-            presenter.toggleCollection("read")
+            viewModel.toggleCollection("read")
             advanceUntilIdle()
 
             assertEquals(listOf(assignmentArticle.url to "read"), repository.removeCalls)
-            assertFalse("read" in presenter.uiState.value.selectedCollectionIds)
+            assertFalse("read" in viewModel.uiState.value.selectedCollectionIds)
         }
 
     @Test
     fun `duplicate toggle while mutation is in flight is ignored`() =
-        runTest {
+        runViewModelTest {
             val repository = FakeAssignmentCollectionsRepository()
             repository.emitCollections(Collection("read", "Read later"))
             val emission = CompletableDeferred<Result<Unit>>()
             repository.addResult = { emission.await() }
-            val presenter = assignmentPresenter(repository, this)
+            val viewModel = assignmentViewModel(repository)
             advanceUntilIdle()
 
-            presenter.toggleCollection("read")
-            presenter.toggleCollection("read")
+            viewModel.toggleCollection("read")
+            viewModel.toggleCollection("read")
             advanceUntilIdle()
 
             assertEquals(1, repository.addCalls.size)
@@ -165,49 +179,49 @@ class ArticleCollectionAssignmentPresenterTest {
 
     @Test
     fun `failed mutation preserves persisted selection and exposes friendly error`() =
-        runTest {
+        runViewModelTest {
             val repository = FakeAssignmentCollectionsRepository()
             repository.emitCollections(Collection("read", "Read later"))
             repository.addResult = { Result.failure(IllegalStateException("storage failed")) }
-            val presenter = assignmentPresenter(repository, this)
+            val viewModel = assignmentViewModel(repository)
             advanceUntilIdle()
 
-            presenter.toggleCollection("read")
+            viewModel.toggleCollection("read")
             advanceUntilIdle()
 
-            assertFalse("read" in presenter.uiState.value.selectedCollectionIds)
-            assertEquals(ArticleCollectionAssignmentError.Unknown, presenter.uiState.value.error)
+            assertFalse("read" in viewModel.uiState.value.selectedCollectionIds)
+            assertEquals(ArticleCollectionAssignmentError.Unknown, viewModel.uiState.value.error)
         }
 
     @Test
     fun `empty repository state remains renderable and can open picker`() =
-        runTest {
-            val presenter = assignmentPresenter(FakeAssignmentCollectionsRepository(), this)
+        runViewModelTest {
+            val viewModel = assignmentViewModel(FakeAssignmentCollectionsRepository())
             advanceUntilIdle()
 
-            presenter.showPicker()
+            viewModel.showPicker()
 
-            assertTrue(presenter.uiState.value.isPickerVisible)
+            assertTrue(viewModel.uiState.value.isPickerVisible)
             assertTrue(
-                presenter.uiState.value.collections
+                viewModel.uiState.value.collections
                     .isEmpty(),
             )
-            assertFalse(presenter.uiState.value.isLoadingCollections)
+            assertFalse(viewModel.uiState.value.isLoadingCollections)
         }
 
     @Test
     fun `external membership changes update an open picker`() =
-        runTest {
+        runViewModelTest {
             val repository = FakeAssignmentCollectionsRepository()
             repository.emitCollections(Collection("weekend", "Weekend"))
-            val presenter = assignmentPresenter(repository, this)
+            val viewModel = assignmentViewModel(repository)
             advanceUntilIdle()
-            presenter.showPicker()
+            viewModel.showPicker()
 
             repository.emitMembership(assignmentArticle.url, setOf("weekend"))
             advanceUntilIdle()
 
-            assertTrue(presenter.uiState.value.isPickerVisible)
-            assertEquals(setOf("weekend"), presenter.uiState.value.selectedCollectionIds)
+            assertTrue(viewModel.uiState.value.isPickerVisible)
+            assertEquals(setOf("weekend"), viewModel.uiState.value.selectedCollectionIds)
         }
 }

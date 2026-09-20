@@ -1,10 +1,7 @@
 package pl.recipesforsoftware.signalbrief.ui.articledetails
 
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,22 +21,17 @@ import pl.recipesforsoftware.signalbrief.ui.topheadlines.hasActionableUrl
  * the state untouched.
  *
  * Depends only on the [SavedArticlesRepository] contract (never on concrete
- * implementations), owns its [CoroutineScope], and exposes immutable state via
- * [uiState]. Callers are responsible for calling [dispose] when the details
- * screen is torn down so that in-flight collection is cancelled.
+ * implementations) and exposes immutable state via [uiState].
  */
-class ArticleDetailsPresenter(
+class ArticleDetailsViewModel(
     private val savedArticlesRepository: SavedArticlesRepository,
     private val article: Article,
-    dispatcher: CoroutineDispatcher = Dispatchers.Default,
-) {
-    private val scope = CoroutineScope(dispatcher + SupervisorJob())
-
+) : ViewModel() {
     private val _uiState = MutableStateFlow(ArticleDetailsUiState(article))
     val uiState: StateFlow<ArticleDetailsUiState> = _uiState.asStateFlow()
 
     init {
-        scope.launch {
+        viewModelScope.launch {
             savedArticlesRepository.isArticleSaved(article.url).collect { isSaved ->
                 _uiState.value = _uiState.value.copy(isSaved = isSaved)
             }
@@ -53,17 +45,12 @@ class ArticleDetailsPresenter(
      */
     fun toggleBookmark() {
         if (!article.hasActionableUrl()) return
-        scope.launch {
+        viewModelScope.launch {
             if (_uiState.value.isSaved) {
                 savedArticlesRepository.removeSavedArticle(article.url)
             } else {
                 savedArticlesRepository.saveArticle(article)
             }
         }
-    }
-
-    /** Cancels the owned scope and all in-flight work. Safe to call multiple times. */
-    fun dispose() {
-        scope.cancel()
     }
 }

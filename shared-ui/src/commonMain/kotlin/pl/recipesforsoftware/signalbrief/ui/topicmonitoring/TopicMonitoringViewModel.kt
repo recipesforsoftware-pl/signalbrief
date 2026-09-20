@@ -1,10 +1,7 @@
 package pl.recipesforsoftware.signalbrief.ui.topicmonitoring
 
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,19 +27,17 @@ import pl.recipesforsoftware.signalbrief.ui.topheadlines.DEFAULT_NEWS_COUNTRY
  * observation failure is treated as an empty local cache, consistent with the
  * Local Search convention.
  */
-class TopicMonitoringPresenter(
+class TopicMonitoringViewModel(
     private val repository: TopicMonitoringRepository,
     private val newsRepository: NewsRepository,
     private val matcher: ArticleQueryMatcher = ArticleQueryMatcher,
     private val country: String = DEFAULT_NEWS_COUNTRY,
-    dispatcher: CoroutineDispatcher = Dispatchers.Default,
-) {
-    private val scope = CoroutineScope(dispatcher + SupervisorJob())
+) : ViewModel() {
     private val _uiState = MutableStateFlow(TopicMonitoringUiState())
     val uiState: StateFlow<TopicMonitoringUiState> = _uiState.asStateFlow()
 
     init {
-        scope.launch {
+        viewModelScope.launch {
             combine(
                 repository.observeTopics(),
                 observeCachedArticles(newsRepository, country),
@@ -94,7 +89,7 @@ class TopicMonitoringPresenter(
                 copy(mutatingTopicIds = mutatingTopicIds + topicId, error = null)
             }
         }
-        scope.launch {
+        viewModelScope.launch {
             val result =
                 when (editor) {
                     is TopicEditor.Create -> repository.createTopic(editor.query)
@@ -135,7 +130,7 @@ class TopicMonitoringPresenter(
         val topic = _uiState.value.pendingDelete ?: return
         if (topic.id in _uiState.value.mutatingTopicIds) return
         update { copy(mutatingTopicIds = mutatingTopicIds + topic.id, error = null) }
-        scope.launch {
+        viewModelScope.launch {
             repository.deleteTopic(topic.id).fold(
                 onSuccess = { update { copy(pendingDelete = null, mutatingTopicIds = mutatingTopicIds - topic.id) } },
                 onFailure = { failure ->
@@ -152,8 +147,6 @@ class TopicMonitoringPresenter(
     }
 
     fun dismissError() = update { copy(error = null) }
-
-    fun dispose() = scope.cancel()
 
     private fun update(transform: TopicMonitoringUiState.() -> TopicMonitoringUiState) {
         _uiState.value = _uiState.value.transform()

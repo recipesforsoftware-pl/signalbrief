@@ -6,7 +6,7 @@ import kotlin.coroutines.cancellation.CancellationException
 /**
  * Presentation-level classification of a [NewsFailure].
  *
- * Kept as stable identifiers so the presenter stays framework-independent and
+ * Kept as stable identifiers so the ViewModel stays framework-independent and
  * the UI can map them to localized user messages through
  * [TopHeadlinesStrings]. Raw exception messages are never exposed to users.
  */

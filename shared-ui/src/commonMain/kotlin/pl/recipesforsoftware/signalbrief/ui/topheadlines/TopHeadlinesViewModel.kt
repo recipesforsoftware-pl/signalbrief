@@ -1,10 +1,7 @@
 package pl.recipesforsoftware.signalbrief.ui.topheadlines
 
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,13 +14,11 @@ import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesReposito
 const val DEFAULT_NEWS_COUNTRY: String = "us"
 
 /**
- * Framework-independent state holder for the Top Headlines screen.
+ * Lifecycle-aware state holder for the Top Headlines screen.
  *
  * Depends on both the [NewsRepository] and [SavedArticlesRepository]
- * contracts (never on concrete implementations), owns its [CoroutineScope],
- * and exposes immutable state via [uiState]. Callers are responsible for
- * calling [dispose] when the screen is torn down so that in-flight work is
- * cancelled.
+ * contracts (never on concrete implementations) and exposes immutable state
+ * via [uiState].
  *
  * Bookmark state is derived from a single [SavedArticlesRepository] stream
  * rather than one database query per feed card. The saved-URL set is collected
@@ -32,17 +27,13 @@ const val DEFAULT_NEWS_COUNTRY: String = "us"
  *
  * Concurrency model: a monotonically increasing request generation guards
  * against a stale response overwriting a newer one when concurrent refreshes
- * are issued. Cancellation is always respected: cancelling the owned scope
- * cancels the repository call, which rethrows [kotlin.coroutines.cancellation.CancellationException].
+ * are issued.
  */
-class TopHeadlinesPresenter(
+class TopHeadlinesViewModel(
     private val repository: NewsRepository,
     private val savedArticlesRepository: SavedArticlesRepository,
     private val country: String = DEFAULT_NEWS_COUNTRY,
-    dispatcher: CoroutineDispatcher = Dispatchers.Default,
-) {
-    private val scope = CoroutineScope(dispatcher + SupervisorJob())
-
+) : ViewModel() {
     private val _uiState = MutableStateFlow<TopHeadlinesUiState>(TopHeadlinesUiState.Loading)
     val uiState: StateFlow<TopHeadlinesUiState> = _uiState.asStateFlow()
 
@@ -51,7 +42,7 @@ class TopHeadlinesPresenter(
     private var requestGeneration = 0L
 
     init {
-        scope.launch {
+        viewModelScope.launch {
             savedArticlesRepository.observeAllSavedArticles().collect { articles ->
                 val urls = articles.mapTo(mutableSetOf()) { it.url }
                 savedUrlCache.value = urls
@@ -64,7 +55,7 @@ class TopHeadlinesPresenter(
     /** Loads (or reloads) the top headlines, showing [TopHeadlinesUiState.Loading] while in flight. */
     fun refresh() {
         val generation = ++requestGeneration
-        scope.launch {
+        viewModelScope.launch {
             _uiState.value = TopHeadlinesUiState.Loading
             val result = repository.getTopHeadlines(country)
             if (generation != requestGeneration) {
@@ -97,7 +88,7 @@ class TopHeadlinesPresenter(
      */
     fun toggleBookmark(article: Article) {
         if (!article.hasActionableUrl()) return
-        scope.launch {
+        viewModelScope.launch {
             val isSaved = savedUrlCache.value.contains(article.url)
             if (isSaved) {
                 savedArticlesRepository.removeSavedArticle(article.url)
@@ -105,11 +96,6 @@ class TopHeadlinesPresenter(
                 savedArticlesRepository.saveArticle(article)
             }
         }
-    }
-
-    /** Cancels the owned scope and all in-flight work. Safe to call multiple times. */
-    fun dispose() {
-        scope.cancel()
     }
 
     private fun applySavedUrlsToCurrentState() {

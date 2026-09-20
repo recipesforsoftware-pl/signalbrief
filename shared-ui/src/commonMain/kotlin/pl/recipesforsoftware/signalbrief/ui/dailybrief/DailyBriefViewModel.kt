@@ -1,10 +1,7 @@
 package pl.recipesforsoftware.signalbrief.ui.dailybrief
 
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,19 +15,17 @@ import pl.recipesforsoftware.signalbrief.ui.topheadlines.DEFAULT_NEWS_COUNTRY
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.hasActionableUrl
 
 /** A local-only, reactive state holder for the Daily Brief reader. */
-class DailyBriefPresenter(
+class DailyBriefViewModel(
     private val newsRepository: NewsRepository,
     private val savedArticlesRepository: SavedArticlesRepository,
     private val selector: DailyBriefSelector = DailyBriefSelector(),
     private val country: String = DEFAULT_NEWS_COUNTRY,
-    dispatcher: CoroutineDispatcher = Dispatchers.Default,
-) {
-    private val scope = CoroutineScope(dispatcher + SupervisorJob())
+) : ViewModel() {
     private val _uiState = MutableStateFlow<DailyBriefUiState>(DailyBriefUiState.Loading)
     val uiState: StateFlow<DailyBriefUiState> = _uiState.asStateFlow()
 
     init {
-        scope.launch {
+        viewModelScope.launch {
             combine(
                 newsRepository.observeCachedTopHeadlines(country),
                 savedArticlesRepository.observeAllSavedArticles(),
@@ -47,7 +42,7 @@ class DailyBriefPresenter(
 
     fun toggleBookmark(article: Article) {
         if (!article.hasActionableUrl()) return
-        scope.launch {
+        viewModelScope.launch {
             val savedUrls = (_uiState.value as? DailyBriefUiState.Content)?.savedUrls.orEmpty()
             if (article.url in savedUrls) {
                 savedArticlesRepository.removeSavedArticle(article.url)
@@ -56,6 +51,4 @@ class DailyBriefPresenter(
             }
         }
     }
-
-    fun dispose() = scope.cancel()
 }

@@ -6,7 +6,7 @@ import pl.recipesforsoftware.signalbrief.domain.model.FeedSource
 /**
  * Framework-independent renderable state of the Top Headlines screen.
  *
- * Produced by [TopHeadlinesPresenter] and consumed by any Compose host
+ * Produced by [TopHeadlinesViewModel] and consumed by any Compose host
  * (Android and iOS). The error branch carries a presentation-level message
  * identifier rather than a raw exception so that hosts never render
  * implementation details.

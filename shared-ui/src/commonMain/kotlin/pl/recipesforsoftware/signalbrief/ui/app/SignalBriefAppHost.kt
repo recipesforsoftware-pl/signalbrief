@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -13,29 +14,29 @@ import pl.recipesforsoftware.signalbrief.domain.repository.CollectionsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.NewsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.TopicMonitoringRepository
-import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleCollectionAssignmentPresenter
-import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsPresenter
+import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleCollectionAssignmentViewModel
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsScreen
-import pl.recipesforsoftware.signalbrief.ui.collectiondetails.CollectionDetailsPresenter
+import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsViewModel
 import pl.recipesforsoftware.signalbrief.ui.collectiondetails.CollectionDetailsScreen
+import pl.recipesforsoftware.signalbrief.ui.collectiondetails.CollectionDetailsViewModel
 import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsScreen
 import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsViewModel
-import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefPresenter
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefScreen
+import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefViewModel
 import pl.recipesforsoftware.signalbrief.ui.lifecycle.ScreenViewModelScope
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesScreen
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesViewModel
-import pl.recipesforsoftware.signalbrief.ui.search.SearchPresenter
 import pl.recipesforsoftware.signalbrief.ui.search.SearchScreen
+import pl.recipesforsoftware.signalbrief.ui.search.SearchViewModel
 import pl.recipesforsoftware.signalbrief.ui.settings.SettingsScreen
 import pl.recipesforsoftware.signalbrief.ui.settings.SettingsViewModel
-import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesPresenter
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesScreen
+import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesViewModel
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.hasActionableUrl
-import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMatchesPresenter
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMatchesScreen
-import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringPresenter
+import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMatchesViewModel
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringScreen
+import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringViewModel
 
 /** Reusable contract-only host for browser and other lightweight platform compositions. */
 @Composable
@@ -46,27 +47,27 @@ fun SignalBriefAppHost(
     topicMonitoringRepository: TopicMonitoringRepository,
 ) {
     val savedArticles by savedArticlesRepository.observeAllSavedArticles().collectAsState(emptyList())
-    val composition =
-        remember(newsRepository, savedArticlesRepository, collectionsRepository, topicMonitoringRepository) {
-            PresentationComposition(
-                newsRepository,
-                savedArticlesRepository,
-                topicMonitoringRepository,
-            )
-        }
-    DisposableEffect(composition) { onDispose(composition::dispose) }
     SignalBriefApp(
         onboardingCompleted = true,
         onCompleteOnboarding = {},
         topHeadlinesContent = { bottomBar, onArticleClick, onSearchClick, onSettingsClick ->
-            Headlines(composition.headlines, bottomBar, onArticleClick, onSearchClick, onSettingsClick)
+            Headlines(
+                newsRepository,
+                savedArticlesRepository,
+                bottomBar,
+                onArticleClick,
+                onSearchClick,
+                onSettingsClick,
+            )
         },
         savedContent = { bottomBar, onArticleClick, onCollectionsClick ->
             Saved(savedArticlesRepository, bottomBar, onArticleClick, onCollectionsClick)
         },
-        dailyBriefContent = { bottomBar, onArticleClick -> Brief(composition.brief, bottomBar, onArticleClick) },
+        dailyBriefContent = { bottomBar, onArticleClick ->
+            Brief(newsRepository, savedArticlesRepository, bottomBar, onArticleClick)
+        },
         searchContent = { initial, queryChanged, articleClick, monitoring, back ->
-            Search(composition::search, initial, queryChanged, articleClick, monitoring, back)
+            Search(newsRepository, savedArticlesRepository, initial, queryChanged, articleClick, monitoring, back)
         },
         articleDetailsContent = { article, back, collections ->
             Details(article, savedArticlesRepository, collectionsRepository, back, collections)
@@ -76,10 +77,10 @@ fun SignalBriefAppHost(
             CollectionDetails(collection, collectionsRepository, articleClick, back)
         },
         topicMonitoringContent = { openMatches, back ->
-            TopicMonitoring(composition.topicMonitoring, openMatches, back)
+            TopicMonitoring(topicMonitoringRepository, newsRepository, openMatches, back)
         },
         topicMatchesContent = { topic, articleClick, back ->
-            TopicMatches(composition::topicMatches, topic, articleClick, back)
+            TopicMatches(newsRepository, savedArticlesRepository, topic, articleClick, back)
         },
         settingsContent = { back ->
             Settings(newsRepository, back)
@@ -88,44 +89,29 @@ fun SignalBriefAppHost(
     )
 }
 
-private class PresentationComposition(
-    private val news: NewsRepository,
-    private val savedRepository: SavedArticlesRepository,
-    topicMonitoringRepository: TopicMonitoringRepository,
-) {
-    val headlines = TopHeadlinesPresenter(news, savedRepository)
-    val brief = DailyBriefPresenter(news, savedRepository)
-    val topicMonitoring = TopicMonitoringPresenter(topicMonitoringRepository, news)
-
-    fun search(query: String) = SearchPresenter(news, savedRepository, query)
-
-    fun topicMatches(topic: MonitoredTopic) = TopicMatchesPresenter(topic, news, savedRepository)
-
-    fun dispose() {
-        headlines.dispose()
-        brief.dispose()
-        topicMonitoring.dispose()
-    }
-}
-
 @Composable
 private fun Headlines(
-    p: TopHeadlinesPresenter,
+    newsRepository: NewsRepository,
+    savedArticlesRepository: SavedArticlesRepository,
     bottom: @Composable () -> Unit,
     click: (Article) -> Unit,
     search: () -> Unit,
     settings: () -> Unit,
 ) {
-    val state by p.uiState.collectAsState()
-    TopHeadlinesScreen(
-        state,
-        p::refresh,
-        click,
-        onBookmarkClick = p::toggleBookmark,
-        onSearchClick = search,
-        onSettingsClick = settings,
-        bottomBar = bottom,
-    )
+    ScreenViewModelScope {
+        val viewModel: TopHeadlinesViewModel =
+            viewModel { TopHeadlinesViewModel(newsRepository, savedArticlesRepository) }
+        val state by viewModel.uiState.collectAsState()
+        TopHeadlinesScreen(
+            state,
+            viewModel::refresh,
+            click,
+            onBookmarkClick = viewModel::toggleBookmark,
+            onSearchClick = search,
+            onSettingsClick = settings,
+            bottomBar = bottom,
+        )
+    }
 }
 
 @Composable private fun Saved(
@@ -174,74 +160,93 @@ private fun CollectionDetails(
     articleClick: (Article) -> Unit,
     back: () -> Unit,
 ) {
-    val presenter = remember(collection.id) { CollectionDetailsPresenter(collection, repository) }
-    DisposableEffect(presenter) { onDispose(presenter::dispose) }
-    val state by presenter.uiState.collectAsState()
-    CollectionDetailsScreen(state, articleClick, back)
+    key(collection.id) {
+        ScreenViewModelScope {
+            val viewModel: CollectionDetailsViewModel = viewModel { CollectionDetailsViewModel(collection, repository) }
+            val state by viewModel.uiState.collectAsState()
+            CollectionDetailsScreen(state, articleClick, back)
+        }
+    }
 }
 
 @Composable private fun Brief(
-    p: DailyBriefPresenter,
+    newsRepository: NewsRepository,
+    savedArticlesRepository: SavedArticlesRepository,
     bottom: @Composable () -> Unit,
     click: (Article) -> Unit,
 ) {
-    val state by p.uiState.collectAsState()
-    DailyBriefScreen(state, click, p::toggleBookmark, bottomBar = bottom)
+    ScreenViewModelScope {
+        val viewModel: DailyBriefViewModel = viewModel { DailyBriefViewModel(newsRepository, savedArticlesRepository) }
+        val state by viewModel.uiState.collectAsState()
+        DailyBriefScreen(state, click, viewModel::toggleBookmark, bottomBar = bottom)
+    }
 }
 
 @Composable
 private fun Search(
-    factory: (String) -> SearchPresenter,
+    newsRepository: NewsRepository,
+    savedArticlesRepository: SavedArticlesRepository,
     initial: String,
     changed: (String) -> Unit,
     click: (Article) -> Unit,
     monitoring: () -> Unit,
     back: () -> Unit,
 ) {
-    val p = remember { factory(initial) }
-    DisposableEffect(p) { onDispose(p::dispose) }
-    val query by p.query.collectAsState()
-    val state by p.uiState.collectAsState()
-    SearchScreen(query, {
-        p.setQuery(it)
-        changed(it)
-    }, state, click, p::toggleBookmark, monitoring, back)
+    ScreenViewModelScope {
+        val viewModel: SearchViewModel = viewModel { SearchViewModel(newsRepository, savedArticlesRepository, initial) }
+        val query by viewModel.query.collectAsState()
+        val state by viewModel.uiState.collectAsState()
+        SearchScreen(query, {
+            viewModel.setQuery(it)
+            changed(it)
+        }, state, click, viewModel::toggleBookmark, monitoring, back)
+    }
 }
 
 @Composable
 private fun TopicMonitoring(
-    p: TopicMonitoringPresenter,
+    topicMonitoringRepository: TopicMonitoringRepository,
+    newsRepository: NewsRepository,
     openMatches: (MonitoredTopic) -> Unit,
     back: () -> Unit,
 ) {
-    val state by p.uiState.collectAsState()
-    TopicMonitoringScreen(
-        state,
-        p::openCreateEditor,
-        p::openRenameEditor,
-        p::updateEditorQuery,
-        p::confirmEditor,
-        p::dismissEditor,
-        p::openDeleteConfirmation,
-        p::confirmDelete,
-        p::dismissDeleteConfirmation,
-        p::dismissError,
-        openMatches,
-        back,
-    )
+    ScreenViewModelScope {
+        val viewModel: TopicMonitoringViewModel =
+            viewModel { TopicMonitoringViewModel(topicMonitoringRepository, newsRepository) }
+        val state by viewModel.uiState.collectAsState()
+        TopicMonitoringScreen(
+            state,
+            viewModel::openCreateEditor,
+            viewModel::openRenameEditor,
+            viewModel::updateEditorQuery,
+            viewModel::confirmEditor,
+            viewModel::dismissEditor,
+            viewModel::openDeleteConfirmation,
+            viewModel::confirmDelete,
+            viewModel::dismissDeleteConfirmation,
+            viewModel::dismissError,
+            openMatches,
+            back,
+        )
+    }
 }
 
 @Composable
 private fun TopicMatches(
-    factory: (MonitoredTopic) -> TopicMatchesPresenter,
+    newsRepository: NewsRepository,
+    savedArticlesRepository: SavedArticlesRepository,
     topic: MonitoredTopic,
     articleClick: (Article) -> Unit,
     back: () -> Unit,
 ) {
-    val p = remember(topic.id) { factory(topic) }
-    DisposableEffect(p) { onDispose(p::dispose) }
-    val state by p.uiState.collectAsState()
-    TopicMatchesScreen(state, articleClick, p::toggleBookmark, back)
+    key(topic.id) {
+        ScreenViewModelScope {
+            val viewModel: TopicMatchesViewModel =
+                viewModel { TopicMatchesViewModel(topic, newsRepository, savedArticlesRepository) }
+            val state by viewModel.uiState.collectAsState()
+            TopicMatchesScreen(state, articleClick, viewModel::toggleBookmark, back)
+        }
+    }
 }
 
 @Composable
@@ -263,30 +268,29 @@ private fun Settings(
     back: () -> Unit,
     manageCollections: () -> Unit,
 ) {
-    val presenter = remember(article.url) { ArticleDetailsPresenter(savedArticlesRepository, article) }
-    val assignmentPresenter =
-        remember(article.url) { ArticleCollectionAssignmentPresenter(collectionsRepository, article) }
-    DisposableEffect(presenter, assignmentPresenter) {
-        onDispose {
-            presenter.dispose()
-            assignmentPresenter.dispose()
+    key(article.url) {
+        ScreenViewModelScope {
+            val viewModel: ArticleDetailsViewModel =
+                viewModel { ArticleDetailsViewModel(savedArticlesRepository, article) }
+            val assignmentViewModel: ArticleCollectionAssignmentViewModel =
+                viewModel { ArticleCollectionAssignmentViewModel(collectionsRepository, article) }
+            val state by viewModel.uiState.collectAsState()
+            val assignmentState by assignmentViewModel.uiState.collectAsState()
+            val uri = LocalUriHandler.current
+            ArticleDetailsScreen(
+                uiState = state,
+                onBack = back,
+                onBookmarkClick = viewModel::toggleBookmark,
+                onOpenFullArticle = { if (article.hasActionableUrl()) uri.openUri(article.url) },
+                collectionAssignmentUiState = assignmentState,
+                onCollectionAssignmentClick = assignmentViewModel::showPicker,
+                onToggleCollection = assignmentViewModel::toggleCollection,
+                onDismissCollectionAssignment = assignmentViewModel::dismissPicker,
+                onManageCollections = {
+                    assignmentViewModel.dismissPicker()
+                    manageCollections()
+                },
+            )
         }
     }
-    val state by presenter.uiState.collectAsState()
-    val assignmentState by assignmentPresenter.uiState.collectAsState()
-    val uri = LocalUriHandler.current
-    ArticleDetailsScreen(
-        uiState = state,
-        onBack = back,
-        onBookmarkClick = presenter::toggleBookmark,
-        onOpenFullArticle = { if (article.hasActionableUrl()) uri.openUri(article.url) },
-        collectionAssignmentUiState = assignmentState,
-        onCollectionAssignmentClick = assignmentPresenter::showPicker,
-        onToggleCollection = assignmentPresenter::toggleCollection,
-        onDismissCollectionAssignment = assignmentPresenter::dismissPicker,
-        onManageCollections = {
-            assignmentPresenter.dismissPicker()
-            manageCollections()
-        },
-    )
 }

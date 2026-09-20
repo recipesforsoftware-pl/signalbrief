@@ -1,10 +1,7 @@
 package pl.recipesforsoftware.signalbrief.ui.articledetails
 
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,22 +18,20 @@ import pl.recipesforsoftware.signalbrief.domain.repository.CollectionsRepository
  * thing that changes a row's checked state. A per-collection guard prevents
  * duplicate work while a toggle is in progress.
  */
-class ArticleCollectionAssignmentPresenter(
+class ArticleCollectionAssignmentViewModel(
     private val collectionsRepository: CollectionsRepository,
     private val article: Article,
-    dispatcher: CoroutineDispatcher = Dispatchers.Default,
-) {
-    private val scope = CoroutineScope(dispatcher + SupervisorJob())
+) : ViewModel() {
     private val _uiState = MutableStateFlow(ArticleCollectionAssignmentUiState())
     val uiState: StateFlow<ArticleCollectionAssignmentUiState> = _uiState.asStateFlow()
 
     init {
-        scope.launch {
+        viewModelScope.launch {
             collectionsRepository.observeAllCollections().collect { collections ->
                 update { copy(collections = collections, isLoadingCollections = false) }
             }
         }
-        scope.launch {
+        viewModelScope.launch {
             collectionsRepository.observeCollectionIdsForArticle(article.url).collect { selectedIds ->
                 update { copy(selectedCollectionIds = selectedIds) }
             }
@@ -53,7 +48,7 @@ class ArticleCollectionAssignmentPresenter(
 
         val removeMembership = collectionId in state.selectedCollectionIds
         update { copy(mutatingCollectionIds = mutatingCollectionIds + collectionId, error = null) }
-        scope.launch {
+        viewModelScope.launch {
             val result =
                 if (removeMembership) {
                     collectionsRepository.removeArticleFromCollection(article.url, collectionId)
@@ -75,8 +70,6 @@ class ArticleCollectionAssignmentPresenter(
             )
         }
     }
-
-    fun dispose() = scope.cancel()
 
     private fun update(transform: ArticleCollectionAssignmentUiState.() -> ArticleCollectionAssignmentUiState) {
         _uiState.value = _uiState.value.transform()
