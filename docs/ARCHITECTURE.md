@@ -1,6 +1,6 @@
 # SignalBrief — Architecture
 
-This document describes the architecture that exists in the repository today. SignalBrief is a Kotlin Multiplatform news reader with Android, iOS, and browser/Wasm hosts. It shares framework-free domain contracts and common presentation/UI while keeping mobile persistence/networking and browser backend responsibilities explicit.
+This document describes the architecture that exists in the repository today. SignalBrief is a Kotlin Multiplatform news reader with Android, iOS, browser/Wasm, and Desktop hosts. It shares framework-free domain contracts and common presentation/UI while keeping platform persistence, networking, and lifecycle responsibilities explicit.
 
 ## Design principle
 
@@ -14,6 +14,7 @@ That gives SignalBrief three useful layers:
 2. **`:shared-ui`** — shared presenters and Compose Multiplatform UI.
 3. Platform/data implementations:
    - **`:shared` + `:app` / `iosApp`** for the mobile offline-first path.
+   - **`:desktopApp` + `:shared`** for the macOS/Windows offline-first path.
    - **`:webApp` + Cloudflare Pages Functions** for the public browser path.
 
 ## Module overview
@@ -26,12 +27,13 @@ Unit / module       Targets / runtime                   Responsibility
 
 :shared             Android, iOS, JVM Desktop          Mobile (and Desktop) data implementations: Ktor
                                                         networking, kotlinx.serialization, Room KMP
-                                                        cache, offline-first repositories. The Desktop
-                                                        target is data-layer only and is not yet wired
-                                                        into `:desktopApp`.
+                                                        cache, and offline-first repositories.
 
-:shared-ui          Android, iOS, Wasm                  Compose Multiplatform UI, presenters,
+:shared-ui          Android, iOS, JVM Desktop, Wasm     Compose Multiplatform UI, presenters,
                                                         navigation/screen shell, design system.
+
+:desktopApp         macOS, Windows                      Compose Desktop host with manual composition,
+                                                        runtime config, Room path, and lifecycle.
 
 :app                Android application                 Android host, Hilt composition root,
                                                         Android persistence/theme integration.
@@ -57,6 +59,7 @@ flowchart LR
     sharedui[":shared-ui<br/>Compose + presenters"]
     app[":app<br/>Android / Hilt"]
     ios["iosApp<br/>SwiftUI host"]
+    desktop[":desktopApp<br/>Desktop manual composition"]
     web[":webApp<br/>Wasm host"]
     pages["Cloudflare Pages Functions"]
     newsapi["NewsAPI"]
@@ -70,6 +73,8 @@ flowchart LR
     app --> shared
 
     ios --> sharedui
+    desktop --> sharedui
+    desktop --> shared
     shared --> newsapi
     shared --> room
 
@@ -96,7 +101,7 @@ This module is the architectural seam that allows both the mobile repository and
 
 ## `:shared` — mobile data layer
 
-`:shared` depends on `:core` and contains the mobile data implementation. It now also exposes a JVM Desktop target with CIO networking and a `BundledSQLiteDriver`-backed Room database, so the same data layer can be consumed by a future explicit Desktop composition root. `:desktopApp` is not connected to `:shared` yet.
+`:shared` depends on `:core` and contains the mobile and Desktop data implementation. Its JVM Desktop target provides CIO networking and a `BundledSQLiteDriver`-backed Room database for the explicit `:desktopApp` composition root.
 
 ### Remote
 
@@ -114,7 +119,7 @@ This module is the architectural seam that allows both the mobile repository and
 - persistent mobile Saved Articles storage.
 - Room-backed collections and collection memberships.
 - Room-backed monitored topics.
-- Platform database factories: Android and iOS resolve their own store location; the Desktop factory takes an explicit path from its future composition root and uses `BundledSQLiteDriver`.
+- Platform database factories: Android and iOS resolve their own store location; the Desktop factory receives an explicit path from `:desktopApp` and uses `BundledSQLiteDriver`.
 
 ### Repository
 
@@ -197,6 +202,27 @@ The iOS host is SwiftUI embedding the shared Compose framework.
 The Kotlin iOS composition root creates the Darwin Ktor client, Room database, repositories, and presenters explicitly. The NewsAPI key is injected through the git-ignored Xcode configuration and read from the app bundle.
 
 This keeps the dependency graph equivalent to Android while avoiding a DI framework in the iOS host.
+
+## Desktop composition
+
+`:desktopApp` is a macOS and Windows Compose Desktop host. It uses no Hilt or Koin: `Main.kt` reads the runtime `NEWS_API_KEY`, resolves the database path, and creates one `DesktopComposition` before entering `application {}`.
+
+```text
+Desktop Main
+  -> NEWS_API_KEY + Desktop database path
+  -> explicit DesktopComposition
+      -> CIO HttpClient -> KtorNewsRemoteDataSource
+      -> Room KMP database -> RoomNewsLocalDataSource
+      -> OfflineFirstNewsRepository
+      -> RoomSavedArticlesRepository
+      -> RoomCollectionsRepository
+      -> RoomTopicMonitoringRepository
+  -> SignalBriefAppHost
+```
+
+The host owns the composition for the full application lifetime and calls `dispose()` after `application {}` returns. Disposal closes the CIO `HttpClient` and `SignalBriefDatabase`; repository classes never own those resources. If construction fails after the client is created, the composition factory closes any already-created resource before propagating the failure.
+
+The database path is `~/Library/Application Support/SignalBrief` on macOS and `%APPDATA%/SignalBrief` on Windows. Desktop uses Coil 3's Ktor network fetcher for remote article images. Linux is intentionally unsupported.
 
 ## Browser/Wasm composition
 
@@ -294,7 +320,7 @@ The browser converts the response from `ArrayBuffer` to `ByteArray`, decodes it 
 
 The shared UI does not force one image stack onto every runtime.
 
-- **Android/iOS**: Coil 3 with the mobile network setup.
+- **Android/iOS/Desktop**: Coil 3 with the Ktor network setup.
 - **Web/Wasm**: signed same-origin proxy + browser `fetch` + `ImageBitmap`.
 
 `Article Details` and list cards reuse the same platform image boundary, avoiding a separate Web-only Details implementation.
@@ -329,6 +355,10 @@ NEWS_API_KEY=...
 Both files are ignored and must never be committed.
 
 These keys are still client-side at runtime and are therefore explicitly a local-development configuration, not a production mobile credential design.
+
+### Desktop local development
+
+Desktop reads `NEWS_API_KEY` from the process environment in its manual composition root. The key is never written to a tracked configuration file or logged. This runtime supports macOS and Windows only.
 
 ### Public Web
 
@@ -408,7 +438,9 @@ The Web dependency lock deliberately remains free of the Ktor/Coil network depen
 ## Trade-offs and current limitations
 
 - Mobile networking/storage and browser networking are separate implementations behind shared contracts.
-- The JVM Desktop target in `:shared` currently provides only the data-layer foundation (CIO client, Room database, platform clock). `:desktopApp` is not yet connected to `:shared`, has no Desktop composition root or API-key configuration, and does not display network or Room data.
+- Desktop has no installers, signing/notarization, or final package identifiers.
+- Desktop intentionally has no Linux target.
+- Desktop onboarding state is not persisted, and Windows GUI runtime smoke testing must occur on Windows.
 - The Web host persists Saved Articles, Collections, and Monitored Topics in browser localStorage, but there is no cross-device synchronization.
 - Search operates over locally available headlines rather than a dedicated backend index.
 - The public Web feed currently uses an English/US top-headlines configuration.

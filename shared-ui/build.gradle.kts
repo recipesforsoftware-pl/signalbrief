@@ -68,6 +68,11 @@ kotlin {
             implementation(project(":shared"))
             implementation(libs.coil.network.ktor3)
         }
+        named("desktopMain") {
+            dependencies {
+                implementation(libs.coil.network.ktor3)
+            }
+        }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.coroutines.test)

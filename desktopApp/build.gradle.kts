@@ -18,10 +18,16 @@ kotlin {
     sourceSets {
         getByName("desktopMain").dependencies {
             implementation(project(":core"))
+            implementation(project(":shared"))
             implementation(project(":shared-ui"))
             implementation(compose.desktop.currentOs)
             implementation(compose.material3)
             implementation(libs.compose.multiplatform.resources)
+            implementation(libs.ktor.client.core)
+            implementation(libs.room.runtime)
+        }
+        getByName("desktopTest").dependencies {
+            implementation(libs.kotlin.test)
         }
     }
 }
