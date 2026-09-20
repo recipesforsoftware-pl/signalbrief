@@ -1,10 +1,11 @@
 # SignalBrief
 
-SignalBrief is a Kotlin Multiplatform news reader for **Android, iOS, and Web/Wasm**.
+SignalBrief is a Kotlin Multiplatform news reader for **Android, iOS, Web/Wasm, and Desktop**.
 
 The project shares domain contracts, presentation logic, and Compose Multiplatform UI where that reduces duplication, while keeping platform responsibilities explicit:
 
 - **Android and iOS** use the mobile data layer with Ktor, Room KMP, and an offline-first repository. NewsAPI is used directly only for local development.
+- **Desktop** is a macOS and Windows runtime host with explicit composition, a CIO client, Room KMP, and the same shared UI and repository contracts.
 - **Web/Wasm** uses the same shared domain and presentation/UI contracts, with a browser-specific repository backed by Cloudflare Pages Functions and NewsData.io.
 - The public Web deployment keeps provider credentials server-side and proxies article images through a signed, same-origin endpoint.
 
@@ -45,7 +46,7 @@ A walkthrough of how the original Android application evolved into an offline-fi
 
 ## Implemented capabilities
 
-- **Android, iOS, and browser/Wasm targets** with shared Kotlin domain contracts and shared Compose Multiplatform presentation/UI.
+- **Android, iOS, browser/Wasm, and Desktop targets** with shared Kotlin domain contracts and shared Compose Multiplatform presentation/UI.
 - **Top Headlines** with loading, success, empty, typed error/retry, refresh, article images, and source metadata.
 - **Search** over the locally available headline set.
 - **Saved Articles** with bookmark actions and a dedicated Saved destination. Mobile persistence is durable; Web Saved Articles persist in browser localStorage.
@@ -101,6 +102,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for module ownership, dependenc
 - **`:core`** — framework-free domain models, repository contracts, typed failures, and web-safe business logic. Targets Android, iOS, and browser Wasm.
 - **`:shared`** — mobile data layer. Depends on `:core` and owns Ktor networking, serialization, Room KMP persistence, and `OfflineFirstNewsRepository`.
 - **`:shared-ui`** — shared Compose Multiplatform UI and presenters. Its common code depends on `:core`; platform source sets provide image/loading and composition details where needed.
+- **`:desktopApp`** — macOS/Windows Desktop host with manual composition, runtime `NEWS_API_KEY`, and an application-data Room database.
 - **`:app`** — Android host and Hilt composition root.
 - **`iosApp`** — SwiftUI host. The iOS composition root is assembled explicitly from Kotlin/Swift-facing code.
 - **`:webApp`** — browser/Wasm executable with `WebNewsRepository`, `WebSavedArticlesRepository`, `WebCollectionsRepository`, and `WebTopicMonitoringRepository`. It depends on `:core` and `:shared-ui`, not on the mobile `:shared` data layer.
@@ -194,6 +196,26 @@ NEWS_API_KEY=your_news_api_key
 ```
 
 Never commit `local.properties` or `Secrets.xcconfig`.
+
+## Running Desktop
+
+The Desktop runtime supports **macOS and Windows**. It reads `NEWS_API_KEY` only at runtime, creates its Room database in macOS Application Support or Windows `APPDATA`, and does not support Linux.
+
+On macOS:
+
+```bash
+export NEWS_API_KEY="your_news_api_key"
+./gradlew :desktopApp:run
+```
+
+On Windows PowerShell:
+
+```powershell
+$env:NEWS_API_KEY="your_news_api_key"
+.\gradlew.bat :desktopApp:run
+```
+
+The key is a local-development credential and must not be committed.
 
 ## Running Android
 

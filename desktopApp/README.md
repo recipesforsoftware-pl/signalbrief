@@ -1,13 +1,12 @@
-# SignalBrief Desktop foundation
+# SignalBrief Desktop
 
-Ten moduł stanowi fundament kompilacji i wspólnego UI w Compose Desktop dla przyszłej obsługi macOS i Windows.
+Ten moduł jest runtime hostem Compose Desktop dla macOS i Windows. Tworzy ręcznie graph danych (`CIO`, Room KMP i repozytoria `:shared`) i przekazuje wyłącznie kontrakty repozytoriów do `SignalBriefAppHost`.
 
-Uruchom lokalnie:
+Ustaw lokalnie `NEWS_API_KEY` i uruchom na macOS:
 
 ```sh
+export NEWS_API_KEY="your_news_api_key"
 ./gradlew :desktopApp:run
 ```
 
-Okno pokazuje wspólny `SignalBriefTheme`, przełącznik jasnego/ciemnego motywu oraz przewijaną listę `ArticleCard`: lokalny Compose Resource, celowo błędną referencję testującą fallback i kartę bez obrazka.
-
-Nie ma tu jeszcze networku, Room ani produkcyjnej kompozycji. Windows wymaga oddzielnej walidacji na systemie Windows.
+Klucz nie może trafić do repozytorium. Windows używa `APPDATA`, a macOS `~/Library/Application Support/SignalBrief` dla bazy Room. Nie ma obsługi Linux ani packagingu, signingu lub notarization.
