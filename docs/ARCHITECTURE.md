@@ -13,7 +13,7 @@ That gives SignalBrief three useful layers:
 1. **`:core`** — web-safe, framework-free domain contracts and models.
 2. **`:shared-ui`** — shared presenters and Compose Multiplatform UI.
 3. Platform/data implementations:
-   - **`:shared` + `:app` / `iosApp`** for the mobile offline-first path.
+   - **`:shared` + `:androidApp` / `iosApp`** for the mobile offline-first path.
    - **`:desktopApp` + `:shared`** for the macOS/Windows offline-first path.
    - **`:webApp` + Cloudflare Pages Functions** for the public browser path.
 
@@ -35,7 +35,7 @@ Unit / module       Targets / runtime                   Responsibility
 :desktopApp         macOS, Windows                      Compose Desktop host with manual composition,
                                                         runtime config, Room path, and lifecycle.
 
-:app                Android application                 Android host, Hilt composition root,
+:androidApp         Android application                 Android host, Hilt composition root,
                                                         Android persistence/theme integration.
 
 iosApp              SwiftUI/Xcode                       iOS host. Embeds the shared UI framework;
@@ -57,7 +57,7 @@ flowchart LR
     core[":core<br/>pure domain"]
     shared[":shared<br/>mobile data"]
     sharedui[":shared-ui<br/>Compose + presenters"]
-    app[":app<br/>Android / Hilt"]
+    androidApp[":androidApp<br/>Android / Hilt"]
     ios["iosApp<br/>SwiftUI host"]
     desktop[":desktopApp<br/>Desktop manual composition"]
     web[":webApp<br/>Wasm host"]
@@ -69,8 +69,8 @@ flowchart LR
     shared --> core
     sharedui --> core
 
-    app --> sharedui
-    app --> shared
+    androidApp --> sharedui
+    androidApp --> shared
 
     ios --> sharedui
     desktop --> sharedui

@@ -20,7 +20,7 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "SignalBrief"
-include(":app")
+include(":androidApp")
 include(":core")
 include(":shared")
 include(":shared-ui")
