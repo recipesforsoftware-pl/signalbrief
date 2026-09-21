@@ -13,8 +13,7 @@ That gives SignalBrief three useful layers:
 1. **`:sharedLogic`** — web-safe, framework-free domain contracts and models.
 2. **`:sharedUI`** — shared ViewModels and Compose Multiplatform UI.
 3. Platform/data implementations:
-   - **`:sharedData` + `:androidApp` / `iosApp`** for the mobile offline-first path.
-   - **`:desktopApp` + `:sharedData`** for the macOS/Windows offline-first path.
+   - **`:sharedData` + `:androidApp` / `iosApp` / `:desktopApp`** for the Android, iOS, and macOS/Windows offline-first path.
    - **`:webApp` + Cloudflare Pages Functions** for the public browser path.
 
 ## Module overview
@@ -22,10 +21,10 @@ That gives SignalBrief three useful layers:
 ```text
 Unit / module       Targets / runtime                   Responsibility
 ------------------  ----------------------------------  -----------------------------------------------
-:sharedLogic        Android, iOS, Wasm                  Pure domain models, repository contracts,
+:sharedLogic        Android, iOS, JVM Desktop, Wasm     Pure domain models, repository contracts,
                                                         typed failures, web-safe behavior.
 
-:sharedData         Android, iOS, JVM Desktop          Mobile (and Desktop) data implementations: Ktor
+:sharedData         Android, iOS, JVM Desktop          Shared data implementations: Ktor
                                                         networking, kotlinx.serialization, Room KMP
                                                         cache, and offline-first repositories.
 
@@ -39,7 +38,7 @@ Unit / module       Targets / runtime                   Responsibility
                                                         Android persistence/theme integration.
 
 iosApp              SwiftUI/Xcode                       Xcode host, not a Gradle module. Embeds only
-                                                        SignalBriefSharedUi; mobile composition is
+                                                        SignalBriefSharedUi; iOS composition is
                                                         assembled explicitly.
 
 :webApp             Browser/Wasm                        Browser executable, WebNewsRepository,
@@ -54,40 +53,30 @@ functions/           Cloudflare Pages Functions         Public Web backend bound
 ## Dependency direction
 
 ```mermaid
-flowchart LR
-    core[":sharedLogic<br/>pure domain"]
-    shared[":sharedData<br/>mobile data"]
-    sharedui[":sharedUI<br/>Compose + ViewModels"]
+flowchart TB
     androidApp[":androidApp<br/>Android / Hilt"]
-    ios["iosApp<br/>SwiftUI host"]
-    desktop[":desktopApp<br/>Desktop manual composition"]
-    web[":webApp<br/>Wasm host"]
-    pages["Cloudflare Pages Functions"]
-    newsapi["NewsAPI"]
-    newsdata["NewsData.io"]
-    room[("Room KMP")]
+    desktopApp[":desktopApp<br/>macOS + Windows"]
+    iosApp["iosApp<br/>Xcode / SwiftUI"]
+    webApp[":webApp<br/>Browser / Wasm"]
+    sharedUI[":sharedUI<br/>Compose + shared ViewModels"]
+    sharedData[":sharedData<br/>Ktor + Room + repositories"]
+    sharedLogic[":sharedLogic<br/>Domain models + repository contracts"]
 
-    shared --> core
-    sharedui --> core
-
-    androidApp --> sharedui
-    androidApp --> shared
-
-    ios --> sharedui
-    desktop --> sharedui
-    desktop --> shared
-    shared --> newsapi
-    shared --> room
-
-    web --> core
-    web --> sharedui
-    web --> pages
-    pages --> newsdata
+    androidApp --> sharedUI
+    androidApp --> sharedData
+    desktopApp --> sharedUI
+    desktopApp --> sharedData
+    iosApp -->|"embeds SignalBriefSharedUi"| sharedUI
+    webApp --> sharedUI
+    webApp --> sharedLogic
+    sharedUI --> sharedLogic
+    sharedData --> sharedLogic
+    sharedUI -. "iosMain composition only" .-> sharedData
 ```
 
-`:webApp` intentionally does **not** depend on the mobile `:sharedData` data/network layer.
+Arrows show dependency or use direction. `:webApp` intentionally does **not** depend on `:sharedData`.
 
-The iOS-specific composition source set in `:sharedUI` may depend on `:sharedData` to preserve the current single-framework Xcode integration. `:sharedLogic` and `:sharedData` retain iOS targets but do not emit standalone framework binaries; the iOS host consumes only `SignalBriefSharedUi`. Common UI/ViewModel code still depends on `:sharedLogic`, not on mobile data implementations.
+The dashed relation represents the iOS-specific composition source set in `:sharedUI`, which may depend on `:sharedData` to preserve the current single-framework Xcode integration; it is not a `commonMain` dependency. `:sharedLogic` and `:sharedData` retain iOS targets but do not emit standalone framework binaries; the iOS host consumes only `SignalBriefSharedUi`. Common UI/ViewModel code still depends on `:sharedLogic`, not on concrete data implementations.
 
 ## `:sharedLogic`
 
@@ -98,11 +87,11 @@ The iOS-specific composition source set in `:sharedUI` may depend on `:sharedDat
 - `NewsFailure`, `CollectionFailure`, and `TopicMonitoringFailure` typed failures.
 - Business logic that does not require Room, Ktor, Compose, Coil, UIKit, Android, or browser APIs.
 
-This module is the architectural seam that allows both the mobile repository and the browser repository to satisfy the same UI-facing contracts.
+This module is the architectural seam that allows both the Android/iOS/Desktop offline-first repository and the browser repository to satisfy the same UI-facing contracts.
 
-## `:sharedData` — mobile data layer
+## `:sharedData` — shared data layer
 
-`:sharedData` depends on `:sharedLogic` and contains the mobile and Desktop data implementation. Its JVM Desktop target provides CIO networking and a `BundledSQLiteDriver`-backed Room database for the explicit `:desktopApp` composition root.
+`:sharedData` depends on `:sharedLogic` and contains the data/network/storage implementations for Android, iOS, and Desktop. Its JVM Desktop target provides CIO networking and a `BundledSQLiteDriver`-backed Room database for the explicit `:desktopApp` composition root.
 
 ### Remote
 
@@ -117,7 +106,7 @@ This module is the architectural seam that allows both the mobile repository and
 - Room KMP database.
 - country-scoped cached headline entities/DAO.
 - transactional feed replacement.
-- persistent mobile Saved Articles storage.
+- persistent Saved Articles storage for Android, iOS, and Desktop.
 - Room-backed collections and collection memberships.
 - Room-backed monitored topics.
 - Platform database factories: Android and iOS resolve their own store location; the Desktop factory receives an explicit path from `:desktopApp` and uses `BundledSQLiteDriver`.
@@ -242,7 +231,7 @@ The Web host skips mobile onboarding.
 
 ### `WebNewsRepository`
 
-`WebNewsRepository` satisfies the same `NewsRepository` contract as the mobile offline-first implementation.
+`WebNewsRepository` satisfies the same `NewsRepository` contract as the Android/iOS/Desktop offline-first implementation.
 
 It:
 
@@ -259,7 +248,7 @@ The browser client does not contain the NewsData API key.
 
 Web Saved Articles persist in the browser through the `signalbrief.savedArticles.v1` localStorage key. State is loaded once at construction and updated after every successful write, so Saved Articles survive Web application reloads within the same browser.
 
-This is intentionally parallel to the persistent mobile implementation.
+This is intentionally parallel to the persistent Android/iOS/Desktop implementation.
 
 ### `WebCollectionsRepository`
 

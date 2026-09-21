@@ -4,8 +4,7 @@ SignalBrief is a Kotlin Multiplatform news reader for **Android, iOS, Web/Wasm, 
 
 The project shares domain contracts, presentation logic, and Compose Multiplatform UI where that reduces duplication, while keeping platform responsibilities explicit:
 
-- **Android and iOS** use the mobile data layer with Ktor, Room KMP, and an offline-first repository. NewsAPI is used directly only for local development.
-- **Desktop** is a macOS and Windows runtime host with explicit composition, a CIO client, Room KMP, and the same shared UI and repository contracts.
+- **Android, iOS, and Desktop** use the shared offline-first data layer with Ktor, Room KMP, and repository implementations. NewsAPI is used directly only for local development.
 - **Web/Wasm** uses the same shared domain and presentation/UI contracts, with a browser-specific repository backed by Cloudflare Pages Functions and NewsData.io.
 - The public Web deployment keeps provider credentials server-side and proxies article images through a signed, same-origin endpoint.
 
@@ -49,13 +48,13 @@ A walkthrough of how the original Android application evolved into an offline-fi
 - **Android, iOS, browser/Wasm, and Desktop targets** with shared Kotlin domain contracts and shared Compose Multiplatform presentation/UI.
 - **Top Headlines** with loading, success, empty, typed error/retry, refresh, article images, and source metadata.
 - **Search** over the locally available headline set.
-- **Saved Articles** with bookmark actions and a dedicated Saved destination. Mobile persistence is durable; Web Saved Articles persist in browser localStorage.
+- **Saved Articles** with bookmark actions and a dedicated Saved destination. Android, iOS, and Desktop persistence is durable; Web Saved Articles persist in browser localStorage.
 - **Article Details** with shared content layout, bookmark state, article image, and safe external article opening.
 - **Daily Brief** generated from the currently available headline set.
-- **Collections** with creation, renaming, deletion, and assigning/removing articles. Web collections persist in browser localStorage; mobile collections persist in Room KMP.
-- **Topic Monitoring** with creation, updating, and deletion of monitored queries. Matching is performed locally against available headlines. Web topics persist in browser localStorage; mobile topics persist in Room KMP.
+- **Collections** with creation, renaming, deletion, and assigning/removing articles. Web collections persist in browser localStorage; Android, iOS, and Desktop collections persist in Room KMP.
+- **Topic Monitoring** with creation, updating, and deletion of monitored queries. Matching is performed locally against available headlines. Web topics persist in browser localStorage; Android, iOS, and Desktop topics persist in Room KMP.
 - **Settings / Offline Management**: a Settings child screen reachable from Headlines showing the reactive locally downloaded headline count, with explicit clearing of downloaded Top Headlines and confirmation before destructive clear. Cache clearing is local-only and does not trigger a network request.
-- **Mobile offline-first cache**: successful remote results are stored in Room KMP and used as an explicit `FeedSource.CACHE` fallback after network failures.
+- **Offline-first cache for Android, iOS, and Desktop**: successful remote results are stored in Room KMP and used as an explicit `FeedSource.CACHE` fallback after network failures.
 - **Two-page mobile onboarding** persisted with DataStore Preferences on Android and NSUserDefaults on iOS. The Web host intentionally skips onboarding.
 - **Light and dark shared themes**, with Android-specific persisted theme selection.
 - **Responsive Compose UI** with a capped reading width on large screens.
@@ -67,48 +66,42 @@ A walkthrough of how the original Android application evolved into an offline-fi
 
 ## Architecture
 
-The current project deliberately does **not** maximize shared-code percentage at all costs. Pure domain behavior lives in `:sharedLogic`; mobile data/network/storage implementations live in `:sharedData`; common presentation and UI live in `:sharedUI`; each host owns platform-specific composition.
+The current project deliberately does **not** maximize shared-code percentage at all costs. Pure domain behavior lives in `:sharedLogic`; data/network/storage implementations for Android, iOS, and Desktop live in `:sharedData`; common presentation and UI live in `:sharedUI`; each host owns platform-specific composition.
 
-```text
-                          ┌───────────────────────────────────┐
-                          │ :androidApp — Android host / Hilt │
-                          └─────────────────┬─────────────────┘
-                                              │
-                                              ▼
-┌──────────────┐                 ┌───────────────────────┐
-│ :sharedLogic │◄────────────────│       :sharedUI       │
-│ pure domain  │                 │ Compose + ViewModels  │
-└──────▲───────┘                 └──────────┬────────────┘
-       │                                    │
-       │                          ┌──────────┴──────────┐
-       │                          │                     │
-┌──────┴───────┐          ┌──────▼────────┐    ┌──────▼────────┐
-│ :sharedData  │          │    iosApp     │    │    :webApp    │
-│ mobile data  │          │ SwiftUI host  │    │ browser/Wasm  │
-└──────┬───────┘          └───────────────┘    └──────┬────────┘
-       │                                               │
-       ▼                                               ▼
-Ktor + Room KMP                              Cloudflare Pages Functions
-       │                                      /api/headlines + /api/image
-       ▼                                               │
-    NewsAPI                                            ▼
-                                                NewsData.io
+```mermaid
+flowchart TB
+    sharedLogic[":sharedLogic<br/>Domain models + repository contracts"]
+    sharedUI[":sharedUI<br/>Compose + shared ViewModels"]
+    sharedData[":sharedData<br/>Ktor + Room + repositories"]
+    androidApp[":androidApp<br/>Android / Hilt"]
+    desktopApp[":desktopApp<br/>macOS + Windows"]
+    iosApp["iosApp<br/>Xcode / SwiftUI"]
+    webApp[":webApp<br/>Browser / Wasm"]
+
+    sharedLogic --> sharedUI
+    sharedLogic --> sharedData
+    sharedLogic --> webApp
+    sharedUI --> androidApp
+    sharedUI --> desktopApp
+    sharedUI -->|"SignalBriefSharedUi"| iosApp
+    sharedUI --> webApp
+    sharedData --> androidApp
+    sharedData --> desktopApp
 ```
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for module ownership, dependency direction, platform composition, mobile offline-first flow, and the Web request/image-proxy flow.
+Arrows show shared capability or layer consumption/composition, not formal Gradle dependency direction. iOS data composition happens inside `:sharedUI`/`iosMain`, so Xcode consumes only `SignalBriefSharedUi`. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for platform composition and separate offline-first and Web request/image-proxy flows.
 
-## Module responsibilities
+## Module and host responsibilities
 
-- **`:sharedLogic`** — framework-free domain models, repository contracts, typed failures, and web-safe business logic. Targets Android, iOS, and browser Wasm.
-- **`:sharedData`** — mobile data layer. Depends on `:sharedLogic` and owns Ktor networking, serialization, Room KMP persistence, and `OfflineFirstNewsRepository`.
+- **`:sharedLogic`** — framework-free domain models, repository contracts, typed failures, and web-safe business logic. Targets Android, iOS, JVM Desktop, and browser/Wasm.
+- **`:sharedData`** — shared data layer for Android, iOS, and Desktop. Depends on `:sharedLogic` and owns Ktor networking, serialization, Room KMP persistence, and `OfflineFirstNewsRepository`.
 - **`:sharedUI`** — shared Compose Multiplatform UI and ViewModels. Its common code depends on `:sharedLogic`; platform source sets provide image/loading and composition details where needed.
 - **`:desktopApp`** — macOS/Windows Desktop host with manual composition, runtime `NEWS_API_KEY`, and an application-data Room database.
 - **`:androidApp`** — Android host and Hilt composition root.
 - **`iosApp`** — SwiftUI host. The iOS composition root is assembled explicitly from Kotlin/Swift-facing code.
-- **`:webApp`** — browser/Wasm executable with `WebNewsRepository`, `WebSavedArticlesRepository`, `WebCollectionsRepository`, and `WebTopicMonitoringRepository`. It depends on `:sharedLogic` and `:sharedUI`, not on the mobile `:sharedData` data layer.
-- **`functions/`** — Cloudflare Pages Functions used only by the public Web path.
+- **`:webApp`** — browser/Wasm executable with `WebNewsRepository`, `WebSavedArticlesRepository`, `WebCollectionsRepository`, and `WebTopicMonitoringRepository`. It depends on `:sharedLogic` and `:sharedUI`, not on `:sharedData`.
 
-## Mobile offline-first data flow
+## Offline-first data flow — Android, iOS, and Desktop
 
 ```text
 shared UI/ViewModel
