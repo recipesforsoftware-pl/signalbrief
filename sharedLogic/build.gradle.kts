@@ -29,16 +29,9 @@ kotlin {
         withHostTest {}
     }
 
-    listOf(
-        iosArm64(),
-        iosSimulatorArm64(),
-        iosX64(),
-    ).forEach { iosTarget ->
-        iosTarget.binaries.framework {
-            baseName = "SignalBriefCore"
-            isStatic = true
-        }
-    }
+    iosArm64()
+    iosSimulatorArm64()
+    iosX64()
 
     wasmJs {
         browser()

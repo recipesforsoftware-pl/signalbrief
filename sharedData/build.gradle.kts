@@ -30,16 +30,9 @@ kotlin {
         withHostTest {}
     }
 
-    listOf(
-        iosArm64(),
-        iosSimulatorArm64(),
-        iosX64(),
-    ).forEach { iosTarget ->
-        iosTarget.binaries.framework {
-            baseName = "SignalBriefShared"
-            isStatic = true
-        }
-    }
+    iosArm64()
+    iosSimulatorArm64()
+    iosX64()
 
     sourceSets {
         commonMain.dependencies {
