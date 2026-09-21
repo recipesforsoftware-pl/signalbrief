@@ -256,9 +256,9 @@ The public Web deployment uses Cloudflare Pages Functions and encrypted producti
 ## Tests and quality gates
 
 ```bash
-# Shared/mobile tests and frameworks
+# Shared/mobile tests and iOS framework
 ./gradlew :sharedData:allTests :sharedUI:allTests
-./gradlew :sharedData:linkDebugFrameworkIosSimulatorArm64 :sharedUI:linkDebugFrameworkIosSimulatorArm64
+./gradlew :sharedUI:linkDebugFrameworkIosSimulatorArm64
 
 # Android
 ./gradlew test lintDebug ktlintCheck detekt assembleDebug
