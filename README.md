@@ -67,7 +67,7 @@ A walkthrough of how the original Android application evolved into an offline-fi
 
 ## Architecture
 
-The current project deliberately does **not** maximize shared-code percentage at all costs. Pure domain behavior lives in `:core`; mobile data/network/storage implementations live in `:shared`; common presentation and UI live in `:shared-ui`; each host owns platform-specific composition.
+The current project deliberately does **not** maximize shared-code percentage at all costs. Pure domain behavior lives in `:sharedLogic`; mobile data/network/storage implementations live in `:sharedData`; common presentation and UI live in `:sharedUI`; each host owns platform-specific composition.
 
 ```text
                           ┌───────────────────────────────────┐
@@ -76,14 +76,14 @@ The current project deliberately does **not** maximize shared-code percentage at
                                               │
                                               ▼
 ┌──────────────┐                 ┌───────────────────────┐
-│    :core     │◄────────────────│      :shared-ui       │
+│ :sharedLogic │◄────────────────│       :sharedUI       │
 │ pure domain  │                 │ Compose + presenters  │
 └──────▲───────┘                 └──────────┬────────────┘
        │                                    │
        │                          ┌──────────┴──────────┐
        │                          │                     │
 ┌──────┴───────┐          ┌──────▼────────┐    ┌──────▼────────┐
-│   :shared    │          │    iosApp     │    │    :webApp    │
+│ :sharedData  │          │    iosApp     │    │    :webApp    │
 │ mobile data  │          │ SwiftUI host  │    │ browser/Wasm  │
 └──────┬───────┘          └───────────────┘    └──────┬────────┘
        │                                               │
@@ -99,13 +99,13 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for module ownership, dependenc
 
 ## Module responsibilities
 
-- **`:core`** — framework-free domain models, repository contracts, typed failures, and web-safe business logic. Targets Android, iOS, and browser Wasm.
-- **`:shared`** — mobile data layer. Depends on `:core` and owns Ktor networking, serialization, Room KMP persistence, and `OfflineFirstNewsRepository`.
-- **`:shared-ui`** — shared Compose Multiplatform UI and presenters. Its common code depends on `:core`; platform source sets provide image/loading and composition details where needed.
+- **`:sharedLogic`** — framework-free domain models, repository contracts, typed failures, and web-safe business logic. Targets Android, iOS, and browser Wasm.
+- **`:sharedData`** — mobile data layer. Depends on `:sharedLogic` and owns Ktor networking, serialization, Room KMP persistence, and `OfflineFirstNewsRepository`.
+- **`:sharedUI`** — shared Compose Multiplatform UI and presenters. Its common code depends on `:sharedLogic`; platform source sets provide image/loading and composition details where needed.
 - **`:desktopApp`** — macOS/Windows Desktop host with manual composition, runtime `NEWS_API_KEY`, and an application-data Room database.
 - **`:androidApp`** — Android host and Hilt composition root.
 - **`iosApp`** — SwiftUI host. The iOS composition root is assembled explicitly from Kotlin/Swift-facing code.
-- **`:webApp`** — browser/Wasm executable with `WebNewsRepository`, `WebSavedArticlesRepository`, `WebCollectionsRepository`, and `WebTopicMonitoringRepository`. It depends on `:core` and `:shared-ui`, not on the mobile `:shared` data layer.
+- **`:webApp`** — browser/Wasm executable with `WebNewsRepository`, `WebSavedArticlesRepository`, `WebCollectionsRepository`, and `WebTopicMonitoringRepository`. It depends on `:sharedLogic` and `:sharedUI`, not on the mobile `:sharedData` data layer.
 - **`functions/`** — Cloudflare Pages Functions used only by the public Web path.
 
 ## Mobile offline-first data flow
@@ -155,7 +155,7 @@ This keeps the NewsData key out of JavaScript/Wasm and avoids relying on third-p
 | Language | Kotlin, Kotlin Multiplatform, Swift, JavaScript (Pages Functions) |
 | UI | Compose Multiplatform, Material 3 |
 | Architecture | MVVM-style shared presenters, repository contracts, unidirectional StateFlow |
-| Domain | `:core` shared across Android, iOS, and Web/Wasm |
+| Domain | `:sharedLogic` shared across Android, iOS, and Web/Wasm |
 | Mobile DI | Dagger/Hilt on Android; manual composition on iOS |
 | Mobile networking | Ktor 3 + kotlinx.serialization |
 | Mobile persistence | Room KMP; DataStore Preferences (Android); NSUserDefaults (iOS) |
@@ -257,14 +257,14 @@ The public Web deployment uses Cloudflare Pages Functions and encrypted producti
 
 ```bash
 # Shared/mobile tests and frameworks
-./gradlew :shared:allTests :shared-ui:allTests
-./gradlew :shared:linkDebugFrameworkIosSimulatorArm64 :shared-ui:linkDebugFrameworkIosSimulatorArm64
+./gradlew :sharedData:allTests :sharedUI:allTests
+./gradlew :sharedData:linkDebugFrameworkIosSimulatorArm64 :sharedUI:linkDebugFrameworkIosSimulatorArm64
 
 # Android
 ./gradlew test lintDebug ktlintCheck detekt assembleDebug
 
 # Web/Wasm
-./gradlew :webApp:wasmJsTest :shared-ui:compileKotlinWasmJs :webApp:wasmJsBrowserDistribution
+./gradlew :webApp:wasmJsTest :sharedUI:compileKotlinWasmJs :webApp:wasmJsBrowserDistribution
 
 # Coverage
 ./gradlew :androidApp:koverHtmlReportAll :androidApp:koverXmlReportAll :androidApp:koverVerifyAll

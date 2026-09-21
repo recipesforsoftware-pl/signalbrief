@@ -21,8 +21,8 @@ kotlin {
 
     sourceSets {
         wasmJsMain.dependencies {
-            implementation(project(":core"))
-            implementation(project(":shared-ui"))
+            implementation(project(":sharedLogic"))
+            implementation(project(":sharedUI"))
             implementation(libs.kotlinx.serialization.json)
             implementation(compose.runtime)
             implementation(compose.ui)

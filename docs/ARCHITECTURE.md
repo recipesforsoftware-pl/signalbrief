@@ -10,11 +10,11 @@ Code is shared when duplication would create maintenance risk or inconsistent be
 
 That gives SignalBrief three useful layers:
 
-1. **`:core`** — web-safe, framework-free domain contracts and models.
-2. **`:shared-ui`** — shared presenters and Compose Multiplatform UI.
+1. **`:sharedLogic`** — web-safe, framework-free domain contracts and models.
+2. **`:sharedUI`** — shared presenters and Compose Multiplatform UI.
 3. Platform/data implementations:
-   - **`:shared` + `:androidApp` / `iosApp`** for the mobile offline-first path.
-   - **`:desktopApp` + `:shared`** for the macOS/Windows offline-first path.
+   - **`:sharedData` + `:androidApp` / `iosApp`** for the mobile offline-first path.
+   - **`:desktopApp` + `:sharedData`** for the macOS/Windows offline-first path.
    - **`:webApp` + Cloudflare Pages Functions** for the public browser path.
 
 ## Module overview
@@ -22,14 +22,14 @@ That gives SignalBrief three useful layers:
 ```text
 Unit / module       Targets / runtime                   Responsibility
 ------------------  ----------------------------------  -----------------------------------------------
-:core               Android, iOS, Wasm                  Pure domain models, repository contracts,
+:sharedLogic        Android, iOS, Wasm                  Pure domain models, repository contracts,
                                                         typed failures, web-safe behavior.
 
-:shared             Android, iOS, JVM Desktop          Mobile (and Desktop) data implementations: Ktor
+:sharedData         Android, iOS, JVM Desktop          Mobile (and Desktop) data implementations: Ktor
                                                         networking, kotlinx.serialization, Room KMP
                                                         cache, and offline-first repositories.
 
-:shared-ui          Android, iOS, JVM Desktop, Wasm     Compose Multiplatform UI, presenters,
+:sharedUI           Android, iOS, JVM Desktop, Wasm     Compose Multiplatform UI, presenters,
                                                         navigation/screen shell, design system.
 
 :desktopApp         macOS, Windows                      Compose Desktop host with manual composition,
@@ -54,9 +54,9 @@ functions/           Cloudflare Pages Functions         Public Web backend bound
 
 ```mermaid
 flowchart LR
-    core[":core<br/>pure domain"]
-    shared[":shared<br/>mobile data"]
-    sharedui[":shared-ui<br/>Compose + presenters"]
+    core[":sharedLogic<br/>pure domain"]
+    shared[":sharedData<br/>mobile data"]
+    sharedui[":sharedUI<br/>Compose + presenters"]
     androidApp[":androidApp<br/>Android / Hilt"]
     ios["iosApp<br/>SwiftUI host"]
     desktop[":desktopApp<br/>Desktop manual composition"]
@@ -84,13 +84,13 @@ flowchart LR
     pages --> newsdata
 ```
 
-`:webApp` intentionally does **not** depend on the mobile `:shared` data/network layer.
+`:webApp` intentionally does **not** depend on the mobile `:sharedData` data/network layer.
 
-The iOS-specific composition source set in `:shared-ui` may depend on `:shared` to preserve the current single-framework Xcode integration. Common UI/presentation code still depends on `:core`, not on mobile data implementations.
+The iOS-specific composition source set in `:sharedUI` may depend on `:sharedData` to preserve the current single-framework Xcode integration. Common UI/presentation code still depends on `:sharedLogic`, not on mobile data implementations.
 
-## `:core`
+## `:sharedLogic`
 
-`:core` contains the portable domain boundary:
+`:sharedLogic` contains the portable domain boundary:
 
 - `Article`, `Source`, `TopHeadlinesFeed`, `FeedSource`, `Collection`, and `MonitoredTopic`.
 - `NewsRepository`, `SavedArticlesRepository`, `CollectionsRepository`, and `TopicMonitoringRepository` contracts.
@@ -99,9 +99,9 @@ The iOS-specific composition source set in `:shared-ui` may depend on `:shared` 
 
 This module is the architectural seam that allows both the mobile repository and the browser repository to satisfy the same UI-facing contracts.
 
-## `:shared` — mobile data layer
+## `:sharedData` — mobile data layer
 
-`:shared` depends on `:core` and contains the mobile and Desktop data implementation. Its JVM Desktop target provides CIO networking and a `BundledSQLiteDriver`-backed Room database for the explicit `:desktopApp` composition root.
+`:sharedData` depends on `:sharedLogic` and contains the mobile and Desktop data implementation. Its JVM Desktop target provides CIO networking and a `BundledSQLiteDriver`-backed Room database for the explicit `:desktopApp` composition root.
 
 ### Remote
 
@@ -147,9 +147,9 @@ Cancellation is rethrown rather than converted into a domain failure.
 
 `OfflineFirstNewsRepository.clearCachedTopHeadlines(country)` deletes only the requested country's cached headlines in one transaction, performs no network request, and leaves observable cache state emitting an empty list afterward.
 
-## `:shared-ui` — presentation and Compose UI
+## `:sharedUI` — presentation and Compose UI
 
-`:shared-ui` contains the application presentation surface shared across targets:
+`:sharedUI` contains the application presentation surface shared across targets:
 
 - app shell and main destinations;
 - Top Headlines presenter/screen;
@@ -165,7 +165,7 @@ Cancellation is rethrown rather than converted into a domain failure.
 - article cards and shared actions;
 - platform image-loading boundary.
 
-Presenters depend on repository contracts from `:core`, not on concrete data implementations.
+Presenters depend on repository contracts from `:sharedLogic`, not on concrete data implementations.
 
 The UI uses `StateFlow` and explicit callbacks. Repository state is observed by multiple features so Headlines, Search, Saved, Details, Daily Brief, Collections, Topic Monitoring, and Settings stay consistent without each screen owning a separate network implementation.
 
@@ -226,7 +226,7 @@ The database path is `~/Library/Application Support/SignalBrief` on macOS and `%
 
 ## Browser/Wasm composition
 
-`webApp` is a browser executable and depends on `:core` and `:shared-ui`.
+`webApp` is a browser executable and depends on `:sharedLogic` and `:sharedUI`.
 
 ```text
 ComposeViewport
@@ -371,18 +371,18 @@ Neither value is embedded in JavaScript/Wasm or committed to Git.
 
 ## Test boundaries
 
-### `:core`
+### `:sharedLogic`
 
 Pure repository-contract/model/failure tests.
 
-### `:shared`
+### `:sharedData`
 
 - Ktor remote/data mapping tests.
 - Room-backed local tests.
 - offline-first repository policy tests.
 - cancellation and failure classification.
 
-### `:shared-ui`
+### `:sharedUI`
 
 - presenter tests for Headlines, Search, Saved, Details, Daily Brief, Collections, Topic Monitoring, and Settings;
 - shared UI/component behavior;
@@ -417,8 +417,8 @@ Five pull-request checks protect `main`.
 
 ### Desktop CI
 
-- Desktop compilation of `:core`, `:shared`, `:shared-ui`, and `:desktopApp`
-- Desktop execution of the `:core`, `:shared`, and `:shared-ui` test suites
+- Desktop compilation of `:sharedLogic`, `:sharedData`, `:sharedUI`, and `:desktopApp`
+- Desktop execution of the `:sharedLogic`, `:sharedData`, and `:sharedUI` test suites
 - `:desktopApp` jar assembly
 - separate macOS and Windows runners
 

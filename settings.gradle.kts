@@ -21,8 +21,8 @@ dependencyResolutionManagement {
 
 rootProject.name = "SignalBrief"
 include(":androidApp")
-include(":core")
-include(":shared")
-include(":shared-ui")
+include(":sharedLogic")
+include(":sharedData")
+include(":sharedUI")
 include(":webApp")
 include(":desktopApp")

@@ -20,9 +20,9 @@ java {
 }
 
 dependencies {
-    implementation(project(":core"))
-    implementation(project(":shared"))
-    implementation(project(":shared-ui"))
+    implementation(project(":sharedLogic"))
+    implementation(project(":sharedData"))
+    implementation(project(":sharedUI"))
     implementation(compose.desktop.currentOs)
     implementation(compose.material3)
     implementation(libs.compose.multiplatform.resources)
