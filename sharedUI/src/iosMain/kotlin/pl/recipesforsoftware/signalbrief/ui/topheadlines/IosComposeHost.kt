@@ -67,7 +67,7 @@ private const val ONBOARDING_KEY = "pl.recipesforsoftware.signalbrief.onboarding
  * The iOS composition is created exactly once at the root of this Compose host and
  * disposed only when the whole Compose host is torn down. Headlines, Saved, Search,
  * and Article Details share the same [SignalBriefDatabase], the same
- * [RoomSavedArticlesRepository], and root-scoped presenters, so switching tabs
+ * [RoomSavedArticlesRepository], and root-scoped ViewModels, so switching tabs
  * or opening details never closes or recreates persistence layers.
  */
 @Suppress("LongMethod")

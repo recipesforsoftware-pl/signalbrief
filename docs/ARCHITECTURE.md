@@ -11,7 +11,7 @@ Code is shared when duplication would create maintenance risk or inconsistent be
 That gives SignalBrief three useful layers:
 
 1. **`:sharedLogic`** — web-safe, framework-free domain contracts and models.
-2. **`:sharedUI`** — shared presenters and Compose Multiplatform UI.
+2. **`:sharedUI`** — shared ViewModels and Compose Multiplatform UI.
 3. Platform/data implementations:
    - **`:sharedData` + `:androidApp` / `iosApp`** for the mobile offline-first path.
    - **`:desktopApp` + `:sharedData`** for the macOS/Windows offline-first path.
@@ -29,7 +29,7 @@ Unit / module       Targets / runtime                   Responsibility
                                                         networking, kotlinx.serialization, Room KMP
                                                         cache, and offline-first repositories.
 
-:sharedUI           Android, iOS, JVM Desktop, Wasm     Compose Multiplatform UI, presenters,
+:sharedUI           Android, iOS, JVM Desktop, Wasm     Compose Multiplatform UI, shared ViewModels,
                                                         navigation/screen shell, design system.
 
 :desktopApp         macOS, Windows                      Compose Desktop host with manual composition,
@@ -38,8 +38,9 @@ Unit / module       Targets / runtime                   Responsibility
 :androidApp         Android application                 Android host, Hilt composition root,
                                                         Android persistence/theme integration.
 
-iosApp              SwiftUI/Xcode                       iOS host. Embeds the shared UI framework;
-                                                        mobile composition is assembled explicitly.
+iosApp              SwiftUI/Xcode                       Xcode host, not a Gradle module. Embeds only
+                                                        SignalBriefSharedUi; mobile composition is
+                                                        assembled explicitly.
 
 :webApp             Browser/Wasm                        Browser executable, WebNewsRepository,
                                                         browser-local WebSavedArticlesRepository,
@@ -56,7 +57,7 @@ functions/           Cloudflare Pages Functions         Public Web backend bound
 flowchart LR
     core[":sharedLogic<br/>pure domain"]
     shared[":sharedData<br/>mobile data"]
-    sharedui[":sharedUI<br/>Compose + presenters"]
+    sharedui[":sharedUI<br/>Compose + ViewModels"]
     androidApp[":androidApp<br/>Android / Hilt"]
     ios["iosApp<br/>SwiftUI host"]
     desktop[":desktopApp<br/>Desktop manual composition"]
@@ -86,7 +87,7 @@ flowchart LR
 
 `:webApp` intentionally does **not** depend on the mobile `:sharedData` data/network layer.
 
-The iOS-specific composition source set in `:sharedUI` may depend on `:sharedData` to preserve the current single-framework Xcode integration. Common UI/presentation code still depends on `:sharedLogic`, not on mobile data implementations.
+The iOS-specific composition source set in `:sharedUI` may depend on `:sharedData` to preserve the current single-framework Xcode integration. `:sharedLogic` and `:sharedData` retain iOS targets but do not emit standalone framework binaries; the iOS host consumes only `SignalBriefSharedUi`. Common UI/ViewModel code still depends on `:sharedLogic`, not on mobile data implementations.
 
 ## `:sharedLogic`
 
@@ -152,8 +153,8 @@ Cancellation is rethrown rather than converted into a domain failure.
 `:sharedUI` contains the application presentation surface shared across targets:
 
 - app shell and main destinations;
-- Top Headlines presenter/screen;
-- Search presenter/screen;
+- Top Headlines ViewModel/screen;
+- Search ViewModel/screen;
 - Saved Articles;
 - Article Details;
 - Daily Brief;
@@ -165,11 +166,11 @@ Cancellation is rethrown rather than converted into a domain failure.
 - article cards and shared actions;
 - platform image-loading boundary.
 
-Presenters depend on repository contracts from `:sharedLogic`, not on concrete data implementations.
+ViewModels depend on repository contracts from `:sharedLogic`, not on concrete data implementations.
 
 The UI uses `StateFlow` and explicit callbacks. Repository state is observed by multiple features so Headlines, Search, Saved, Details, Daily Brief, Collections, Topic Monitoring, and Settings stay consistent without each screen owning a separate network implementation.
 
-`SettingsPresenter` observes `NewsRepository.observeCachedTopHeadlines()` reactively to derive the downloaded-headline count and calls `clearCachedTopHeadlines(country)` for explicit local-only cache clearing, which never triggers a network request.
+`SettingsViewModel` observes `NewsRepository.observeCachedTopHeadlines()` reactively to derive the downloaded-headline count and calls `clearCachedTopHeadlines(country)` for explicit local-only cache clearing, which never triggers a network request.
 
 ## Android composition
 
@@ -190,16 +191,16 @@ remote + local
         ↓
 OfflineFirstNewsRepository
         ↓
-shared presenters / UI
+shared ViewModels / UI
 ```
 
 Android additionally owns DataStore-backed theme/onboarding preferences and Android-specific host behavior.
 
 ## iOS composition
 
-The iOS host is SwiftUI embedding the shared Compose framework.
+The iOS host is SwiftUI embedding the `SignalBriefSharedUi` shared Compose framework. It is an Xcode host, not a Gradle module.
 
-The Kotlin iOS composition root creates the Darwin Ktor client, Room database, repositories, and presenters explicitly. The NewsAPI key is injected through the git-ignored Xcode configuration and read from the app bundle.
+The Kotlin iOS composition root creates the Darwin Ktor client, Room database, repositories, and ViewModels explicitly. The NewsAPI key is injected through the git-ignored Xcode configuration and read from the app bundle.
 
 This keeps the dependency graph equivalent to Android while avoiding a DI framework in the iOS host.
 
@@ -384,7 +385,7 @@ Pure repository-contract/model/failure tests.
 
 ### `:sharedUI`
 
-- presenter tests for Headlines, Search, Saved, Details, Daily Brief, Collections, Topic Monitoring, and Settings;
+- ViewModel tests for Headlines, Search, Saved, Details, Daily Brief, Collections, Topic Monitoring, and Settings;
 - shared UI/component behavior;
 - Android/iOS/Wasm compilation of the shared UI boundary.
 
@@ -455,7 +456,7 @@ SignalBrief started as an Android application and evolved into a KMP project. Th
 The reusable part is the stable product behavior:
 
 - domain models/contracts;
-- presenter behavior;
+- ViewModel behavior;
 - navigation/screen flow;
 - design system and Compose UI.
 
