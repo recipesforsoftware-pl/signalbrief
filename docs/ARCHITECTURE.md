@@ -12,13 +12,14 @@ That gives SignalBrief three useful layers:
 
 1. **`:sharedLogic`** — web-safe, framework-free domain contracts and models.
 2. **`:sharedUI`** — shared ViewModels and Compose Multiplatform UI.
-3. Platform/data implementations:
+3. Platform hosts and their platform/data implementations:
    - **`:sharedData` + `:androidApp` / `iosApp` / `:desktopApp`** for the Android, iOS, and macOS/Windows offline-first path.
-   - **`:webApp` + Cloudflare Pages Functions** for the public browser path.
+   - **`:webApp`** for the public browser path.
 
 ## Module overview
 
 ```text
+Shared modules
 Unit / module       Targets / runtime                   Responsibility
 ------------------  ----------------------------------  -----------------------------------------------
 :sharedLogic        Android, iOS, JVM Desktop, Wasm     Pure domain models, repository contracts,
@@ -31,11 +32,14 @@ Unit / module       Targets / runtime                   Responsibility
 :sharedUI           Android, iOS, JVM Desktop, Wasm     Compose Multiplatform UI, shared ViewModels,
                                                         navigation/screen shell, design system.
 
-:desktopApp         macOS, Windows                      Compose Desktop host with manual composition,
-                                                        runtime config, Room path, and lifecycle.
-
+Application hosts
+Unit / host         Targets / runtime                   Responsibility
+------------------  ----------------------------------  -----------------------------------------------
 :androidApp         Android application                 Android host, Hilt composition root,
                                                         Android persistence/theme integration.
+
+:desktopApp         macOS, Windows                      Compose Desktop host with manual composition,
+                                                        runtime config, Room path, and lifecycle.
 
 iosApp              SwiftUI/Xcode                       Xcode host, not a Gradle module. Embeds only
                                                         SignalBriefSharedUi; iOS composition is
@@ -45,9 +49,6 @@ iosApp              SwiftUI/Xcode                       Xcode host, not a Gradle
                                                         browser-local WebSavedArticlesRepository,
                                                         browser-local WebCollectionsRepository,
                                                         browser-local WebTopicMonitoringRepository.
-
-functions/           Cloudflare Pages Functions         Public Web backend boundary:
-                                                        /api/headlines and /api/image.
 ```
 
 ## Dependency direction
@@ -66,6 +67,7 @@ flowchart TB
     androidApp --> sharedData
     desktopApp --> sharedUI
     desktopApp --> sharedData
+    desktopApp --> sharedLogic
     iosApp -->|"embeds SignalBriefSharedUi"| sharedUI
     webApp --> sharedUI
     webApp --> sharedLogic
@@ -260,7 +262,7 @@ Collections and memberships are restored at construction and observable state on
 
 `WebTopicMonitoringRepository` persists monitored topic queries in browser localStorage under the `signalbrief.topic-monitors.v1` key.
 
-The queries are restored at construction; observable state only changes after a successful storage write. Matching against local headlines is done by shared presentation logic, so the Web topic-monitoring flow uses the same repository contract and matching semantics as the mobile flow.
+The queries are restored at construction; observable state only changes after a successful storage write. Matching against local headlines is done by shared presentation logic, so the Web topic-monitoring flow uses the same repository contract and matching semantics as the Android/iOS/Desktop flow.
 
 ## Cloudflare Pages Functions
 
@@ -427,7 +429,7 @@ The Web dependency lock deliberately remains free of the Ktor/Coil network depen
 
 ## Trade-offs and current limitations
 
-- Mobile networking/storage and browser networking are separate implementations behind shared contracts.
+- Android/iOS/Desktop offline-first networking/storage and browser networking are separate implementations behind shared contracts.
 - Desktop has no installers, signing/notarization, or final package identifiers.
 - Desktop intentionally has no Linux target.
 - Desktop onboarding state is not persisted, and Windows GUI runtime smoke testing must occur on Windows.
@@ -451,7 +453,7 @@ The reusable part is the stable product behavior:
 
 The replaceable part is infrastructure:
 
-- Android/iOS mobile networking and persistence;
+- Android/iOS/Desktop networking and persistence;
 - browser fetch/backend boundary;
 - platform image loading;
 - host lifecycle and dependency composition.
