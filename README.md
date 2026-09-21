@@ -77,7 +77,7 @@ The current project deliberately does **not** maximize shared-code percentage at
                                               ▼
 ┌──────────────┐                 ┌───────────────────────┐
 │ :sharedLogic │◄────────────────│       :sharedUI       │
-│ pure domain  │                 │ Compose + presenters  │
+│ pure domain  │                 │ Compose + ViewModels  │
 └──────▲───────┘                 └──────────┬────────────┘
        │                                    │
        │                          ┌──────────┴──────────┐
@@ -101,7 +101,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for module ownership, dependenc
 
 - **`:sharedLogic`** — framework-free domain models, repository contracts, typed failures, and web-safe business logic. Targets Android, iOS, and browser Wasm.
 - **`:sharedData`** — mobile data layer. Depends on `:sharedLogic` and owns Ktor networking, serialization, Room KMP persistence, and `OfflineFirstNewsRepository`.
-- **`:sharedUI`** — shared Compose Multiplatform UI and presenters. Its common code depends on `:sharedLogic`; platform source sets provide image/loading and composition details where needed.
+- **`:sharedUI`** — shared Compose Multiplatform UI and ViewModels. Its common code depends on `:sharedLogic`; platform source sets provide image/loading and composition details where needed.
 - **`:desktopApp`** — macOS/Windows Desktop host with manual composition, runtime `NEWS_API_KEY`, and an application-data Room database.
 - **`:androidApp`** — Android host and Hilt composition root.
 - **`iosApp`** — SwiftUI host. The iOS composition root is assembled explicitly from Kotlin/Swift-facing code.
@@ -111,7 +111,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for module ownership, dependenc
 ## Mobile offline-first data flow
 
 ```text
-shared UI/presenter
+shared UI/ViewModel
   -> NewsRepository
   -> OfflineFirstNewsRepository
       -> Ktor remote source -> NewsAPI
@@ -154,7 +154,7 @@ This keeps the NewsData key out of JavaScript/Wasm and avoids relying on third-p
 |---|---|
 | Language | Kotlin, Kotlin Multiplatform, Swift, JavaScript (Pages Functions) |
 | UI | Compose Multiplatform, Material 3 |
-| Architecture | MVVM-style shared presenters, repository contracts, unidirectional StateFlow |
+| Architecture | presentation based on shared ViewModels + StateFlow, repository contracts |
 | Domain | `:sharedLogic` shared across Android, iOS, and Web/Wasm |
 | Mobile DI | Dagger/Hilt on Android; manual composition on iOS |
 | Mobile networking | Ktor 3 + kotlinx.serialization |
@@ -295,4 +295,4 @@ No production API secret is committed to or required by CI.
 
 ## Roadmap
 
-The phased history and planned follow-up work are documented in [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md). Commercial capabilities such as payments, account synchronization, analytics, and production signing remain intentionally separated from the public portfolio scope.
+The phased history and planned follow-up work are documented in [IMPLEMENTATION_ROADMAP.md](docs/IMPLEMENTATION_ROADMAP.md). Commercial capabilities such as payments, account synchronization, analytics, and production signing remain intentionally separated from the public portfolio scope.
