@@ -1,16 +1,17 @@
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
-    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.android.kotlin.multiplatform.library)
-    alias(libs.plugins.ksp)
-    alias(libs.plugins.room)
     alias(libs.plugins.ktlint)
     alias(libs.plugins.detekt)
     alias(libs.plugins.kover)
 }
 
+@OptIn(ExperimentalWasmDsl::class)
 kotlin {
     jvm("desktop") {
         compilerOptions {
@@ -19,12 +20,17 @@ kotlin {
     }
 
     android {
-        namespace = "pl.recipesforsoftware.signalbrief.shared"
+        namespace = "pl.recipesforsoftware.signalbrief.sharedui"
         compileSdk = 37
         minSdk = 24
 
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
+        }
+
+        @Suppress("UnstableApiUsage")
+        androidResources {
+            enable = true
         }
 
         withHostTest {}
@@ -33,67 +39,54 @@ kotlin {
     listOf(
         iosArm64(),
         iosSimulatorArm64(),
-        iosX64(),
     ).forEach { iosTarget ->
         iosTarget.binaries.framework {
-            baseName = "SignalBriefShared"
+            baseName = "SignalBriefSharedUi"
             isStatic = true
         }
     }
 
+    wasmJs {
+        browser()
+    }
+
     sourceSets {
         commonMain.dependencies {
-            api(project(":core"))
-            implementation(libs.ktor.client.core)
-            implementation(libs.ktor.client.content.negotiation)
-            implementation(libs.ktor.serialization.kotlinx.json)
-            implementation(libs.kotlinx.serialization.json)
-
-            implementation(libs.room.runtime)
-            implementation(libs.sqlite.bundled)
+            api(project(":sharedLogic"))
+            implementation(compose.runtime)
+            implementation(compose.foundation)
+            implementation(compose.material3)
+            implementation(compose.ui)
+            implementation(libs.compose.material.icons.core)
+            implementation(libs.compose.multiplatform.resources)
+            implementation(libs.coil.compose)
+            implementation(libs.compose.lifecycle.viewmodel.compose)
         }
         androidMain.dependencies {
-            implementation(libs.ktor.client.android)
+            implementation(libs.coil.network.ktor3)
         }
         iosMain.dependencies {
-            implementation(libs.ktor.client.darwin)
+            implementation(project(":sharedData"))
+            implementation(libs.coil.network.ktor3)
         }
         named("desktopMain") {
             dependencies {
-                implementation(libs.ktor.client.cio)
+                implementation(libs.coil.network.ktor3)
+                implementation(libs.kotlinx.coroutines.swing)
             }
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.coroutines.test)
-            implementation(libs.ktor.client.mock)
             implementation(libs.turbine)
         }
-        named("androidHostTest") {
-            dependencies {
-                implementation(libs.sqlite.jdbc)
-                implementation(libs.mockk)
-            }
-        }
     }
-}
-
-dependencies {
-    add("kspAndroid", libs.room.compiler)
-    add("kspDesktop", libs.room.compiler)
-    add("kspIosArm64", libs.room.compiler)
-    add("kspIosSimulatorArm64", libs.room.compiler)
-    add("kspIosX64", libs.room.compiler)
-}
-
-room {
-    schemaDirectory("$projectDir/schemas")
 }
 
 ktlint {
     version.set(libs.versions.ktlintCore)
     filter {
-        exclude { element -> element.file.absolutePath.contains("build/generated") }
+        exclude("**/generated/**")
     }
 }
 
@@ -101,7 +94,16 @@ detekt {
     toolVersion = libs.versions.detekt.get()
     buildUponDefaultConfig = true
     config.setFrom(rootProject.layout.projectDirectory.file("config/detekt/detekt.yml"))
-    source.setFrom(files("src"))
+    source.setFrom(
+        kotlin.sourceSets
+            .flatMap { it.kotlin.srcDirs }
+            .filterNot { it.path.contains("build/generated") },
+    )
+}
+
+compose.resources {
+    publicResClass = true
+    packageOfResClass = "pl.recipesforsoftware.signalbrief.sharedui.generated.resources"
 }
 
 kover {

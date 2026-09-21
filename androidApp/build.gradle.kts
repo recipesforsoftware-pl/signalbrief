@@ -125,14 +125,14 @@ kover {
 
 dependencies {
     // Shared KMP domain module
-    implementation(project(":shared"))
+    implementation(project(":sharedData"))
 
     // Shared Compose Multiplatform UI
-    implementation(project(":shared-ui"))
+    implementation(project(":sharedUI"))
 
-    // Aggregate :shared and :shared-ui coverage into :androidApp's Kover "all" report variant
-    kover(project(":shared"))
-    kover(project(":shared-ui"))
+    // Aggregate :sharedData and :sharedUI coverage into :androidApp's Kover "all" report variant
+    kover(project(":sharedData"))
+    kover(project(":sharedUI"))
 
     // Ktor client type used at the Hilt composition boundary
     implementation(libs.ktor.client.core)

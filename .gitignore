@@ -13,8 +13,8 @@
 .externalNativeBuild
 .cxx
 /.idea
-/shared/build/
-/shared-ui/build/
+/sharedData/build/
+/sharedUI/build/
 
 # iOS host app
 iosApp/Configuration/Secrets.xcconfig
@@ -24,7 +24,7 @@ iosApp/iosApp.xcodeproj/project.xcworkspace/
 iosApp/iosApp.xcodeproj/xcshareddata/
 iosApp/*.xcuserstate
 
-/core/build/
+/sharedLogic/build/
 
 /desktopApp/build/
 

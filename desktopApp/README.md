@@ -1,6 +1,6 @@
 # SignalBrief Desktop
 
-Ten moduł jest runtime hostem Compose Desktop dla macOS i Windows. Tworzy ręcznie graph danych (`CIO`, Room KMP i repozytoria `:shared`) i przekazuje wyłącznie kontrakty repozytoriów do `SignalBriefAppHost`.
+Ten moduł jest runtime hostem Compose Desktop dla macOS i Windows. Tworzy ręcznie graph danych (`CIO`, Room KMP i repozytoria `:sharedData`) i przekazuje wyłącznie kontrakty repozytoriów do `SignalBriefAppHost`.
 
 Ustaw lokalnie `NEWS_API_KEY` i uruchom na macOS:
 

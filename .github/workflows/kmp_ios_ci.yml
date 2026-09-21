@@ -11,8 +11,9 @@ on:
       - 'gradle.properties'
       - 'gradlew'
       - 'gradlew.bat'
-      - 'shared/**'
-      - 'shared-ui/**'
+      - 'sharedLogic/**'
+      - 'sharedData/**'
+      - 'sharedUI/**'
       - 'iosApp/**'
       - '.github/workflows/**'
   push:
@@ -25,8 +26,9 @@ on:
       - 'gradle.properties'
       - 'gradlew'
       - 'gradlew.bat'
-      - 'shared/**'
-      - 'shared-ui/**'
+      - 'sharedLogic/**'
+      - 'sharedData/**'
+      - 'sharedUI/**'
       - 'iosApp/**'
       - '.github/workflows/**'
   workflow_dispatch:
@@ -60,13 +62,13 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       - name: Run shared module tests
-        run: ./gradlew :shared:allTests
+        run: ./gradlew :sharedData:allTests
 
       - name: Run shared UI tests
-        run: ./gradlew :shared-ui:allTests
+        run: ./gradlew :sharedUI:allTests
 
       - name: Link iOS simulator framework
-        run: ./gradlew :shared-ui:linkDebugFrameworkIosSimulatorArm64
+        run: ./gradlew :sharedUI:linkDebugFrameworkIosSimulatorArm64
 
       - name: Check Kotlin formatting
         run: ./gradlew ktlintCheck
@@ -98,7 +100,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: shared-test-reports
-          path: shared/build/reports/tests/
+          path: sharedData/build/reports/tests/
           retention-days: 7
           if-no-files-found: warn
 
@@ -107,7 +109,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: shared-ui-test-reports
-          path: shared-ui/build/reports/tests/
+          path: sharedUI/build/reports/tests/
           retention-days: 7
           if-no-files-found: warn
 
@@ -117,10 +119,10 @@ jobs:
         with:
           name: ktlint-detekt-reports
           path: |
-            shared/build/reports/ktlint/
-            shared/build/reports/detekt/
-            shared-ui/build/reports/ktlint/
-            shared-ui/build/reports/detekt/
+            sharedData/build/reports/ktlint/
+            sharedData/build/reports/detekt/
+            sharedUI/build/reports/ktlint/
+            sharedUI/build/reports/detekt/
           retention-days: 7
           if-no-files-found: warn
 

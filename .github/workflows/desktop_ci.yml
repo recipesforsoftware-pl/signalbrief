@@ -11,9 +11,9 @@ on:
       - 'gradle.properties'
       - 'gradlew'
       - 'gradlew.bat'
-      - 'core/**'
-      - 'shared/**'
-      - 'shared-ui/**'
+      - 'sharedLogic/**'
+      - 'sharedData/**'
+      - 'sharedUI/**'
       - 'desktopApp/**'
       - '.github/workflows/desktop_ci.yml'
   push:
@@ -26,9 +26,9 @@ on:
       - 'gradle.properties'
       - 'gradlew'
       - 'gradlew.bat'
-      - 'core/**'
-      - 'shared/**'
-      - 'shared-ui/**'
+      - 'sharedLogic/**'
+      - 'sharedData/**'
+      - 'sharedUI/**'
       - 'desktopApp/**'
       - '.github/workflows/desktop_ci.yml'
   workflow_dispatch:
@@ -74,7 +74,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       - name: Build and test Desktop foundation
-        run: ${{ matrix.wrapper }} :core:compileKotlinDesktop :core:desktopTest :shared:compileKotlinDesktop :shared:desktopTest :shared-ui:compileKotlinDesktop :shared-ui:desktopTest :desktopApp:compileKotlin :desktopApp:test :desktopApp:jar
+        run: ${{ matrix.wrapper }} :sharedLogic:compileKotlinDesktop :sharedLogic:desktopTest :sharedData:compileKotlinDesktop :sharedData:desktopTest :sharedUI:compileKotlinDesktop :sharedUI:desktopTest :desktopApp:compileKotlin :desktopApp:test :desktopApp:jar
 
       - name: Upload test reports
         if: failure()
@@ -82,9 +82,9 @@ jobs:
         with:
           name: desktop-test-reports-${{ matrix.artifact_id }}
           path: |
-            core/build/reports/tests/
-            shared/build/reports/tests/
-            shared-ui/build/reports/tests/
+            sharedLogic/build/reports/tests/
+            sharedData/build/reports/tests/
+            sharedUI/build/reports/tests/
             desktopApp/build/reports/tests/
           retention-days: 7
           if-no-files-found: warn
