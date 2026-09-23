@@ -27,6 +27,7 @@ dependencies {
     implementation(compose.material3)
     implementation(libs.compose.multiplatform.resources)
     implementation(libs.ktor.client.core)
+    implementation(libs.koin.core)
     implementation(libs.room.runtime)
 
     testImplementation(libs.kotlin.test)
