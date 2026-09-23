@@ -32,6 +32,7 @@ ktlint = "14.2.0"
 ktlintCore = "1.8.0"
 detekt = "2.0.0-alpha.3"
 kover = "0.9.8"
+koin = "4.2.2"
 
 [libraries]
 # Compose BOM
@@ -58,6 +59,9 @@ compose-lifecycle-viewmodel-compose = { group = "org.jetbrains.androidx.lifecycl
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
 hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "hilt" }
 hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
+
+# Dependency injection
+koin-core = { group = "io.insert-koin", name = "koin-core", version.ref = "koin" }
 
 # Networking
 ktor-client-core = { group = "io.ktor", name = "ktor-client-core", version.ref = "ktor" }
