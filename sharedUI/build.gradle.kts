@@ -68,6 +68,7 @@ kotlin {
         iosMain.dependencies {
             implementation(project(":sharedData"))
             implementation(libs.coil.network.ktor3)
+            implementation(libs.koin.core)
         }
         named("desktopMain") {
             dependencies {
