@@ -15,11 +15,18 @@ import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.window.ComposeUIViewController
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.ktor.client.HttpClient
+import org.koin.core.KoinApplication
+import org.koin.core.error.InstanceCreationException
+import org.koin.core.module.Module
+import org.koin.dsl.koinApplication
+import org.koin.dsl.module
+import pl.recipesforsoftware.signalbrief.data.local.NewsLocalDataSource
 import pl.recipesforsoftware.signalbrief.data.local.RoomNewsLocalDataSource
 import pl.recipesforsoftware.signalbrief.data.local.db.SignalBriefDatabase
 import pl.recipesforsoftware.signalbrief.data.local.db.createSignalBriefDatabase
 import pl.recipesforsoftware.signalbrief.data.remote.KtorNewsRemoteDataSource
 import pl.recipesforsoftware.signalbrief.data.remote.NewsApiConfig
+import pl.recipesforsoftware.signalbrief.data.remote.NewsRemoteDataSource
 import pl.recipesforsoftware.signalbrief.data.remote.createHttpClient
 import pl.recipesforsoftware.signalbrief.data.repository.OfflineFirstNewsRepository
 import pl.recipesforsoftware.signalbrief.data.repository.RoomCollectionsRepository
@@ -412,30 +419,149 @@ private fun rememberOpenFullArticleAction(
  * are not held here; they receive the same repository instance without creating
  * a second database or repository.
  *
- * [dispose] must be called exactly once, when the owning composition root is
- * torn down; it closes the client and database.
+ * [dispose] is idempotent and must be called when the owning composition root
+ * is torn down.
  */
-private class IosComposition(
+internal class IosComposition(
     val savedArticlesRepository: SavedArticlesRepository,
     val collectionsRepository: CollectionsRepository,
     val topicMonitoringRepository: TopicMonitoringRepository,
     val newsRepository: NewsRepository,
-    private val client: HttpClient,
-    private val database: SignalBriefDatabase,
+    private val koinApplication: KoinApplication,
+    private val resources: IosCompositionResources,
 ) {
+    private var isDisposed = false
+
     fun dispose() {
-        client.close()
-        database.close()
+        if (isDisposed) return
+        isDisposed = true
+
+        try {
+            resources.dispose()
+        } finally {
+            koinApplication.close()
+        }
     }
 }
 
 /**
  * Creates the single iOS composition graph.
  *
- * This factory is called exactly once by [createIosComposeHost]. It constructs one
- * database, repositories, and one HTTP client, then returns
- * an [IosComposition] that owns disposal of all those resources.
+ * The returned composition owns the platform resources while Koin owns only
+ * object graph construction. Factory arguments keep construction isolated from
+ * the app bundle and user storage in iOS tests.
  */
+@Suppress("TooGenericExceptionCaught")
+internal fun createIosComposition(
+    apiKey: String,
+    httpClientFactory: (NewsApiConfig) -> HttpClient = ::createHttpClient,
+    databaseFactory: () -> SignalBriefDatabase = ::createSignalBriefDatabase,
+): IosComposition {
+    val config = NewsApiConfig(apiKey = apiKey, baseUrl = "https://newsapi.org/v2/")
+    val resources = IosCompositionResources()
+    val application =
+        koinApplication {
+            modules(
+                iosModule(
+                    config = config,
+                    httpClientFactory = httpClientFactory,
+                    databaseFactory = databaseFactory,
+                    resources = resources,
+                ),
+            )
+        }
+
+    try {
+        val koin = application.koin
+        return IosComposition(
+            newsRepository = koin.get(),
+            savedArticlesRepository = koin.get(),
+            collectionsRepository = koin.get(),
+            topicMonitoringRepository = koin.get(),
+            koinApplication = application,
+            resources = resources,
+        )
+    } catch (exception: Exception) {
+        val constructionFailure = exception.unwrapKoinCreationExceptions()
+        runCatching(application::close)
+            .exceptionOrNull()
+            ?.let(constructionFailure::addSuppressed)
+        resources.disposeAfterFailedConstruction(constructionFailure)
+    }
+}
+
+private fun iosModule(
+    config: NewsApiConfig,
+    httpClientFactory: (NewsApiConfig) -> HttpClient,
+    databaseFactory: () -> SignalBriefDatabase,
+    resources: IosCompositionResources,
+): Module =
+    module {
+        single { config }
+        single<HttpClient> {
+            httpClientFactory(get()).also(resources::registerHttpClient)
+        }
+        single<SignalBriefDatabase> {
+            databaseFactory().also(resources::registerDatabase)
+        }
+        single<NewsRemoteDataSource> { KtorNewsRemoteDataSource(get()) }
+        single<NewsLocalDataSource> { RoomNewsLocalDataSource(get()) }
+        single<NewsRepository> { OfflineFirstNewsRepository(get(), get()) }
+        single<SavedArticlesRepository> { RoomSavedArticlesRepository(get()) }
+        single<CollectionsRepository> { RoomCollectionsRepository(get()) }
+        single<TopicMonitoringRepository> { RoomTopicMonitoringRepository(get()) }
+    }
+
+/** Owns resources created while resolving the iOS Koin graph. */
+internal class IosCompositionResources(
+    private var closeHttpClient: (() -> Unit)? = null,
+    private var closeDatabase: (() -> Unit)? = null,
+) {
+    private var isDisposed = false
+
+    fun registerHttpClient(client: HttpClient) {
+        check(closeHttpClient == null) { "HTTP client is already registered." }
+        closeHttpClient = client::close
+    }
+
+    fun registerDatabase(database: SignalBriefDatabase) {
+        check(closeDatabase == null) { "Database is already registered." }
+        closeDatabase = database::close
+    }
+
+    fun dispose() {
+        if (isDisposed) return
+        isDisposed = true
+
+        try {
+            closeHttpClient?.invoke()
+        } finally {
+            closeDatabase?.invoke()
+        }
+    }
+
+    fun disposeAfterFailedConstruction(constructionFailure: Exception): Nothing {
+        if (!isDisposed) {
+            isDisposed = true
+            runCatching { closeDatabase?.invoke() }
+                .exceptionOrNull()
+                ?.let(constructionFailure::addSuppressed)
+            runCatching { closeHttpClient?.invoke() }
+                .exceptionOrNull()
+                ?.let(constructionFailure::addSuppressed)
+        }
+        throw constructionFailure
+    }
+}
+
+private fun Exception.unwrapKoinCreationExceptions(): Exception {
+    var current = this
+    while (current is InstanceCreationException && current.cause is Exception) {
+        current = current.cause as Exception
+    }
+    return current
+}
+
 private fun createIosComposition(): IosComposition {
     val apiKey =
         readNewsApiKeyFromBundle()
@@ -444,23 +570,7 @@ private fun createIosComposition(): IosComposition {
                     "Configure iosApp/Secrets.xcconfig (copy Secrets.example.xcconfig) " +
                     "and rebuild the app.",
             )
-    val config = NewsApiConfig(apiKey = apiKey, baseUrl = "https://newsapi.org/v2/")
-    val client = createHttpClient(config)
-    val database = createSignalBriefDatabase()
-    val remoteDataSource = KtorNewsRemoteDataSource(client)
-    val localDataSource = RoomNewsLocalDataSource(database)
-    val savedArticlesRepository = RoomSavedArticlesRepository(database)
-    val collectionsRepository: CollectionsRepository = RoomCollectionsRepository(database)
-    val topicMonitoringRepository: TopicMonitoringRepository = RoomTopicMonitoringRepository(database)
-    val newsRepository = OfflineFirstNewsRepository(remoteDataSource, localDataSource)
-    return IosComposition(
-        savedArticlesRepository,
-        collectionsRepository,
-        topicMonitoringRepository,
-        newsRepository,
-        client,
-        database,
-    )
+    return createIosComposition(apiKey)
 }
 
 /**
