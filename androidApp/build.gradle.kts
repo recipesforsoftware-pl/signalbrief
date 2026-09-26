@@ -13,8 +13,6 @@ val localProperties =
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.ksp)
-    alias(libs.plugins.hilt.android)
     alias(libs.plugins.ktlint)
     alias(libs.plugins.detekt)
     alias(libs.plugins.kover)
@@ -101,11 +99,6 @@ kover {
                     classes("*.BuildConfig")
                     classes("*.R")
                     classes("*.R$*")
-                    // Dagger/Hilt generated
-                    classes("*Hilt*")
-                    classes("*Dagger*")
-                    classes("*_Factory")
-                    classes("*_MembersInjector")
                     // Compose compiler generated
                     classes("*ComposableSingletons*")
                 }
@@ -134,10 +127,10 @@ dependencies {
     kover(project(":sharedData"))
     kover(project(":sharedUI"))
 
-    // Ktor client type used at the Hilt composition boundary
+    // Ktor client type used at the Koin composition boundary
     implementation(libs.ktor.client.core)
 
-    // Room database type used at the Hilt composition boundary
+    // Room database type used at the Koin composition boundary
     implementation(libs.room.runtime)
 
     // Compose BOM
@@ -161,10 +154,9 @@ dependencies {
     implementation(libs.lifecycle.runtime.compose)
     implementation(libs.lifecycle.viewmodel.compose)
 
-    // Hilt
-    implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler)
-    implementation(libs.hilt.navigation.compose)
+    // Android composition
+    implementation(libs.koin.android)
+    implementation(libs.koin.androidx.compose)
 
     // Browser
     implementation(libs.browser)
@@ -181,6 +173,8 @@ dependencies {
     testImplementation(libs.coroutines.test)
     testImplementation(libs.turbine)
     testImplementation(libs.robolectric)
+    // Local Compose ownership tests use the existing Robolectric runner.
+    testImplementation(libs.compose.ui.test.junit4)
 
     // Android Testing
     androidTestImplementation(libs.junit.test.ext)

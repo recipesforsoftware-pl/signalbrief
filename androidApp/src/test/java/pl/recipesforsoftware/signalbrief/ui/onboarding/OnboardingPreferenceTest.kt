@@ -1,5 +1,6 @@
 package pl.recipesforsoftware.signalbrief.ui.onboarding
 
+import android.app.Application
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
@@ -33,7 +34,7 @@ import java.util.UUID
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
-@Config(manifest = Config.NONE)
+@Config(manifest = Config.NONE, application = Application::class)
 class OnboardingPreferenceTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var context: Context
