@@ -7,7 +7,7 @@ import kotlinx.coroutines.Dispatchers
 /**
  * Creates the [SignalBriefDatabase] for JVM Desktop.
  *
- * The future Desktop composition root supplies [databasePath]; this factory does
+ * `DesktopComposition` supplies [databasePath]; this factory does
  * not resolve a macOS or Windows application-data directory. The bundled SQLite
  * driver is used and the additive migrations preserve existing user data.
  */

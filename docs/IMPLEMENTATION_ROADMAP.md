@@ -1,6 +1,6 @@
 # SignalBrief Implementation Roadmap
 
-_Last updated: 2026-09-11_
+_Last updated: 2026-09-28_
 
 ## 1. Executive summary
 
@@ -11,6 +11,14 @@ The Kotlin Multiplatform foundation is now established. Android and iOS share th
 Public product slices through Settings and Offline Management are delivered. The next planned slice is Story Clusters, followed later by the Authentication Boundary and Pro Entitlement Boundary. Commercial backend, billing, cross-device synchronization, analytics, and production release infrastructure remain outside the current public portfolio scope.
 
 The migration must remain incremental. Every pull request must keep the repository buildable, reviewable, testable, and free of production credentials.
+
+### Current composition status
+
+- Desktop -> isolated Koin 4.2.2 with explicit `DesktopComposition` resource ownership: completed in PR #70.
+- iOS -> isolated Koin 4.2.2 with explicit `IosComposition` resource ownership and the existing Swift/Compose boundary: completed in PR #71.
+- Android -> process-level Koin 4.2.2 started by `SignalBriefApplication`: completed in PR #72.
+- Web/Wasm -> evaluated and intentionally retained manual Compose-root constructor composition; it is not a pending migration.
+- Shared business/domain code remains framework-free and uses constructor injection; it has no Koin service locator, annotations, or compiler plugin.
 
 ## 2. Verified current state
 
@@ -28,9 +36,9 @@ The migration must remain incremental. Every pull request must keep the reposito
   - instrumented tests are not yet executed in CI;
   - `test`, `lintDebug`, and `assembleDebug` pass.
 - `android-baseline-v1` tag preserved before the migration work.
-- Dagger/Hilt remains the Android dependency-injection choice.
-- `commonMain` is required to remain independent of any DI framework.
-- iOS dependencies are assembled through an explicit composition root.
+- Koin 4.2.2 is the current composition technology at Android, iOS, and Desktop boundaries (PRs #70–#72).
+- `commonMain` remains independent of any DI framework.
+- iOS dependencies are assembled through isolated Koin inside an explicit, Swift-facing composition boundary.
 
 ### Completed quality-gates phase
 
@@ -109,9 +117,9 @@ Delivered:
 - `kotlinx.serialization`;
 - Android and iOS Ktor engines;
 - a justified use of `expect/actual` for an inherently platform-specific dependency;
-- Android Hilt composition;
+- Android composition boundary (historically Hilt, now Koin 4.2.2);
 - framework-agnostic constructor injection in shared code;
-- explicit iOS composition root;
+- explicit iOS composition boundary (now isolated Koin);
 - one shared Compose Multiplatform screen;
 - successful Android build;
 - successful iOS simulator build;
@@ -231,17 +239,17 @@ The first shared UI target is one complete feed-oriented screen, not the entire 
 
 ### Dependency injection
 
-Accepted decision:
+The current production decision is:
 
 ```text
-Android app graph -> Dagger/Hilt
-commonMain -> constructor injection, no DI framework
-iOS app graph -> explicit composition root
+Android app graph -> process-level Koin 4.2.2 in SignalBriefApplication
+Desktop app graph -> isolated Koin 4.2.2 + DesktopComposition resource ownership
+iOS app graph -> isolated Koin 4.2.2 + IosComposition resource ownership
+Web/Wasm app graph -> manual constructor composition by design
+shared domain/business code -> constructor injection, no DI framework or service locator
 ```
 
-Do not add Koin to the main production graph merely to list another technology.
-
-A later isolated comparison spike may evaluate Koin, but it must not create two competing production containers.
+This supersedes the historical Hilt-versus-Koin comparison. The platforms deliberately do not share an identical container lifecycle: Android is process-global, Desktop and iOS are isolated and explicitly disposed, and Web has no container.
 
 ### Platform boundaries
 
@@ -335,8 +343,8 @@ Deliver:
 - Android and iOS targets;
 - `commonMain`, `commonTest`, `androidMain`, `iosMain`;
 - domain models, repository contract, typed failures moved to common code;
-- Android Hilt continues composing shared dependencies;
-- initial iOS composition root;
+- Android composed shared dependencies through Hilt at this historical phase; it now uses Koin 4.2.2;
+- initial iOS explicit composition boundary (now isolated Koin);
 - common tests run successfully.
 
 Exit criteria:
@@ -395,7 +403,7 @@ Exit criteria:
 
 - the same feed screen renders on Android and iOS;
 - article opening is delegated to platform adapters;
-- Android Hilt and iOS composition root both assemble the slice;
+- Android Hilt and the explicit iOS composition root assembled this historical slice; both now use their documented Koin boundaries;
 - platform builds are reproducible.
 
 ### Phase 6 — Dual-platform CI and architecture evidence
@@ -415,7 +423,7 @@ Deliver:
 - `ARCHITECTURE.md`;
 - `TESTING.md`;
 - ADRs:
-  - Hilt Android and framework-agnostic shared code;
+  - Android DI boundary and framework-agnostic shared code (historically Hilt; now Koin);
   - interface versus `expect/actual`;
   - Ktor versus Retrofit;
   - shared Compose screen versus native SwiftUI;
@@ -487,8 +495,8 @@ The KMP Foundation Slice was considered complete when all of the following were 
 
 ### Platform code
 
-- Android uses Hilt;
-- iOS uses an explicit composition root;
+- Android uses process-level Koin;
+- iOS uses isolated Koin within an explicit composition boundary;
 - platform engine creation is isolated;
 - external navigation is behind a platform port.
 
@@ -533,7 +541,7 @@ Use:
 
 - JVM tests;
 - MockK at external or Android boundaries;
-- Hilt integration tests;
+- Android Koin graph integration tests;
 - Compose UI tests;
 - Android Lint;
 - ktlint;
@@ -579,7 +587,7 @@ The walkthrough should demonstrate:
 - why the migration was incremental;
 - what moved to `commonMain`;
 - one justified platform boundary;
-- Hilt on Android and explicit iOS composition;
+- platform-specific Koin composition on Android and iOS;
 - tests and CI;
 - one AI-agent suggestion that was reviewed, changed, or rejected;
 - how correctness was verified after generated changes.
@@ -613,22 +621,14 @@ Mitigation:
 - add deterministic demo fixtures later;
 - document provider limitations.
 
-### Hilt is unavailable in common code
+### DI frameworks stay outside common code
 
 Mitigation:
 
 - constructor injection in `commonMain`;
-- Hilt only at the Android boundary;
-- explicit iOS composition;
-- ADR documenting the decision.
-
-### Koin may appear in role requirements
-
-Mitigation:
-
-- do not distort the main architecture;
-- explain the trade-off;
-- create an optional short-lived Koin composition spike only after the primary KMP slice is complete.
+- Koin only at Android, iOS, and Desktop composition boundaries;
+- manual Web composition stays at the browser boundary;
+- documentation records the lifecycle trade-offs.
 
 ### iOS validation can be skipped accidentally
 
@@ -665,7 +665,7 @@ Mitigation:
 
 - shared domain and networking work on Android and iOS;
 - one Compose Multiplatform screen runs on both platforms;
-- Android Hilt and explicit iOS composition are proven;
+- Android process-level Koin and isolated iOS Koin composition are proven;
 - common tests and both platform builds pass in CI;
 - architecture documentation and ADRs are published;
 - no production credentials are committed.
