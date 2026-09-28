@@ -35,15 +35,15 @@ Unit / module       Targets / runtime                   Responsibility
 Application hosts
 Unit / host         Targets / runtime                   Responsibility
 ------------------  ----------------------------------  -----------------------------------------------
-:androidApp         Android application                 Android host, Hilt composition root,
+:androidApp         Android application                 Process-level Koin composition boundary,
                                                         Android persistence/theme integration.
 
-:desktopApp         macOS, Windows                      Compose Desktop host with manual composition,
-                                                        runtime config, Room path, and lifecycle.
+:desktopApp         macOS, Windows                      Compose Desktop host with isolated Koin,
+                                                        runtime config, Room path, and resource lifecycle.
 
 iosApp              SwiftUI/Xcode                       Xcode host, not a Gradle module. Embeds only
-                                                        SignalBriefSharedUi; iOS composition is
-                                                        assembled explicitly.
+                                                        SignalBriefSharedUi; isolated Koin composition
+                                                        remains behind its Swift-facing Kotlin boundary.
 
 :webApp             Browser/Wasm                        Browser executable, WebNewsRepository,
                                                         browser-local WebSavedArticlesRepository,
@@ -55,7 +55,7 @@ iosApp              SwiftUI/Xcode                       Xcode host, not a Gradle
 
 ```mermaid
 flowchart TB
-    androidApp[":androidApp<br/>Android / Hilt"]
+    androidApp[":androidApp<br/>Android / Koin"]
     desktopApp[":desktopApp<br/>macOS + Windows"]
     iosApp["iosApp<br/>Xcode / SwiftUI"]
     webApp[":webApp<br/>Browser / Wasm"]
@@ -91,9 +91,11 @@ The dashed relation represents the iOS-specific composition source set in `:shar
 
 This module is the architectural seam that allows both the Android/iOS/Desktop offline-first repository and the browser repository to satisfy the same UI-facing contracts.
 
+It has no Koin dependency, annotations, compiler plugin, `KoinComponent`, or service-locator lookup. Dependencies enter shared business code only through constructors and repository contracts.
+
 ## `:sharedData` — shared data layer
 
-`:sharedData` depends on `:sharedLogic` and contains the data/network/storage implementations for Android, iOS, and Desktop. Its JVM Desktop target provides CIO networking and a `BundledSQLiteDriver`-backed Room database for the explicit `:desktopApp` composition root.
+`:sharedData` depends on `:sharedLogic` and contains the data/network/storage implementations for Android, iOS, and Desktop. Its JVM Desktop target provides CIO networking and a `BundledSQLiteDriver`-backed Room database for `DesktopComposition`.
 
 ### Remote
 
@@ -165,44 +167,39 @@ The UI uses `StateFlow` and explicit callbacks. Repository state is observed by 
 
 ## Android composition
 
-Android uses Dagger/Hilt at the host boundary.
+Android's process-level composition boundary is Koin 4.2.2. `SignalBriefApplication` starts it once with the Android data and ViewModel modules; `MainActivity` owns Android host concerns but does not hold repositories.
 
 ```text
-BuildConfig.NEWS_API_KEY
-        ↓
-NewsApiConfig
-        ↓
-Ktor Android HttpClient
-
-Room database
-        ↓
-mobile local data sources
-
-remote + local
-        ↓
-OfflineFirstNewsRepository
-        ↓
-shared ViewModels / UI
+SignalBriefApplication
+  -> startKoin(android data module, ViewModel module)
+      -> BuildConfig.NEWS_API_KEY -> NewsApiConfig -> Ktor Android HttpClient
+      -> Room database -> local data source
+      -> remote + local -> OfflineFirstNewsRepository
+      -> repository contracts and Android preferences
+MainActivity / root Compose
+  -> Koin ViewModels
+  -> existing Activity ViewModelStoreOwner and ScreenViewModelScope route owners
+  -> shared UI
 ```
 
-Android additionally owns DataStore-backed theme/onboarding preferences and Android-specific host behavior.
+Screen ViewModels retain their existing `ViewModelStoreOwner`/`ScreenViewModelScope` lifetimes; Koin supplies constructor dependencies and is not a service locator in shared business code. Android additionally owns DataStore-backed theme/onboarding preferences and Android-specific host behavior.
 
 ## iOS composition
 
 The iOS host is SwiftUI embedding the `SignalBriefSharedUi` shared Compose framework. It is an Xcode host, not a Gradle module.
 
-The Kotlin iOS composition root creates the Darwin Ktor client, Room database, repositories, and ViewModels explicitly. The NewsAPI key is injected through the git-ignored Xcode configuration and read from the app bundle.
+The Swift-facing `createIosComposeHost` boundary remains unchanged. Its root creates an isolated `koinApplication`, then `IosComposition` resolves the Darwin Ktor client, Room database, and repository contracts. The NewsAPI key is injected through the git-ignored Xcode configuration and read from the app bundle.
 
-This keeps the dependency graph equivalent to Android while avoiding a DI framework in the iOS host.
+`IosComposition` explicitly owns the client/database resources and has idempotent disposal when the Compose host is torn down. It does not use global `startKoin`; Koin constructs the graph inside the isolated boundary while the host preserves explicit lifecycle ownership.
 
 ## Desktop composition
 
-`:desktopApp` is a macOS and Windows Compose Desktop host. It uses no Hilt or Koin: `Main.kt` reads the runtime `NEWS_API_KEY`, resolves the database path, and creates one `DesktopComposition` before entering `application {}`.
+`:desktopApp` is a macOS and Windows Compose Desktop host. `Main.kt` reads the runtime `NEWS_API_KEY`, resolves the database path, and creates one isolated `koinApplication` through `DesktopComposition` before entering `application {}`. It does not use global `startKoin`.
 
 ```text
 Desktop Main
   -> NEWS_API_KEY + Desktop database path
-  -> explicit DesktopComposition
+  -> isolated koinApplication + DesktopComposition
       -> CIO HttpClient -> KtorNewsRemoteDataSource
       -> Room KMP database -> RoomNewsLocalDataSource
       -> OfflineFirstNewsRepository
@@ -212,7 +209,7 @@ Desktop Main
   -> SignalBriefAppHost
 ```
 
-The host owns the composition for the full application lifetime and calls `dispose()` after `application {}` returns. Disposal closes the CIO `HttpClient` and `SignalBriefDatabase`; repository classes never own those resources. If construction fails after the client is created, the composition factory closes any already-created resource before propagating the failure.
+The host owns the composition for the full application lifetime and calls idempotent `dispose()` after `application {}` returns. Disposal closes the CIO `HttpClient`, `SignalBriefDatabase`, and isolated Koin application; repository classes never own those resources. If construction fails after the client is created, the composition factory closes any already-created resource before propagating the failure.
 
 The database path is `~/Library/Application Support/SignalBrief` on macOS and `%APPDATA%/SignalBrief` on Windows. Desktop uses Coil 3's Ktor network fetcher for remote article images. Linux is intentionally unsupported.
 
@@ -222,14 +219,17 @@ The database path is `~/Library/Application Support/SignalBrief` on macOS and `%
 
 ```text
 ComposeViewport
-  -> WebNewsRepository
-  -> WebSavedArticlesRepository
-  -> WebCollectionsRepository
-  -> WebTopicMonitoringRepository
+  -> remember WebNewsRepository
+  -> remember WebSavedArticlesRepository
+  -> remember WebCollectionsRepository
+  -> remember WebTopicMonitoringRepository
   -> SignalBriefAppHost
+  -> ScreenViewModelScope -> manual ViewModel constructors
 ```
 
-The Web host skips mobile onboarding.
+The Web host skips mobile onboarding. Manual constructor composition is intentional here, not an incomplete Koin migration: the four browser repositories are remembered for the root Compose lifetime and passed through the reusable contract-only host. Each route uses the shared `ScreenViewModelScope`, which clears its ViewModel store on disposal; screen ViewModels are created with manual Compose factories.
+
+Web has no Koin dependency and no `:sharedData`/Room/Ktor-client graph. It uses browser `fetch` at the Cloudflare Pages boundary and localStorage for browser persistence, so there is no process-like container lifecycle or explicit client/database resource to own.
 
 ### `WebNewsRepository`
 
@@ -350,7 +350,7 @@ These keys are still client-side at runtime and are therefore explicitly a local
 
 ### Desktop local development
 
-Desktop reads `NEWS_API_KEY` from the process environment in its manual composition root. The key is never written to a tracked configuration file or logged. This runtime supports macOS and Windows only.
+Desktop reads `NEWS_API_KEY` from the process environment before creating its isolated Koin `DesktopComposition`. The key is never written to a tracked configuration file or logged. This runtime supports macOS and Windows only.
 
 ### Public Web
 

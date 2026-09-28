@@ -6,8 +6,8 @@ import io.ktor.client.engine.cio.CIO
 /**
  * JVM Desktop production engine for the shared NewsAPI [HttpClient].
  *
- * There is no Desktop composition root yet; this actual is exercised through
- * the Desktop test suite until the host wires the data layer explicitly.
+ * `DesktopComposition` owns the resulting client and closes it when the Desktop
+ * application lifetime ends. This factory only constructs the client.
  */
 actual fun createHttpClient(config: NewsApiConfig): HttpClient =
     HttpClient(CIO) {

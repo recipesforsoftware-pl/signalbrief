@@ -73,7 +73,7 @@ flowchart TB
     sharedLogic[":sharedLogic<br/>Domain models + repository contracts"]
     sharedUI[":sharedUI<br/>Compose + shared ViewModels"]
     sharedData[":sharedData<br/>Ktor + Room + repositories"]
-    androidApp[":androidApp<br/>Android / Hilt"]
+    androidApp[":androidApp<br/>Android / Koin"]
     desktopApp[":desktopApp<br/>macOS + Windows"]
     iosApp["iosApp<br/>Xcode / SwiftUI"]
     webApp[":webApp<br/>Browser / Wasm"]
@@ -96,10 +96,12 @@ Arrows show shared capability or layer consumption/composition, not formal Gradl
 - **`:sharedLogic`** — framework-free domain models, repository contracts, typed failures, and web-safe business logic. Targets Android, iOS, JVM Desktop, and browser/Wasm.
 - **`:sharedData`** — shared data layer for Android, iOS, and Desktop. Depends on `:sharedLogic` and owns Ktor networking, serialization, Room KMP persistence, and `OfflineFirstNewsRepository`.
 - **`:sharedUI`** — shared Compose Multiplatform UI and ViewModels. Its common code depends on `:sharedLogic`; platform source sets provide image/loading and composition details where needed.
-- **`:desktopApp`** — macOS/Windows Desktop host with manual composition, runtime `NEWS_API_KEY`, and an application-data Room database.
-- **`:androidApp`** — Android host and Hilt composition root.
-- **`iosApp`** — SwiftUI host. The iOS composition root is assembled explicitly from Kotlin/Swift-facing code.
-- **`:webApp`** — browser/Wasm executable with `WebNewsRepository`, `WebSavedArticlesRepository`, `WebCollectionsRepository`, and `WebTopicMonitoringRepository`. It depends on `:sharedLogic` and `:sharedUI`, not on `:sharedData`.
+- **`:desktopApp`** — macOS/Windows Desktop host with an isolated Koin application, `DesktopComposition` resource ownership, runtime `NEWS_API_KEY`, and an application-data Room database.
+- **`:androidApp`** — Android host with process-level Koin composition started by `SignalBriefApplication`.
+- **`iosApp`** — SwiftUI host. Its existing Swift-facing Kotlin boundary creates an isolated Koin application and `IosComposition`, which owns resource disposal.
+- **`:webApp`** — browser/Wasm executable with intentional manual constructor composition: root-remembered `WebNewsRepository`, `WebSavedArticlesRepository`, `WebCollectionsRepository`, and `WebTopicMonitoringRepository`; it depends on `:sharedLogic` and `:sharedUI`, not on `:sharedData`.
+
+Koin is a composition-boundary tool, not a dependency of shared domain/business code. Android uses a process-level application, whereas Desktop and iOS create isolated applications and explicitly own HTTP/database disposal. Web/Wasm intentionally keeps its smaller browser graph manual and Compose-root-owned.
 
 ## Offline-first data flow — Android, iOS, and Desktop
 
@@ -149,7 +151,7 @@ This keeps the NewsData key out of JavaScript/Wasm and avoids relying on third-p
 | UI | Compose Multiplatform, Material 3 |
 | Architecture | presentation based on shared ViewModels + StateFlow, repository contracts |
 | Domain | `:sharedLogic` shared across Android, iOS, and Web/Wasm |
-| Mobile DI | Dagger/Hilt on Android; manual composition on iOS |
+| DI / composition | Koin 4.2.2 at Android, iOS, and Desktop composition boundaries; intentional manual Compose-root composition on Web/Wasm; framework-free constructor injection in shared business code |
 | Mobile networking | Ktor 3 + kotlinx.serialization |
 | Mobile persistence | Room KMP; DataStore Preferences (Android); NSUserDefaults (iOS) |
 | Mobile images | Coil 3 |

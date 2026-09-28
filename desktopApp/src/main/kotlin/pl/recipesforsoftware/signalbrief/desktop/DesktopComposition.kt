@@ -24,7 +24,7 @@ import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesReposito
 import pl.recipesforsoftware.signalbrief.domain.repository.TopicMonitoringRepository
 
 /**
- * Desktop-owned data dependencies for the future application host.
+ * Desktop-owned data dependencies for the application host.
  *
  * Only domain repository contracts leave this composition boundary. The owner
  * must call [dispose] when the Desktop application shuts down.
