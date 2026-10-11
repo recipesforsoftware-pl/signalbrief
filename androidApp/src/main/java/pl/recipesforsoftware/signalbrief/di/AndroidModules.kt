@@ -19,30 +19,15 @@ import pl.recipesforsoftware.signalbrief.data.repository.OfflineFirstNewsReposit
 import pl.recipesforsoftware.signalbrief.data.repository.RoomCollectionsRepository
 import pl.recipesforsoftware.signalbrief.data.repository.RoomSavedArticlesRepository
 import pl.recipesforsoftware.signalbrief.data.repository.RoomTopicMonitoringRepository
-import pl.recipesforsoftware.signalbrief.domain.model.Article
-import pl.recipesforsoftware.signalbrief.domain.model.Collection
-import pl.recipesforsoftware.signalbrief.domain.model.MonitoredTopic
 import pl.recipesforsoftware.signalbrief.domain.repository.CollectionsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.NewsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.TopicMonitoringRepository
-import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleCollectionAssignmentViewModel
-import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsViewModel
-import pl.recipesforsoftware.signalbrief.ui.collectiondetails.CollectionDetailsViewModel
-import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsViewModel
-import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefViewModel
-import pl.recipesforsoftware.signalbrief.ui.main.MainViewModel
 import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingPreference
 import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingViewModel
 import pl.recipesforsoftware.signalbrief.ui.onboarding.onboardingDataStore
-import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesViewModel
-import pl.recipesforsoftware.signalbrief.ui.search.SearchViewModel
-import pl.recipesforsoftware.signalbrief.ui.settings.SettingsViewModel
 import pl.recipesforsoftware.signalbrief.ui.theme.ThemePreference
 import pl.recipesforsoftware.signalbrief.ui.theme.ThemeViewModel
-import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesViewModel
-import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMatchesViewModel
-import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringViewModel
 
 internal fun androidDataModule(
     config: NewsApiConfig,
@@ -67,16 +52,4 @@ internal val androidViewModelModule =
     module {
         viewModel { ThemeViewModel(get()) }
         viewModel { OnboardingViewModel(get()) }
-        viewModel { MainViewModel(get()) }
-        viewModel { TopHeadlinesViewModel(get(), get()) }
-        viewModel { SavedArticlesViewModel(get()) }
-        viewModel { CollectionsViewModel(get()) }
-        viewModel { (collection: Collection) -> CollectionDetailsViewModel(collection, get()) }
-        viewModel { DailyBriefViewModel(get(), get()) }
-        viewModel { (query: String) -> SearchViewModel(get(), get(), query) }
-        viewModel { TopicMonitoringViewModel(get(), get()) }
-        viewModel { (topic: MonitoredTopic) -> TopicMatchesViewModel(topic, get(), get()) }
-        viewModel { (article: Article) -> ArticleDetailsViewModel(get(), article) }
-        viewModel { (article: Article) -> ArticleCollectionAssignmentViewModel(get(), article) }
-        viewModel { SettingsViewModel(get()) }
     }

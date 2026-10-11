@@ -22,19 +22,15 @@ import pl.recipesforsoftware.signalbrief.domain.repository.CollectionsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.NewsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.TopicMonitoringRepository
+import pl.recipesforsoftware.signalbrief.ui.di.signalBriefViewModelModule
 
 /**
  * Desktop-owned data dependencies for the application host.
  *
- * Only domain repository contracts leave this composition boundary. The owner
- * must call [dispose] when the Desktop application shuts down.
+ * The owner must call [dispose] when the Desktop application shuts down.
  */
 internal class DesktopComposition(
-    val newsRepository: NewsRepository,
-    val savedArticlesRepository: SavedArticlesRepository,
-    val collectionsRepository: CollectionsRepository,
-    val topicMonitoringRepository: TopicMonitoringRepository,
-    private val koinApplication: KoinApplication,
+    internal val koinApplication: KoinApplication,
     private val resources: DesktopCompositionResources,
 ) {
     fun dispose() {
@@ -72,20 +68,18 @@ internal fun createDesktopComposition(
                     databaseFactory = databaseFactory,
                     resources = resources,
                 ),
+                signalBriefViewModelModule,
             )
         }
 
     try {
         val koin = application.koin
 
-        return DesktopComposition(
-            newsRepository = koin.get(),
-            savedArticlesRepository = koin.get(),
-            collectionsRepository = koin.get(),
-            topicMonitoringRepository = koin.get(),
-            koinApplication = application,
-            resources = resources,
-        )
+        koin.get<NewsRepository>()
+        koin.get<SavedArticlesRepository>()
+        koin.get<CollectionsRepository>()
+        koin.get<TopicMonitoringRepository>()
+        return DesktopComposition(koinApplication = application, resources = resources)
     } catch (exception: Exception) {
         val constructionFailure = exception.unwrapKoinCreationExceptions()
         runCatching(application::close)

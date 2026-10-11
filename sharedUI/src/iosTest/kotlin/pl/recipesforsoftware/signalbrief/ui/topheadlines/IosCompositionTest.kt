@@ -9,6 +9,11 @@ import kotlinx.io.IOException
 import pl.recipesforsoftware.signalbrief.data.local.db.SignalBriefDatabase
 import pl.recipesforsoftware.signalbrief.data.local.db.SignalBriefDatabaseConstructor
 import pl.recipesforsoftware.signalbrief.data.remote.createHttpClient
+import pl.recipesforsoftware.signalbrief.domain.repository.CollectionsRepository
+import pl.recipesforsoftware.signalbrief.domain.repository.NewsRepository
+import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
+import pl.recipesforsoftware.signalbrief.domain.repository.TopicMonitoringRepository
+import pl.recipesforsoftware.signalbrief.ui.main.MainViewModel
 import platform.Foundation.NSTemporaryDirectory
 import platform.Foundation.NSUUID
 import kotlin.test.Test
@@ -80,10 +85,12 @@ class IosCompositionTest {
             )
 
         try {
-            assertNotNull(composition.newsRepository)
-            assertNotNull(composition.savedArticlesRepository)
-            assertNotNull(composition.collectionsRepository)
-            assertNotNull(composition.topicMonitoringRepository)
+            val koin = composition.koinApplication.koin
+            assertNotNull(koin.get<NewsRepository>())
+            assertNotNull(koin.get<SavedArticlesRepository>())
+            assertNotNull(koin.get<CollectionsRepository>())
+            assertNotNull(koin.get<TopicMonitoringRepository>())
+            assertNotNull(koin.get<MainViewModel>())
         } finally {
             composition.dispose()
         }
@@ -103,7 +110,10 @@ class IosCompositionTest {
             )
 
         try {
-            assertNotSame(first.newsRepository, second.newsRepository)
+            assertNotSame(
+                first.koinApplication.koin.get<NewsRepository>(),
+                second.koinApplication.koin.get<NewsRepository>(),
+            )
         } finally {
             first.dispose()
             second.dispose()

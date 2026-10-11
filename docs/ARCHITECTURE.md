@@ -188,7 +188,7 @@ Screen ViewModels retain their existing `ViewModelStoreOwner`/`ScreenViewModelSc
 
 The iOS host is SwiftUI embedding the `SignalBriefSharedUi` shared Compose framework. It is an Xcode host, not a Gradle module.
 
-The Swift-facing `createIosComposeHost` boundary remains unchanged. Its root creates an isolated `koinApplication`, then `IosComposition` resolves the Darwin Ktor client, Room database, and repository contracts. The NewsAPI key is injected through the git-ignored Xcode configuration and read from the app bundle.
+The Swift-facing `createIosComposeHost` boundary remains unchanged. Its root creates an isolated `koinApplication`; `IosComposition` owns the Darwin Ktor client and Room database, while Compose receives the graph through `KoinIsolatedContext`. The NewsAPI key is injected through the git-ignored Xcode configuration and read from the app bundle.
 
 `IosComposition` explicitly owns the client/database resources and has idempotent disposal when the Compose host is torn down. It does not use global `startKoin`; Koin constructs the graph inside the isolated boundary while the host preserves explicit lifecycle ownership.
 
@@ -219,17 +219,19 @@ The database path is `~/Library/Application Support/SignalBrief` on macOS and `%
 
 ```text
 ComposeViewport
-  -> remember WebNewsRepository
-  -> remember WebSavedArticlesRepository
-  -> remember WebCollectionsRepository
-  -> remember WebTopicMonitoringRepository
+  -> Compose-owned KoinApplication
+      -> WebNewsRepository
+      -> WebSavedArticlesRepository
+      -> WebCollectionsRepository
+      -> WebTopicMonitoringRepository
+      -> shared ViewModel module
   -> SignalBriefAppHost
-  -> ScreenViewModelScope -> manual ViewModel constructors
+  -> ScreenViewModelScope -> Koin ViewModels
 ```
 
-The Web host skips mobile onboarding. Manual constructor composition is intentional here, not an incomplete Koin migration: the four browser repositories are remembered for the root Compose lifetime and passed through the reusable contract-only host. Each route uses the shared `ScreenViewModelScope`, which clears its ViewModel store on disposal; screen ViewModels are created with manual Compose factories.
+The Web host skips mobile onboarding. Its Compose-owned Koin application provides the four browser repository singletons and shared ViewModel definitions. Each route uses the shared `ScreenViewModelScope`, which clears its ViewModel store on disposal.
 
-Web has no Koin dependency and no `:sharedData`/Room/Ktor-client graph. It uses browser `fetch` at the Cloudflare Pages boundary and localStorage for browser persistence, so there is no process-like container lifecycle or explicit client/database resource to own.
+Web has no `:sharedData`/Room/Ktor-client graph. It uses browser `fetch` at the Cloudflare Pages boundary and localStorage for browser persistence, so there is no explicit client/database resource to own.
 
 ### `WebNewsRepository`
 
@@ -437,7 +439,7 @@ The Web dependency lock deliberately remains free of the Ktor/Coil network depen
 - Search operates over locally available headlines rather than a dedicated backend index.
 - The public Web feed currently uses an English/US top-headlines configuration.
 - Android and iOS use a developer-supplied NewsAPI key for local development and are not store-published from this repository.
-- No account system, cloud Saved synchronization, payments, or analytics backend is included in the public portfolio scope.
+- No account system, cloud Saved synchronization, payments, or analytics backend is included in the current public repository scope.
 - The Web Wasm bundle is larger than a conventional DOM application because it includes the Compose/Skia runtime; current CI reports this as a performance warning rather than a build failure.
 
 ## Why this architecture

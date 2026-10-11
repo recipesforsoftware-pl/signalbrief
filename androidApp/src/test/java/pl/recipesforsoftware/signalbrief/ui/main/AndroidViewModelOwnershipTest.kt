@@ -32,6 +32,7 @@ import pl.recipesforsoftware.signalbrief.domain.model.MonitoredTopic
 import pl.recipesforsoftware.signalbrief.domain.repository.CollectionsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.NewsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
+import pl.recipesforsoftware.signalbrief.ui.di.signalBriefViewModelModule
 import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingPreference
 import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingViewModel
 import pl.recipesforsoftware.signalbrief.ui.theme.ThemePreference
@@ -67,6 +68,7 @@ class AndroidViewModelOwnershipTest {
         application =
             koinApplication {
                 modules(
+                    signalBriefViewModelModule,
                     androidViewModelModule,
                     module {
                         single { saved }

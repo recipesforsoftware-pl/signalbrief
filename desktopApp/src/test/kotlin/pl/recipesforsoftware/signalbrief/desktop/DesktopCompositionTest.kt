@@ -3,6 +3,11 @@ package pl.recipesforsoftware.signalbrief.desktop
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.isActive
 import pl.recipesforsoftware.signalbrief.data.remote.createHttpClient
+import pl.recipesforsoftware.signalbrief.domain.repository.CollectionsRepository
+import pl.recipesforsoftware.signalbrief.domain.repository.NewsRepository
+import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
+import pl.recipesforsoftware.signalbrief.domain.repository.TopicMonitoringRepository
+import pl.recipesforsoftware.signalbrief.ui.main.MainViewModel
 import java.io.IOException
 import java.nio.file.Files
 import kotlin.test.Test
@@ -79,10 +84,12 @@ class DesktopCompositionTest {
             )
 
         try {
-            assertNotNull(composition.newsRepository)
-            assertNotNull(composition.savedArticlesRepository)
-            assertNotNull(composition.collectionsRepository)
-            assertNotNull(composition.topicMonitoringRepository)
+            val koin = composition.koinApplication.koin
+            assertNotNull(koin.get<NewsRepository>())
+            assertNotNull(koin.get<SavedArticlesRepository>())
+            assertNotNull(koin.get<CollectionsRepository>())
+            assertNotNull(koin.get<TopicMonitoringRepository>())
+            assertNotNull(koin.get<MainViewModel>())
         } finally {
             composition.dispose()
             Files.deleteIfExists(databasePath)
@@ -97,7 +104,10 @@ class DesktopCompositionTest {
         val second = createDesktopComposition("second-key", secondDatabasePath.toString())
 
         try {
-            assertNotSame(first.newsRepository, second.newsRepository)
+            assertNotSame(
+                first.koinApplication.koin.get<NewsRepository>(),
+                second.koinApplication.koin.get<NewsRepository>(),
+            )
         } finally {
             first.dispose()
             second.dispose()

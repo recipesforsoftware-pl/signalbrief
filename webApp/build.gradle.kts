@@ -26,6 +26,8 @@ kotlin {
             implementation(libs.kotlinx.serialization.json)
             implementation(compose.runtime)
             implementation(compose.ui)
+            implementation(libs.koin.core)
+            implementation(libs.koin.compose)
         }
         wasmJsTest.dependencies {
             implementation(libs.kotlin.test)

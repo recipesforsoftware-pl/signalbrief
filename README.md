@@ -8,7 +8,7 @@ The project shares domain contracts, presentation logic, and Compose Multiplatfo
 - **Web/Wasm** uses the same shared domain and presentation/UI contracts, with a browser-specific repository backed by Cloudflare Pages Functions and NewsData.io.
 - The public Web deployment keeps provider credentials server-side and proxies article images through a signed, same-origin endpoint.
 
-This repository is an open-source engineering/portfolio project. The Android and iOS apps are **not currently published in the stores**.
+This repository is an open-source engineering project. The Android and iOS apps are **not currently published in the stores**.
 
 ## Live Web Demo
 
@@ -99,9 +99,9 @@ Arrows show shared capability or layer consumption/composition, not formal Gradl
 - **`:desktopApp`** — macOS/Windows Desktop host with an isolated Koin application, `DesktopComposition` resource ownership, runtime `NEWS_API_KEY`, and an application-data Room database.
 - **`:androidApp`** — Android host with process-level Koin composition started by `SignalBriefApplication`.
 - **`iosApp`** — SwiftUI host. Its existing Swift-facing Kotlin boundary creates an isolated Koin application and `IosComposition`, which owns resource disposal.
-- **`:webApp`** — browser/Wasm executable with intentional manual constructor composition: root-remembered `WebNewsRepository`, `WebSavedArticlesRepository`, `WebCollectionsRepository`, and `WebTopicMonitoringRepository`; it depends on `:sharedLogic` and `:sharedUI`, not on `:sharedData`.
+- **`:webApp`** — browser/Wasm executable with a Compose-owned Koin application containing browser repository singletons; it depends on `:sharedLogic` and `:sharedUI`, not on `:sharedData`.
 
-Koin is a composition-boundary tool, not a dependency of shared domain/business code. Android uses a process-level application, whereas Desktop and iOS create isolated applications and explicitly own HTTP/database disposal. Web/Wasm intentionally keeps its smaller browser graph manual and Compose-root-owned.
+Koin is a composition-boundary tool, not a dependency of shared domain/business code. Android uses a process-level application, Desktop and iOS create isolated applications and explicitly own HTTP/database disposal, and Web/Wasm owns its browser graph at the Compose root.
 
 ## Offline-first data flow — Android, iOS, and Desktop
 
@@ -151,7 +151,7 @@ This keeps the NewsData key out of JavaScript/Wasm and avoids relying on third-p
 | UI | Compose Multiplatform, Material 3 |
 | Architecture | presentation based on shared ViewModels + StateFlow, repository contracts |
 | Domain | `:sharedLogic` shared across Android, iOS, and Web/Wasm |
-| DI / composition | Koin 4.2.2 at Android, iOS, and Desktop composition boundaries; intentional manual Compose-root composition on Web/Wasm; framework-free constructor injection in shared business code |
+| DI / composition | Koin 4.2.2 at Android, iOS, Desktop, and Web/Wasm composition boundaries; framework-free constructor injection in shared business code |
 | Mobile networking | Ktor 3 + kotlinx.serialization |
 | Mobile persistence | Room KMP; DataStore Preferences (Android); NSUserDefaults (iOS) |
 | Mobile images | Coil 3 |
@@ -290,4 +290,4 @@ No production API secret is committed to or required by CI.
 
 ## Roadmap
 
-The phased history and planned follow-up work are documented in [IMPLEMENTATION_ROADMAP.md](docs/IMPLEMENTATION_ROADMAP.md). Commercial capabilities such as payments, account synchronization, analytics, and production signing remain intentionally separated from the public portfolio scope.
+The phased history and planned follow-up work are documented in [IMPLEMENTATION_ROADMAP.md](docs/IMPLEMENTATION_ROADMAP.md). Commercial capabilities such as payments, account synchronization, analytics, and production signing remain intentionally separated from the current public repository scope.

@@ -1,12 +1,63 @@
 # SignalBrief Desktop
 
-Ten moduł jest runtime hostem Compose Desktop dla macOS i Windows. Tworzy izolowany graph Koin 4.2.2 w `DesktopComposition` dla `CIO`, Room KMP i repozytoriów `:sharedData`, a następnie przekazuje wyłącznie kontrakty repozytoriów do `SignalBriefAppHost`. `DesktopComposition` jawnie i idempotentnie zwalnia klient HTTP, bazę oraz izolowaną aplikację Koin po zakończeniu `application {}`.
+This module is the Compose Desktop runtime host for macOS and Windows.
 
-Ustaw lokalnie `NEWS_API_KEY` i uruchom na macOS:
+It creates an isolated Koin 4.2.2 graph in `DesktopComposition` for:
+
+- the CIO HTTP client,
+- Room KMP,
+- `:sharedData` repositories,
+- shared ViewModels.
+
+The graph is exposed to Compose through `KoinIsolatedContext`.
+
+`DesktopComposition` explicitly owns and idempotently disposes:
+
+- the HTTP client,
+- the Room database,
+- the isolated Koin application.
+
+These resources are released after `application {}` terminates.
+
+## Running locally
+
+Set `NEWS_API_KEY` in your shell:
 
 ```sh
 export NEWS_API_KEY="your_news_api_key"
+```
+
+Then run the Desktop application:
+
+```sh
 ./gradlew :desktopApp:run
 ```
 
-Klucz nie może trafić do repozytorium. Windows używa `APPDATA`, a macOS `~/Library/Application Support/SignalBrief` dla bazy Room. Nie ma obsługi Linux ani packagingu, signingu lub notarization.
+The API key must not be committed to the repository.
+
+## Application data
+
+The Room database is stored in the platform-specific application data directory.
+
+### macOS
+
+```text
+~/Library/Application Support/SignalBrief
+```
+
+### Windows
+
+```text
+%APPDATA%\SignalBrief
+```
+
+## Platform scope
+
+The Desktop target currently supports:
+
+- macOS
+- Windows
+
+Linux is not currently supported.
+
+Desktop packaging, signing, and macOS notarization are outside the current project scope.

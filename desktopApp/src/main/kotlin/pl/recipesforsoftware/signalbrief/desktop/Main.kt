@@ -4,6 +4,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import org.koin.compose.KoinIsolatedContext
 import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefAppHost
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.SignalBriefTheme
 
@@ -25,13 +26,10 @@ fun main() {
                         height = 720.dp,
                     ),
             ) {
-                SignalBriefTheme {
-                    SignalBriefAppHost(
-                        newsRepository = composition.newsRepository,
-                        savedArticlesRepository = composition.savedArticlesRepository,
-                        collectionsRepository = composition.collectionsRepository,
-                        topicMonitoringRepository = composition.topicMonitoringRepository,
-                    )
+                KoinIsolatedContext(context = composition.koinApplication) {
+                    SignalBriefTheme {
+                        SignalBriefAppHost()
+                    }
                 }
             }
         }
