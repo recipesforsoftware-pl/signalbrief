@@ -14,6 +14,8 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.window.ComposeUIViewController
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation3.runtime.EntryProviderScope
+import androidx.navigation3.runtime.NavKey
 import io.ktor.client.HttpClient
 import org.koin.core.KoinApplication
 import org.koin.core.error.InstanceCreationException
@@ -38,7 +40,10 @@ import pl.recipesforsoftware.signalbrief.domain.repository.CollectionsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.NewsRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.SavedArticlesRepository
 import pl.recipesforsoftware.signalbrief.domain.repository.TopicMonitoringRepository
+import pl.recipesforsoftware.signalbrief.ui.app.InvalidDestination
 import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefApp
+import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefNavHost
+import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefNavigationContext
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleCollectionAssignmentViewModel
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsScreen
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsViewModel
@@ -48,6 +53,7 @@ import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsRoute
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefScreen
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefViewModel
 import pl.recipesforsoftware.signalbrief.ui.lifecycle.ScreenViewModelScope
+import pl.recipesforsoftware.signalbrief.ui.navigation.SignalBriefRoute
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesScreen
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesViewModel
 import pl.recipesforsoftware.signalbrief.ui.search.SearchScreen
@@ -93,90 +99,105 @@ fun createIosComposeHost(): UIViewController {
             val savedArticles by
                 composition.savedArticlesRepository.observeAllSavedArticles().collectAsState(emptyList())
 
-            SignalBriefApp(
-                onboardingCompleted = completed,
-                onCompleteOnboarding = {
-                    setOnboardingCompleted(true)
-                    completed = true
-                },
-                topHeadlinesContent = { bottomBar, onArticleClick, onSearchClick, onSettingsClick ->
-                    HeadlinesRoute(
-                        newsRepository = composition.newsRepository,
-                        savedArticlesRepository = composition.savedArticlesRepository,
-                        bottomBar = bottomBar,
-                        onArticleClick = onArticleClick,
-                        onSearchClick = onSearchClick,
-                        onSettingsClick = onSettingsClick,
-                    )
-                },
-                savedContent = { bottomBar, onArticleClick, onCollectionsClick ->
-                    SavedRoute(
-                        savedArticlesRepository = composition.savedArticlesRepository,
-                        bottomBar = bottomBar,
-                        onArticleClick = onArticleClick,
-                        onCollectionsClick = onCollectionsClick,
-                    )
-                },
-                dailyBriefContent = { bottomBar, onArticleClick ->
-                    DailyBriefRoute(
-                        newsRepository = composition.newsRepository,
-                        savedArticlesRepository = composition.savedArticlesRepository,
-                        bottomBar = bottomBar,
-                        onArticleClick = onArticleClick,
-                    )
-                },
-                searchContent = { initialQuery, onQueryChange, onArticleClick, onOpenTopicMonitoring, onBack ->
-                    SearchRoute(
-                        newsRepository = composition.newsRepository,
-                        savedArticlesRepository = composition.savedArticlesRepository,
-                        initialQuery = initialQuery,
-                        onQueryChange = onQueryChange,
-                        onArticleClick = onArticleClick,
-                        onOpenTopicMonitoring = onOpenTopicMonitoring,
-                        onBack = onBack,
-                    )
-                },
-                articleDetailsContent = { article, onBack, onCollectionsClick ->
-                    ArticleDetailsRoute(
-                        article = article,
-                        savedArticlesRepository = composition.savedArticlesRepository,
-                        collectionsRepository = composition.collectionsRepository,
-                        onBack = onBack,
-                        onManageCollections = onCollectionsClick,
-                    )
-                },
-                collectionsContent = { onBack, onCollectionClick ->
-                    CollectionsRoute(composition.collectionsRepository, onBack, onCollectionClick)
-                },
-                collectionDetailsContent = { collection, onArticleClick, onBack ->
-                    CollectionDetailsRoute(collection, composition.collectionsRepository, onArticleClick, onBack)
-                },
-                topicMonitoringContent = { onOpenTopicMatches, onBack ->
-                    TopicMonitoringRoute(
-                        composition.topicMonitoringRepository,
-                        composition.newsRepository,
-                        onOpenTopicMatches,
-                        onBack,
-                    )
-                },
-                topicMatchesContent = { topic, onArticleClick, onBack ->
-                    TopicMatchesRoute(
-                        newsRepository = composition.newsRepository,
-                        savedArticlesRepository = composition.savedArticlesRepository,
-                        topic = topic,
-                        onArticleClick = onArticleClick,
-                        onBack = onBack,
-                    )
-                },
-                settingsContent = { onBack ->
-                    SettingsRoute(
-                        newsRepository = composition.newsRepository,
-                        onBack = onBack,
-                    )
-                },
-                savedArticleCount = savedArticles.size,
+            SignalBriefApp(onboardingCompleted = completed, onCompleteOnboarding = {
+                setOnboardingCompleted(true)
+                completed = true
+            }) {
+                SignalBriefNavHost(savedArticleCount = savedArticles.size) {
+                    iosSignalBriefEntries(composition, it)
+                }
+            }
+        }
+    }
+}
+
+@Suppress("LongMethod")
+private fun EntryProviderScope<NavKey>.iosSignalBriefEntries(
+    composition: IosComposition,
+    navigation: SignalBriefNavigationContext,
+) {
+    entry<SignalBriefRoute.Headlines> {
+        HeadlinesRoute(
+            composition.newsRepository,
+            composition.savedArticlesRepository,
+            navigation.bottomBarFor(SignalBriefRoute.Headlines),
+            navigation.openArticle,
+            navigation.openSearch,
+            navigation.openSettings,
+        )
+    }
+    entry<SignalBriefRoute.DailyBrief> {
+        DailyBriefRoute(
+            composition.newsRepository,
+            composition.savedArticlesRepository,
+            navigation.bottomBarFor(SignalBriefRoute.DailyBrief),
+            navigation.openArticle,
+        )
+    }
+    entry<SignalBriefRoute.Saved> {
+        SavedRoute(
+            composition.savedArticlesRepository,
+            navigation.bottomBarFor(SignalBriefRoute.Saved),
+            navigation.openArticle,
+            navigation.openCollections,
+        )
+    }
+    entry<SignalBriefRoute.Search> {
+        SearchRoute(
+            composition.newsRepository,
+            composition.savedArticlesRepository,
+            navigation.searchQuery(),
+            navigation.onSearchQueryChange,
+            navigation.openArticle,
+            navigation.openTopicMonitoring,
+            navigation.back,
+        )
+    }
+    entry<SignalBriefRoute.Settings> { SettingsRoute(composition.newsRepository, navigation.back) }
+    entry<SignalBriefRoute.TopicMonitoring> {
+        TopicMonitoringRoute(
+            composition.topicMonitoringRepository,
+            composition.newsRepository,
+            navigation.openTopicMatches,
+            navigation.back,
+        )
+    }
+    entry<SignalBriefRoute.TopicMatches> { route ->
+        navigation.topicFor(route.topicId)?.let {
+            TopicMatchesRoute(
+                composition.newsRepository,
+                composition.savedArticlesRepository,
+                it,
+                navigation.openArticle,
+                navigation.back,
             )
         }
+            ?: InvalidDestination(route.topicId, navigation.back)
+    }
+    entry<SignalBriefRoute.ArticleDetails> { route ->
+        navigation.articleFor(route.articleUrl)?.let {
+            ArticleDetailsRoute(
+                it,
+                composition.savedArticlesRepository,
+                composition.collectionsRepository,
+                navigation.back,
+                navigation.openCollections,
+            )
+        }
+            ?: InvalidDestination(route.articleUrl, navigation.back)
+    }
+    entry<SignalBriefRoute.Collections> {
+        CollectionsRoute(
+            composition.collectionsRepository,
+            navigation.back,
+            navigation.openCollection,
+        )
+    }
+    entry<SignalBriefRoute.CollectionDetails> { route ->
+        navigation.collectionFor(route.collectionId)?.let {
+            CollectionDetailsRoute(it, composition.collectionsRepository, navigation.openArticle, navigation.back)
+        }
+            ?: InvalidDestination(route.collectionId, navigation.back)
     }
 }
 

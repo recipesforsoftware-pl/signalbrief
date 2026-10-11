@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package pl.recipesforsoftware.signalbrief.ui.app
 
 import androidx.compose.runtime.Composable
@@ -8,6 +10,8 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation3.runtime.EntryProviderScope
+import androidx.navigation3.runtime.NavKey
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.MonitoredTopic
 import pl.recipesforsoftware.signalbrief.domain.repository.CollectionsRepository
@@ -24,6 +28,7 @@ import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsViewModel
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefScreen
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefViewModel
 import pl.recipesforsoftware.signalbrief.ui.lifecycle.ScreenViewModelScope
+import pl.recipesforsoftware.signalbrief.ui.navigation.SignalBriefRoute
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesScreen
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesViewModel
 import pl.recipesforsoftware.signalbrief.ui.search.SearchScreen
@@ -47,50 +52,106 @@ fun SignalBriefAppHost(
     topicMonitoringRepository: TopicMonitoringRepository,
 ) {
     val savedArticles by savedArticlesRepository.observeAllSavedArticles().collectAsState(emptyList())
-    SignalBriefApp(
-        onboardingCompleted = true,
-        onCompleteOnboarding = {},
-        topHeadlinesContent = { bottomBar, onArticleClick, onSearchClick, onSettingsClick ->
-            TopHeadlinesRoute(
-                newsRepository,
+    SignalBriefApp(onboardingCompleted = true, onCompleteOnboarding = {}) {
+        SignalBriefNavHost(
+            savedArticleCount = savedArticles.size,
+            entries = {
+                defaultSignalBriefEntries(
+                    newsRepository,
+                    savedArticlesRepository,
+                    collectionsRepository,
+                    topicMonitoringRepository,
+                    it,
+                )
+            },
+        )
+    }
+}
+
+@Suppress("LongMethod")
+internal fun EntryProviderScope<NavKey>.defaultSignalBriefEntries(
+    newsRepository: NewsRepository,
+    savedArticlesRepository: SavedArticlesRepository,
+    collectionsRepository: CollectionsRepository,
+    topicMonitoringRepository: TopicMonitoringRepository,
+    navigation: SignalBriefNavigationContext,
+) {
+    entry<SignalBriefRoute.Headlines> {
+        TopHeadlinesRoute(
+            newsRepository,
+            savedArticlesRepository,
+            navigation.bottomBarFor(SignalBriefRoute.Headlines),
+            navigation.openArticle,
+            navigation.openSearch,
+            navigation.openSettings,
+        )
+    }
+    entry<SignalBriefRoute.DailyBrief> {
+        DailyBriefRoute(
+            newsRepository,
+            savedArticlesRepository,
+            navigation.bottomBarFor(SignalBriefRoute.DailyBrief),
+            navigation.openArticle,
+        )
+    }
+    entry<SignalBriefRoute.Saved> {
+        SavedArticlesRoute(
+            savedArticlesRepository,
+            navigation.bottomBarFor(SignalBriefRoute.Saved),
+            navigation.openArticle,
+            navigation.openCollections,
+        )
+    }
+    entry<SignalBriefRoute.Search> {
+        SearchRoute(
+            newsRepository,
+            savedArticlesRepository,
+            navigation.searchQuery(),
+            navigation.onSearchQueryChange,
+            navigation.openArticle,
+            navigation.openTopicMonitoring,
+            navigation.back,
+        )
+    }
+    entry<SignalBriefRoute.Settings> { SettingsRoute(newsRepository, navigation.back) }
+    entry<SignalBriefRoute.TopicMonitoring> {
+        TopicMonitoringRoute(topicMonitoringRepository, newsRepository, navigation.openTopicMatches, navigation.back)
+    }
+    entry<SignalBriefRoute.TopicMatches> { route ->
+        navigation.topicFor(route.topicId)?.let {
+            TopicMatchesRoute(newsRepository, savedArticlesRepository, it, navigation.openArticle, navigation.back)
+        }
+            ?: InvalidDestination(route.topicId, navigation.back)
+    }
+    entry<SignalBriefRoute.ArticleDetails> { route ->
+        navigation.articleFor(route.articleUrl)?.let {
+            ArticleDetailsRoute(
+                it,
                 savedArticlesRepository,
-                bottomBar,
-                onArticleClick,
-                onSearchClick,
-                onSettingsClick,
+                collectionsRepository,
+                navigation.back,
+                navigation.openCollections,
             )
-        },
-        savedContent = { bottomBar, onArticleClick, onCollectionsClick ->
-            SavedArticlesRoute(savedArticlesRepository, bottomBar, onArticleClick, onCollectionsClick)
-        },
-        dailyBriefContent = { bottomBar, onArticleClick ->
-            DailyBriefRoute(newsRepository, savedArticlesRepository, bottomBar, onArticleClick)
-        },
-        searchContent = { initial, queryChanged, articleClick, monitoring, back ->
-            SearchRoute(newsRepository, savedArticlesRepository, initial, queryChanged, articleClick, monitoring, back)
-        },
-        articleDetailsContent = { article, back, collections ->
-            ArticleDetailsRoute(article, savedArticlesRepository, collectionsRepository, back, collections)
-        },
-        collectionsContent = { back, open -> CollectionsRoute(collectionsRepository, back, open) },
-        collectionDetailsContent = { collection, articleClick, back ->
-            CollectionDetailsRoute(collection, collectionsRepository, articleClick, back)
-        },
-        topicMonitoringContent = { openMatches, back ->
-            TopicMonitoringRoute(topicMonitoringRepository, newsRepository, openMatches, back)
-        },
-        topicMatchesContent = { topic, articleClick, back ->
-            TopicMatchesRoute(newsRepository, savedArticlesRepository, topic, articleClick, back)
-        },
-        settingsContent = { back ->
-            SettingsRoute(newsRepository, back)
-        },
-        savedArticleCount = savedArticles.size,
-    )
+        }
+            ?: InvalidDestination(route.articleUrl, navigation.back)
+    }
+    entry<SignalBriefRoute.Collections> {
+        CollectionsRoute(
+            collectionsRepository,
+            navigation.back,
+            navigation.openCollection,
+        )
+    }
+    entry<SignalBriefRoute.CollectionDetails> { route ->
+        navigation.collectionFor(route.collectionId)?.let {
+            CollectionDetailsRoute(it, collectionsRepository, navigation.openArticle, navigation.back)
+        }
+            ?: InvalidDestination(route.collectionId, navigation.back)
+    }
 }
 
 @Composable
-private fun TopHeadlinesRoute(
+internal fun TopHeadlinesRoute(
     newsRepository: NewsRepository,
     savedArticlesRepository: SavedArticlesRepository,
     bottom: @Composable () -> Unit,
@@ -114,7 +175,7 @@ private fun TopHeadlinesRoute(
     }
 }
 
-@Composable private fun SavedArticlesRoute(
+@Composable internal fun SavedArticlesRoute(
     savedArticlesRepository: SavedArticlesRepository,
     bottom: @Composable () -> Unit,
     click: (Article) -> Unit,
@@ -128,7 +189,7 @@ private fun TopHeadlinesRoute(
 }
 
 @Composable
-private fun CollectionsRoute(
+internal fun CollectionsRoute(
     collectionsRepository: CollectionsRepository,
     back: () -> Unit,
     open: (pl.recipesforsoftware.signalbrief.domain.model.Collection) -> Unit,
@@ -154,7 +215,7 @@ private fun CollectionsRoute(
 }
 
 @Composable
-private fun CollectionDetailsRoute(
+internal fun CollectionDetailsRoute(
     collection: pl.recipesforsoftware.signalbrief.domain.model.Collection,
     repository: CollectionsRepository,
     articleClick: (Article) -> Unit,
@@ -169,7 +230,7 @@ private fun CollectionDetailsRoute(
     }
 }
 
-@Composable private fun DailyBriefRoute(
+@Composable internal fun DailyBriefRoute(
     newsRepository: NewsRepository,
     savedArticlesRepository: SavedArticlesRepository,
     bottom: @Composable () -> Unit,
@@ -183,7 +244,7 @@ private fun CollectionDetailsRoute(
 }
 
 @Composable
-private fun SearchRoute(
+internal fun SearchRoute(
     newsRepository: NewsRepository,
     savedArticlesRepository: SavedArticlesRepository,
     initial: String,
@@ -204,7 +265,7 @@ private fun SearchRoute(
 }
 
 @Composable
-private fun TopicMonitoringRoute(
+internal fun TopicMonitoringRoute(
     topicMonitoringRepository: TopicMonitoringRepository,
     newsRepository: NewsRepository,
     openMatches: (MonitoredTopic) -> Unit,
@@ -232,7 +293,7 @@ private fun TopicMonitoringRoute(
 }
 
 @Composable
-private fun TopicMatchesRoute(
+internal fun TopicMatchesRoute(
     newsRepository: NewsRepository,
     savedArticlesRepository: SavedArticlesRepository,
     topic: MonitoredTopic,
@@ -250,7 +311,7 @@ private fun TopicMatchesRoute(
 }
 
 @Composable
-private fun SettingsRoute(
+internal fun SettingsRoute(
     newsRepository: NewsRepository,
     back: () -> Unit,
 ) {
@@ -261,7 +322,7 @@ private fun SettingsRoute(
     }
 }
 
-@Composable private fun ArticleDetailsRoute(
+@Composable internal fun ArticleDetailsRoute(
     article: Article,
     savedArticlesRepository: SavedArticlesRepository,
     collectionsRepository: CollectionsRepository,

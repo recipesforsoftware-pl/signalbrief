@@ -7,10 +7,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.navigation3.runtime.EntryProviderScope
+import androidx.navigation3.runtime.NavKey
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.MonitoredTopic
+import pl.recipesforsoftware.signalbrief.ui.app.InvalidDestination
+import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefNavigationContext
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleCollectionAssignmentViewModel
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsScreen
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsViewModel
@@ -21,6 +25,7 @@ import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsViewModel
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefScreen
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefViewModel
 import pl.recipesforsoftware.signalbrief.ui.lifecycle.ScreenViewModelScope
+import pl.recipesforsoftware.signalbrief.ui.navigation.SignalBriefRoute
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesScreen
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesViewModel
 import pl.recipesforsoftware.signalbrief.ui.search.SearchScreen
@@ -314,5 +319,65 @@ internal fun SettingsRoute(onBack: () -> Unit) {
             onBack = onBack,
             onClearDownloadedHeadlines = viewModel::clearDownloadedHeadlines,
         )
+    }
+}
+
+internal fun EntryProviderScope<NavKey>.androidSignalBriefEntries(
+    isDarkMode: Boolean,
+    onToggleDarkMode: () -> Unit,
+    navigation: SignalBriefNavigationContext,
+) {
+    entry<SignalBriefRoute.Headlines> {
+        TopHeadlinesRoute(
+            isDarkMode,
+            onToggleDarkMode,
+            navigation.bottomBarFor(SignalBriefRoute.Headlines),
+            navigation.openArticle,
+            navigation.openSearch,
+            navigation.openSettings,
+        )
+    }
+    entry<SignalBriefRoute.DailyBrief> {
+        DailyBriefRoute(
+            navigation.bottomBarFor(SignalBriefRoute.DailyBrief),
+            navigation.openArticle,
+        )
+    }
+    entry<SignalBriefRoute.Saved> {
+        SavedArticlesRoute(
+            navigation.bottomBarFor(SignalBriefRoute.Saved),
+            navigation.openArticle,
+            navigation.openCollections,
+        )
+    }
+    entry<SignalBriefRoute.Search> {
+        SearchRoute(
+            navigation.searchQuery(),
+            navigation.onSearchQueryChange,
+            navigation.openArticle,
+            navigation.openTopicMonitoring,
+            navigation.back,
+        )
+    }
+    entry<SignalBriefRoute.Settings> { SettingsRoute(navigation.back) }
+    entry<SignalBriefRoute.TopicMonitoring> { TopicMonitoringRoute(navigation.openTopicMatches, navigation.back) }
+    entry<SignalBriefRoute.TopicMatches> { route ->
+        navigation.topicFor(route.topicId)?.let {
+            TopicMatchesRoute(it, navigation.openArticle, navigation.back)
+        }
+            ?: InvalidDestination(route.topicId, navigation.back)
+    }
+    entry<SignalBriefRoute.ArticleDetails> { route ->
+        navigation.articleFor(route.articleUrl)?.let {
+            ArticleDetailsRoute(it, navigation.back, navigation.openCollections)
+        }
+            ?: InvalidDestination(route.articleUrl, navigation.back)
+    }
+    entry<SignalBriefRoute.Collections> { CollectionsRoute(navigation.back, navigation.openCollection) }
+    entry<SignalBriefRoute.CollectionDetails> { route ->
+        navigation.collectionFor(route.collectionId)?.let {
+            CollectionDetailsRoute(it, navigation.openArticle, navigation.back)
+        }
+            ?: InvalidDestination(route.collectionId, navigation.back)
     }
 }

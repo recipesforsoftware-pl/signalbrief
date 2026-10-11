@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
@@ -21,19 +22,9 @@ import pl.recipesforsoftware.signalbrief.ui.navigation.signalBriefStartRoute
 
 /** The sole Navigation 3 router, including bounded saved rendering payloads. */
 @Composable
-@Suppress("LongMethod")
-internal fun SignalBriefNavHost(
-    topHeadlinesContent: TopHeadlinesContent,
-    dailyBriefContent: DailyBriefContent,
-    savedContent: SavedContent,
-    searchContent: SearchContent,
-    articleDetailsContent: ArticleDetailsContent,
-    collectionsContent: CollectionsContent,
-    collectionDetailsContent: CollectionDetailsContent,
-    topicMonitoringContent: TopicMonitoringContent,
-    topicMatchesContent: TopicMatchesContent,
-    settingsContent: SettingsContent,
+fun SignalBriefNavHost(
     savedArticleCount: Int,
+    entries: EntryProviderScope<NavKey>.(SignalBriefNavigationContext) -> Unit,
 ) {
     val navigationBackStack = rememberNavBackStack(signalBriefNavigationSavedStateConfiguration, signalBriefStartRoute)
     var navigationArticleSnapshots by rememberSaveable(stateSaver = NavigationArticleSnapshotsSaver) {
@@ -61,82 +52,55 @@ internal fun SignalBriefNavHost(
     LaunchedEffect(activeTopicIds) {
         navigationMonitoredTopicSnapshots = navigationMonitoredTopicSnapshots.prunedTo(activeTopicIds)
     }
-    val onArticleClick: (Article) -> Unit = { article ->
-        navigationArticleSnapshots = navigationArticleSnapshots + (article.url to article)
-        navigationBackStack.add(SignalBriefRoute.ArticleDetails(article.url))
-    }
+    val navigationContext =
+        SignalBriefNavigationContext(
+            openArticle = { article ->
+                navigationArticleSnapshots = navigationArticleSnapshots + (article.url to article)
+                navigationBackStack.add(SignalBriefRoute.ArticleDetails(article.url))
+            },
+            openCollection = { collection ->
+                navigationCollectionSnapshots = navigationCollectionSnapshots + (collection.id to collection)
+                navigationBackStack.add(SignalBriefRoute.CollectionDetails(collection.id))
+            },
+            openTopicMatches = { topic ->
+                navigationMonitoredTopicSnapshots = navigationMonitoredTopicSnapshots + (topic.id to topic)
+                navigationBackStack.add(SignalBriefRoute.TopicMatches(topic.id))
+            },
+            openSearch = { navigationBackStack.add(SignalBriefRoute.Search) },
+            openSettings = { navigationBackStack.add(SignalBriefRoute.Settings) },
+            openCollections = { navigationBackStack.add(SignalBriefRoute.Collections) },
+            openTopicMonitoring = { navigationBackStack.add(SignalBriefRoute.TopicMonitoring) },
+            back = navigationBackStack::removeLastOrNull,
+            searchQuery = { searchQuery },
+            onSearchQueryChange = { searchQuery = it },
+            articleFor = { navigationArticleSnapshots[it] },
+            collectionFor = { navigationCollectionSnapshots[it] },
+            topicFor = { navigationMonitoredTopicSnapshots[it] },
+            bottomBarFor = { bottomBar(it, navigationBackStack, savedArticleCount) },
+        )
     NavDisplay(
         backStack = navigationBackStack,
         entryProvider =
-            entryProvider {
-                entry<SignalBriefRoute.Headlines> {
-                    topHeadlinesContent(
-                        bottomBar(SignalBriefRoute.Headlines, navigationBackStack, savedArticleCount),
-                        onArticleClick,
-                        { navigationBackStack.add(SignalBriefRoute.Search) },
-                        { navigationBackStack.add(SignalBriefRoute.Settings) },
-                    )
-                }
-                entry<SignalBriefRoute.DailyBrief> {
-                    dailyBriefContent(
-                        bottomBar(SignalBriefRoute.DailyBrief, navigationBackStack, savedArticleCount),
-                        onArticleClick,
-                    )
-                }
-                entry<SignalBriefRoute.Saved> {
-                    savedContent(
-                        bottomBar(SignalBriefRoute.Saved, navigationBackStack, savedArticleCount),
-                        onArticleClick,
-                        { navigationBackStack.add(SignalBriefRoute.Collections) },
-                    )
-                }
-                entry<SignalBriefRoute.Search> {
-                    searchContent(
-                        searchQuery,
-                        { searchQuery = it },
-                        onArticleClick,
-                        { navigationBackStack.add(SignalBriefRoute.TopicMonitoring) },
-                        navigationBackStack::removeLastOrNull,
-                    )
-                }
-                entry<SignalBriefRoute.Settings> { settingsContent(navigationBackStack::removeLastOrNull) }
-                entry<SignalBriefRoute.TopicMonitoring> {
-                    topicMonitoringContent({ topic ->
-                        navigationMonitoredTopicSnapshots = navigationMonitoredTopicSnapshots + (topic.id to topic)
-                        navigationBackStack.add(SignalBriefRoute.TopicMatches(topic.id))
-                    }, navigationBackStack::removeLastOrNull)
-                }
-                entry<SignalBriefRoute.TopicMatches> { route ->
-                    navigationMonitoredTopicSnapshots[route.topicId]?.let { topic ->
-                        topicMatchesContent(topic, onArticleClick, navigationBackStack::removeLastOrNull)
-                    }
-                        ?: InvalidDestination(route.topicId, navigationBackStack)
-                }
-                entry<SignalBriefRoute.ArticleDetails> { route ->
-                    navigationArticleSnapshots[route.articleUrl]?.let { article ->
-                        articleDetailsContent(
-                            article,
-                            navigationBackStack::removeLastOrNull,
-                            { navigationBackStack.add(SignalBriefRoute.Collections) },
-                        )
-                    }
-                        ?: InvalidDestination(route.articleUrl, navigationBackStack)
-                }
-                entry<SignalBriefRoute.Collections> {
-                    collectionsContent(navigationBackStack::removeLastOrNull) { collection ->
-                        navigationCollectionSnapshots = navigationCollectionSnapshots + (collection.id to collection)
-                        navigationBackStack.add(SignalBriefRoute.CollectionDetails(collection.id))
-                    }
-                }
-                entry<SignalBriefRoute.CollectionDetails> { route ->
-                    navigationCollectionSnapshots[route.collectionId]?.let { collection ->
-                        collectionDetailsContent(collection, onArticleClick, navigationBackStack::removeLastOrNull)
-                    }
-                        ?: InvalidDestination(route.collectionId, navigationBackStack)
-                }
-            },
+            entryProvider { entries(navigationContext) },
     )
 }
+
+class SignalBriefNavigationContext internal constructor(
+    val openArticle: (Article) -> Unit,
+    val openCollection: (Collection) -> Unit,
+    val openTopicMatches: (MonitoredTopic) -> Unit,
+    val openSearch: () -> Unit,
+    val openSettings: () -> Unit,
+    val openCollections: () -> Unit,
+    val openTopicMonitoring: () -> Unit,
+    val back: () -> Unit,
+    val searchQuery: () -> String,
+    val onSearchQueryChange: (String) -> Unit,
+    val articleFor: (String) -> Article?,
+    val collectionFor: (String) -> Collection?,
+    val topicFor: (String) -> MonitoredTopic?,
+    val bottomBarFor: (SignalBriefRoute) -> @Composable () -> Unit,
+)
 
 private fun <T> Map<String, T>.prunedTo(activeIds: Set<String>): Map<String, T> {
     val pruned = filterKeys(activeIds::contains)
@@ -144,11 +108,11 @@ private fun <T> Map<String, T>.prunedTo(activeIds: Set<String>): Map<String, T> 
 }
 
 @Composable
-private fun InvalidDestination(
+fun InvalidDestination(
     identifier: String,
-    navigationBackStack: NavBackStack<NavKey>,
+    back: () -> Unit,
 ) {
-    LaunchedEffect(identifier) { navigationBackStack.removeLastOrNull() }
+    LaunchedEffect(identifier) { back() }
 }
 
 private fun bottomBar(
