@@ -4,20 +4,11 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,61 +17,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.navigation3.runtime.NavBackStack
-import androidx.navigation3.runtime.NavKey
-import androidx.navigation3.runtime.entryProvider
-import androidx.navigation3.runtime.rememberNavBackStack
-import androidx.navigation3.ui.NavDisplay
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.Collection
 import pl.recipesforsoftware.signalbrief.domain.model.MonitoredTopic
 import pl.recipesforsoftware.signalbrief.ui.images.installSignalBriefImageLoader
-import pl.recipesforsoftware.signalbrief.ui.navigation.SignalBriefRoute
-import pl.recipesforsoftware.signalbrief.ui.navigation.navigateToTopLevelRoute
-import pl.recipesforsoftware.signalbrief.ui.navigation.signalBriefNavigationSavedStateConfiguration
-import pl.recipesforsoftware.signalbrief.ui.navigation.signalBriefStartRoute
 import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingCompletion
 import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingScreen
 
-/**
- * Shared application shell for SignalBrief.
- *
- * Decides between the two-page onboarding flow and the main three-destination
- * app based on [onboardingCompleted]:
- * - `null`  -> the persisted value is still loading; a subtle loading indicator
- *              is shown to avoid an onboarding flash.
- * - `false` -> onboarding is shown.
- * - `true`  -> the host-provided destination content with a three-item bottom
- *              navigation bar (Headlines / Brief / Saved) is shown.
- *
- * The shell owns both navigation levels. The Navigation 3 back stack contains
- * the three top-level routes plus the migrated Search, Collections, Collection
- * Details, and Article Details child entries. It survives host recreation and defaults to
- * [SignalBriefRoute.Headlines], while a child Back action returns to the
- * preceding entry. Remaining child flows are temporarily state-based.
- *
- * Topic Monitoring is a child of Search and can descend one level further into
- * Topic Matches for a selected [MonitoredTopic]; the selected topic survives
- * recreation through [SelectedMonitoredTopicSaver] and its matches are derived
- * reactively from the local headline cache.
- *
- * Navigation priority while the main app is visible:
- * 1. Topic Monitoring -> Topic Matches -> Article Details (when selected).
- * 2. [isSettingsVisible] -> Settings.
- * 3. Navigation 3 route -> Headlines, Daily Brief, Saved, Search, Collections,
- *    Collection Details, or Article Details.
- *
- * Toolbar back and any host-integrated system back both funnel through the
- * same state clear for legacy child navigation. The legacy selected article and
- * monitored topic, plus Navigation 3 rendering-payload sidecars, survive
- * recreation through their KMP-safe Savers. Sidecars are pruned to routes that
- * remain in the Navigation 3 back stack.
- *
- * The shell also installs the shared Coil image-loader singleton once for the
- * app composition root. Both "Skip" and "Start reading" funnel through an
- * [OnboardingCompletion] guard so [onCompleteOnboarding] fires at most once
- * per shell instance; the host persists the outcome itself.
- */
 typealias TopHeadlinesContent =
     @Composable (
         bottomBar: @Composable () -> Unit,
@@ -88,50 +31,32 @@ typealias TopHeadlinesContent =
         onSearchClick: () -> Unit,
         onSettingsClick: () -> Unit,
     ) -> Unit
-
-typealias SavedContent =
-    @Composable (
-        bottomBar: @Composable () -> Unit,
-        onArticleClick: (Article) -> Unit,
-        onCollectionsClick: () -> Unit,
-    ) -> Unit
-
+typealias SavedContent = @Composable (
+    bottomBar: @Composable () -> Unit,
+    onArticleClick: (Article) -> Unit,
+    onCollectionsClick: () -> Unit,
+) -> Unit
 typealias CollectionsContent = @Composable (onBack: () -> Unit, onCollectionClick: (Collection) -> Unit) -> Unit
-
 typealias CollectionDetailsContent =
     @Composable (collection: Collection, onArticleClick: (Article) -> Unit, onBack: () -> Unit) -> Unit
-
 typealias DailyBriefContent =
-    @Composable (
-        bottomBar: @Composable () -> Unit,
-        onArticleClick: (Article) -> Unit,
-    ) -> Unit
-
-typealias SearchContent =
-    @Composable (
-        initialQuery: String,
-        onQueryChange: (String) -> Unit,
-        onArticleClick: (Article) -> Unit,
-        onOpenTopicMonitoring: () -> Unit,
-        onBack: () -> Unit,
-    ) -> Unit
-
+    @Composable (bottomBar: @Composable () -> Unit, onArticleClick: (Article) -> Unit) -> Unit
+typealias SearchContent = @Composable (
+    initialQuery: String,
+    onQueryChange: (String) -> Unit,
+    onArticleClick: (Article) -> Unit,
+    onOpenTopicMonitoring: () -> Unit,
+    onBack: () -> Unit,
+) -> Unit
 typealias TopicMonitoringContent =
     @Composable (onOpenTopicMatches: (MonitoredTopic) -> Unit, onBack: () -> Unit) -> Unit
-
 typealias TopicMatchesContent =
     @Composable (topic: MonitoredTopic, onArticleClick: (Article) -> Unit, onBack: () -> Unit) -> Unit
-
 typealias ArticleDetailsContent =
-    @Composable (
-        article: Article,
-        onBack: () -> Unit,
-        onCollectionsClick: () -> Unit,
-    ) -> Unit
+    @Composable (article: Article, onBack: () -> Unit, onCollectionsClick: () -> Unit) -> Unit
+typealias SettingsContent = @Composable (onBack: () -> Unit) -> Unit
 
-typealias SettingsContent =
-    @Composable (onBack: () -> Unit) -> Unit
-
+/** Shared application shell that selects onboarding or the Navigation 3 app host. */
 @Composable
 fun SignalBriefApp(
     onboardingCompleted: Boolean?,
@@ -155,14 +80,10 @@ fun SignalBriefApp(
             visible = onboardingCompleted == null,
             enter = fadeIn(),
             exit = fadeOut(),
-        ) {
-            InitializingContent()
-        }
-
+        ) { InitializingContent() }
         if (onboardingCompleted == false) {
             var onboardingPageIndex by rememberSaveable { mutableStateOf(0) }
             val completion = remember { OnboardingCompletion(onCompleteOnboarding) }
-
             OnboardingScreen(
                 pageIndex = onboardingPageIndex,
                 onContinue = { onboardingPageIndex = 1 },
@@ -171,9 +92,8 @@ fun SignalBriefApp(
                 onComplete = completion::complete,
             )
         }
-
         if (onboardingCompleted == true) {
-            SignalBriefMainContent(
+            SignalBriefNavHost(
                 topHeadlinesContent = topHeadlinesContent,
                 dailyBriefContent = dailyBriefContent,
                 savedContent = savedContent,
@@ -191,361 +111,8 @@ fun SignalBriefApp(
 }
 
 @Composable
-@Suppress("LongMethod")
-private fun SignalBriefMainContent(
-    topHeadlinesContent: TopHeadlinesContent,
-    dailyBriefContent: DailyBriefContent,
-    savedContent: SavedContent,
-    searchContent: SearchContent,
-    articleDetailsContent: ArticleDetailsContent,
-    collectionsContent: CollectionsContent,
-    collectionDetailsContent: CollectionDetailsContent,
-    topicMonitoringContent: TopicMonitoringContent,
-    topicMatchesContent: TopicMatchesContent,
-    settingsContent: SettingsContent,
-    savedArticleCount: Int,
-) {
-    val navigationBackStack =
-        rememberNavBackStack(
-            signalBriefNavigationSavedStateConfiguration,
-            signalBriefStartRoute,
-        )
-    var legacySelectedArticle by rememberSaveable(stateSaver = SelectedArticleSaver) {
-        mutableStateOf<Article?>(null)
-    }
-    var navigationArticleSnapshots by rememberSaveable(stateSaver = NavigationArticleSnapshotsSaver) {
-        mutableStateOf<Map<String, Article>>(emptyMap())
-    }
-    var navigationCollectionSnapshots by rememberSaveable(stateSaver = NavigationCollectionSnapshotsSaver) {
-        mutableStateOf<Map<String, Collection>>(emptyMap())
-    }
-    var isTopicMonitoringVisible by rememberSaveable { mutableStateOf(false) }
-    var isSettingsVisible by rememberSaveable { mutableStateOf(false) }
-    var selectedMonitoredTopic by rememberSaveable(stateSaver = SelectedMonitoredTopicSaver) {
-        mutableStateOf<MonitoredTopic?>(null)
-    }
-    var searchQuery by rememberSaveable {
-        mutableStateOf("")
-    }
-    val activeArticleUrls =
-        navigationBackStack
-            .filterIsInstance<SignalBriefRoute.ArticleDetails>()
-            .map { it.articleUrl }
-            .toSet()
-    val activeCollectionIds =
-        navigationBackStack
-            .filterIsInstance<SignalBriefRoute.CollectionDetails>()
-            .map { it.collectionId }
-            .toSet()
-
-    LaunchedEffect(activeArticleUrls) {
-        val prunedSnapshots = navigationArticleSnapshots.filterKeys(activeArticleUrls::contains)
-        if (prunedSnapshots != navigationArticleSnapshots) {
-            navigationArticleSnapshots = prunedSnapshots
-        }
-    }
-    LaunchedEffect(activeCollectionIds) {
-        val prunedSnapshots = navigationCollectionSnapshots.filterKeys(activeCollectionIds::contains)
-        if (prunedSnapshots != navigationCollectionSnapshots) {
-            navigationCollectionSnapshots = prunedSnapshots
-        }
-    }
-
-    if (isTopicMonitoringVisible) {
-        when {
-            selectedMonitoredTopic == null -> {
-                topicMonitoringContent(
-                    { selectedMonitoredTopic = it },
-                    { isTopicMonitoringVisible = false },
-                )
-            }
-
-            legacySelectedArticle != null -> {
-                ArticleDetailsDestination(
-                    articleDetailsContent,
-                    requireNotNull(legacySelectedArticle),
-                    onBack = { legacySelectedArticle = null },
-                    onCollectionsClick = {
-                        legacySelectedArticle = null
-                        selectedMonitoredTopic = null
-                        isTopicMonitoringVisible = false
-                        navigationBackStack.add(SignalBriefRoute.Collections)
-                    },
-                )
-            }
-
-            else -> {
-                topicMatchesContent(
-                    requireNotNull(selectedMonitoredTopic),
-                    { legacySelectedArticle = it },
-                    { selectedMonitoredTopic = null },
-                )
-            }
-        }
-    } else if (isSettingsVisible) {
-        settingsContent(
-            { isSettingsVisible = false },
-        )
-    } else {
-        SignalBriefDestinations(
-            navigationBackStack = navigationBackStack,
-            savedArticleCount = savedArticleCount,
-            topHeadlinesContent = topHeadlinesContent,
-            dailyBriefContent = dailyBriefContent,
-            savedContent = savedContent,
-            searchContent = searchContent,
-            articleDetailsContent = articleDetailsContent,
-            collectionsContent = collectionsContent,
-            collectionDetailsContent = collectionDetailsContent,
-            navigationArticleSnapshots = navigationArticleSnapshots,
-            navigationCollectionSnapshots = navigationCollectionSnapshots,
-            onArticleClick = { article ->
-                navigationArticleSnapshots = navigationArticleSnapshots + (article.url to article)
-                navigationBackStack.add(SignalBriefRoute.ArticleDetails(article.url))
-            },
-            onCollectionClick = { collection ->
-                navigationCollectionSnapshots = navigationCollectionSnapshots + (collection.id to collection)
-                navigationBackStack.add(SignalBriefRoute.CollectionDetails(collection.id))
-            },
-            onSearchClick = { navigationBackStack.add(SignalBriefRoute.Search) },
-            onSettingsClick = { isSettingsVisible = true },
-            onCollectionsClick = { navigationBackStack.add(SignalBriefRoute.Collections) },
-            searchQuery = searchQuery,
-            onSearchQueryChange = { searchQuery = it },
-            onOpenTopicMonitoring = { isTopicMonitoringVisible = true },
-            onDetailsCollectionsClick = { navigationBackStack.add(SignalBriefRoute.Collections) },
-        )
-    }
-}
-
-@Composable
-@Suppress("LongMethod")
-private fun SignalBriefDestinations(
-    navigationBackStack: NavBackStack<NavKey>,
-    savedArticleCount: Int,
-    topHeadlinesContent: TopHeadlinesContent,
-    dailyBriefContent: DailyBriefContent,
-    savedContent: SavedContent,
-    searchContent: SearchContent,
-    articleDetailsContent: ArticleDetailsContent,
-    collectionsContent: CollectionsContent,
-    collectionDetailsContent: CollectionDetailsContent,
-    navigationArticleSnapshots: Map<String, Article>,
-    navigationCollectionSnapshots: Map<String, Collection>,
-    onArticleClick: (Article) -> Unit,
-    onCollectionClick: (Collection) -> Unit,
-    onSearchClick: () -> Unit,
-    onSettingsClick: () -> Unit,
-    onCollectionsClick: () -> Unit,
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
-    onOpenTopicMonitoring: () -> Unit,
-    onDetailsCollectionsClick: () -> Unit,
-) {
-    NavDisplay(
-        backStack = navigationBackStack,
-        entryProvider =
-            entryProvider {
-                entry<SignalBriefRoute.Headlines> {
-                    topHeadlinesContent(
-                        topLevelBottomBar(
-                            currentDestination = SignalBriefRoute.Headlines,
-                            navigationBackStack = navigationBackStack,
-                            savedArticleCount = savedArticleCount,
-                        ),
-                        onArticleClick,
-                        onSearchClick,
-                        onSettingsClick,
-                    )
-                }
-                entry<SignalBriefRoute.DailyBrief> {
-                    dailyBriefContent(
-                        topLevelBottomBar(
-                            currentDestination = SignalBriefRoute.DailyBrief,
-                            navigationBackStack = navigationBackStack,
-                            savedArticleCount = savedArticleCount,
-                        ),
-                        onArticleClick,
-                    )
-                }
-                entry<SignalBriefRoute.Saved> {
-                    savedContent(
-                        topLevelBottomBar(
-                            currentDestination = SignalBriefRoute.Saved,
-                            navigationBackStack = navigationBackStack,
-                            savedArticleCount = savedArticleCount,
-                        ),
-                        onArticleClick,
-                        onCollectionsClick,
-                    )
-                }
-                entry<SignalBriefRoute.Search> {
-                    searchContent(
-                        searchQuery,
-                        onSearchQueryChange,
-                        onArticleClick,
-                        onOpenTopicMonitoring,
-                        { navigationBackStack.removeLastOrNull() },
-                    )
-                }
-                entry<SignalBriefRoute.ArticleDetails> { route ->
-                    val article = navigationArticleSnapshots[route.articleUrl]
-                    if (article != null) {
-                        ArticleDetailsDestination(
-                            articleDetailsContent,
-                            article,
-                            onBack = { navigationBackStack.removeLastOrNull() },
-                            onCollectionsClick = onDetailsCollectionsClick,
-                        )
-                    } else {
-                        LaunchedEffect(route.articleUrl) {
-                            navigationBackStack.removeLastOrNull()
-                        }
-                    }
-                }
-                entry<SignalBriefRoute.Collections> {
-                    collectionsContent(
-                        { navigationBackStack.removeLastOrNull() },
-                        onCollectionClick,
-                    )
-                }
-                entry<SignalBriefRoute.CollectionDetails> { route ->
-                    val collection = navigationCollectionSnapshots[route.collectionId]
-                    if (collection != null) {
-                        collectionDetailsContent(
-                            collection,
-                            onArticleClick,
-                            { navigationBackStack.removeLastOrNull() },
-                        )
-                    } else {
-                        LaunchedEffect(route.collectionId) {
-                            navigationBackStack.removeLastOrNull()
-                        }
-                    }
-                }
-            },
-    )
-}
-
-private fun topLevelBottomBar(
-    currentDestination: SignalBriefRoute,
-    navigationBackStack: NavBackStack<NavKey>,
-    savedArticleCount: Int,
-): @Composable () -> Unit =
-    {
-        SignalBriefBottomBar(
-            currentDestination = currentDestination,
-            onNavigate = { destination ->
-                navigationBackStack.navigateToTopLevelRoute(destination)
-            },
-            savedArticleCount = savedArticleCount,
-        )
-    }
-
-@Composable
-private fun ArticleDetailsDestination(
-    content: ArticleDetailsContent,
-    article: Article,
-    onBack: () -> Unit,
-    onCollectionsClick: () -> Unit,
-) {
-    content(article, onBack, onCollectionsClick)
-}
-
-@Composable
-private fun SignalBriefBottomBar(
-    currentDestination: SignalBriefRoute,
-    onNavigate: (SignalBriefRoute) -> Unit,
-    savedArticleCount: Int,
-) {
-    NavigationBar {
-        NavigationBarItem(
-            selected = currentDestination == SignalBriefRoute.Headlines,
-            onClick = { onNavigate(SignalBriefRoute.Headlines) },
-            icon = {
-                Icon(
-                    imageVector = NavigationIcons.Headlines,
-                    contentDescription = null,
-                )
-            },
-            label = { Text("Headlines") },
-            colors =
-                NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    selectedTextColor = MaterialTheme.colorScheme.onSurface,
-                    indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
-                ),
-        )
-        NavigationBarItem(
-            selected = currentDestination == SignalBriefRoute.DailyBrief,
-            onClick = { onNavigate(SignalBriefRoute.DailyBrief) },
-            icon = {
-                Icon(
-                    imageVector = NavigationIcons.Brief,
-                    contentDescription = "Daily Brief",
-                )
-            },
-            label = { Text("Brief") },
-            colors =
-                NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    selectedTextColor = MaterialTheme.colorScheme.onSurface,
-                    indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
-                ),
-        )
-        SavedNavigationBarItem(currentDestination, onNavigate, savedArticleCount)
-    }
-}
-
-@Composable
-private fun RowScope.SavedNavigationBarItem(
-    currentDestination: SignalBriefRoute,
-    onNavigate: (SignalBriefRoute) -> Unit,
-    savedArticleCount: Int,
-) {
-    NavigationBarItem(
-        selected = currentDestination == SignalBriefRoute.Saved,
-        onClick = { onNavigate(SignalBriefRoute.Saved) },
-        icon = {
-            BadgedBox(
-                badge = {
-                    savedCountBadgeLabel(savedArticleCount)?.let { label ->
-                        Badge { Text(label) }
-                    }
-                },
-            ) {
-                Icon(
-                    imageVector = NavigationIcons.Saved,
-                    contentDescription = null,
-                )
-            }
-        },
-        label = { Text("Saved") },
-        colors =
-            NavigationBarItemDefaults.colors(
-                selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                selectedTextColor = MaterialTheme.colorScheme.onSurface,
-                indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
-            ),
-    )
-}
-
-/** Returns the compact Saved navigation badge label, or `null` when it should be hidden. */
-internal fun savedCountBadgeLabel(savedArticleCount: Int): String? =
-    when {
-        savedArticleCount <= 0 -> null
-        savedArticleCount > MAX_SAVED_COUNT_BADGE -> "$MAX_SAVED_COUNT_BADGE+"
-        else -> savedArticleCount.toString()
-    }
-
-private const val MAX_SAVED_COUNT_BADGE = 99
-
-@Composable
 private fun InitializingContent() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
-    ) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         CircularProgressIndicator(
             modifier = Modifier.size(48.dp),
             color = MaterialTheme.colorScheme.primary,
