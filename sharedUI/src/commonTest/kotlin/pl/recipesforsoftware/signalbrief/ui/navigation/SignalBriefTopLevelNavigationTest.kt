@@ -39,5 +39,22 @@ class SignalBriefTopLevelNavigationTest {
         assertEquals(listOf(currentEntry), backStack.toList())
     }
 
+    @Test
+    fun searchAndArticleDetailsRemainInTheExistingBackStack() {
+        val backStack = topLevelBackStack()
+        val details = SignalBriefRoute.ArticleDetails("https://example.com/article")
+
+        backStack.add(SignalBriefRoute.Search)
+        backStack.add(details)
+
+        assertEquals(
+            listOf<NavKey>(SignalBriefRoute.Headlines, SignalBriefRoute.Search, details),
+            backStack.toList(),
+        )
+
+        assertEquals(details, backStack.removeLast())
+        assertEquals(listOf<NavKey>(SignalBriefRoute.Headlines, SignalBriefRoute.Search), backStack.toList())
+    }
+
     private fun topLevelBackStack(): NavBackStack<NavKey> = NavBackStack(signalBriefStartRoute)
 }

@@ -369,6 +369,14 @@ class NavigationTest {
 
         composeTestRule.onNodeWithText(SavedArticlesStrings.EMPTY_TITLE).assertIsDisplayed()
         composeTestRule.onNodeWithText(SavedArticlesStrings.EMPTY_TITLE).assertIsDisplayed()
+
+        composeTestRule.onNodeWithText("Headlines").performClick()
+        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SEARCH).performClick()
+        composeTestRule.onNodeWithText(SearchStrings.TOP_BAR_TITLE).assertIsDisplayed()
+
+        restorationTester.emulateSavedInstanceStateRestore()
+
+        composeTestRule.onNodeWithText(SearchStrings.TOP_BAR_TITLE).assertIsDisplayed()
     }
 
     @Test
@@ -668,8 +676,9 @@ class NavigationTest {
     @Test
     fun searchQuerySurvivesDetailsBackRoundTrip() {
         val searchArticle = fakeArticles.single()
+        val restorationTester = StateRestorationTester(composeTestRule)
 
-        composeTestRule.setContent {
+        restorationTester.setContent {
             SignalBriefAndroidTheme(isDarkMode = false, dynamicColor = false) {
                 SignalBriefApp(
                     onboardingCompleted = true,
@@ -739,6 +748,8 @@ class NavigationTest {
         composeTestRule
             .onNodeWithText(searchArticle.title.orEmpty())
             .performClick()
+
+        restorationTester.emulateSavedInstanceStateRestore()
 
         composeTestRule
             .onNodeWithText("Back")
