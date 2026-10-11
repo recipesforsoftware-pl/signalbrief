@@ -115,8 +115,9 @@ class NavigationTest {
                     onBack = onBack,
                 )
             },
+        restorationTester: StateRestorationTester? = null,
     ) {
-        composeTestRule.setContent {
+        val content: @Composable () -> Unit = {
             SignalBriefAndroidTheme(isDarkMode = isDarkMode, dynamicColor = false) {
                 SignalBriefApp(
                     onboardingCompleted = true,
@@ -183,6 +184,11 @@ class NavigationTest {
                     },
                 )
             }
+        }
+        if (restorationTester == null) {
+            composeTestRule.setContent(content)
+        } else {
+            restorationTester.setContent(content)
         }
     }
 
@@ -487,7 +493,9 @@ class NavigationTest {
 
     @Test
     fun detailsCollectionsBackReturnsToSameArticle() {
+        val restorationTester = StateRestorationTester(composeTestRule)
         setContent(
+            restorationTester = restorationTester,
             articleDetailsContent = { article, onBack, onCollectionsClick ->
                 TextButton(onClick = onBack) { Text("Back") }
                 Text(article.title.orEmpty())
@@ -497,6 +505,8 @@ class NavigationTest {
 
         composeTestRule.onNodeWithText("Test Article").performClick()
         composeTestRule.onNodeWithText("Manage collections").performClick()
+        composeTestRule.onNodeWithText("Collections").assertIsDisplayed()
+        restorationTester.emulateSavedInstanceStateRestore()
         composeTestRule.onNodeWithText("Collections").assertIsDisplayed()
 
         composeTestRule.onNodeWithText("Collections back").performClick()
@@ -570,6 +580,154 @@ class NavigationTest {
 
         composeTestRule.onNodeWithText("Collection details 42: Reading").assertIsDisplayed()
         composeTestRule.onNodeWithText("Open member article").assertIsDisplayed()
+    }
+
+    @Test
+    fun collectionsAndCollectionDetailsHideBottomNav() {
+        val collection = Collection("42", "Reading")
+        setContent(
+            collectionsContent = { _, onCollectionClick ->
+                TextButton(onClick = { onCollectionClick(collection) }) { Text("Open Reading") }
+                Text("Collections")
+            },
+        )
+
+        composeTestRule.onNodeWithText("Saved").performClick()
+        composeTestRule.onNodeWithText(SavedArticlesStrings.OPEN_COLLECTIONS).performClick()
+        composeTestRule.onNodeWithText("Collections").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Headlines").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Saved").assertDoesNotExist()
+
+        composeTestRule.onNodeWithText("Open Reading").performClick()
+        composeTestRule.onNodeWithText("Collection details 42: Reading").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Headlines").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Saved").assertDoesNotExist()
+    }
+
+    @Test
+    fun collectionDetailsAndArticleRoundTripSurviveStateRestoration() {
+        val collection = Collection("42", "Reading")
+        val restorationTester = StateRestorationTester(composeTestRule)
+        setContent(
+            restorationTester = restorationTester,
+            articleDetailsContent = { article, onBack, _ ->
+                TextButton(onClick = onBack) { Text("Article details back") }
+                Text("Article details: ${article.url}")
+            },
+            collectionsContent = { _, onCollectionClick ->
+                TextButton(onClick = { onCollectionClick(collection) }) { Text("Open Reading") }
+                Text("Collections")
+            },
+            collectionDetailsContent = { selected, onArticleClick, _ ->
+                Text("Collection details ${selected.id}: ${selected.name}")
+                TextButton(onClick = { onArticleClick(fakeArticles.single()) }) { Text("Open member article") }
+            },
+        )
+
+        composeTestRule.onNodeWithText("Saved").performClick()
+        composeTestRule.onNodeWithText(SavedArticlesStrings.OPEN_COLLECTIONS).performClick()
+        restorationTester.emulateSavedInstanceStateRestore()
+        composeTestRule.onNodeWithText("Collections").assertIsDisplayed()
+
+        composeTestRule.onNodeWithText("Open Reading").performClick()
+        restorationTester.emulateSavedInstanceStateRestore()
+        composeTestRule.onNodeWithText("Collection details 42: Reading").assertIsDisplayed()
+
+        composeTestRule.onNodeWithText("Open member article").performClick()
+        restorationTester.emulateSavedInstanceStateRestore()
+        composeTestRule.onNodeWithText("Article details: https://example.com/1").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Article details back").performClick()
+        composeTestRule.onNodeWithText("Collection details 42: Reading").assertIsDisplayed()
+    }
+
+    @Test
+    fun nestedArticleDetailsKeepsEarlierArticlePayload() {
+        val articleA = fakeArticles.single().copy(title = "Article A", url = "https://example.com/a")
+        val articleB = fakeArticles.single().copy(title = "Article B", url = "https://example.com/b")
+        val collectionX = Collection("x", "Collection X")
+        val restorationTester = StateRestorationTester(composeTestRule)
+        setContent(
+            restorationTester = restorationTester,
+            headlineArticles = listOf(articleA),
+            articleDetailsContent = { article, onBack, onCollectionsClick ->
+                Text("Details ${article.title}")
+                TextButton(onClick = onBack) { Text("Article details back") }
+                TextButton(onClick = onCollectionsClick) { Text("Manage collections") }
+            },
+            collectionsContent = { onBack, onCollectionClick ->
+                Text("Collections")
+                TextButton(onClick = onBack) { Text("Collections back") }
+                TextButton(onClick = { onCollectionClick(collectionX) }) { Text("Open Collection X") }
+            },
+            collectionDetailsContent = { collection, onArticleClick, onBack ->
+                Text("Details ${collection.name}")
+                TextButton(onClick = onBack) { Text("Collection details back") }
+                TextButton(onClick = { onArticleClick(articleB) }) { Text("Open Article B") }
+            },
+        )
+
+        composeTestRule.onNodeWithText("Article A").performClick()
+        composeTestRule.onNodeWithText("Manage collections").performClick()
+        composeTestRule.onNodeWithText("Open Collection X").performClick()
+        composeTestRule.onNodeWithText("Open Article B").performClick()
+        restorationTester.emulateSavedInstanceStateRestore()
+        composeTestRule.onNodeWithText("Details Article B").assertIsDisplayed()
+
+        composeTestRule.onNodeWithText("Article details back").performClick()
+        composeTestRule.onNodeWithText("Details Collection X").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Collection details back").performClick()
+        composeTestRule.onNodeWithText("Collections").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Collections back").performClick()
+        composeTestRule.onNodeWithText("Details Article A").assertIsDisplayed()
+    }
+
+    @Test
+    fun nestedCollectionDetailsKeepsEarlierCollectionPayload() {
+        val articleB = fakeArticles.single().copy(title = "Article B", url = "https://example.com/b")
+        val collectionX = Collection("x", "Collection X")
+        val collectionY = Collection("y", "Collection Y")
+        var collectionClickCount = 0
+        val restorationTester = StateRestorationTester(composeTestRule)
+        setContent(
+            restorationTester = restorationTester,
+            articleDetailsContent = { article, onBack, onCollectionsClick ->
+                Text("Details ${article.title}")
+                TextButton(onClick = onBack) { Text("Article details back") }
+                TextButton(onClick = onCollectionsClick) { Text("Manage collections") }
+            },
+            collectionsContent = { onBack, onCollectionClick ->
+                Text("Collections")
+                TextButton(onClick = onBack) { Text("Collections back") }
+                TextButton(
+                    onClick = {
+                        onCollectionClick(if (collectionClickCount++ == 0) collectionX else collectionY)
+                    },
+                ) { Text("Open collection") }
+            },
+            collectionDetailsContent = { collection, onArticleClick, onBack ->
+                Text("Details ${collection.name}")
+                TextButton(onClick = onBack) { Text("Collection details back") }
+                if (collection.id == collectionX.id) {
+                    TextButton(onClick = { onArticleClick(articleB) }) { Text("Open Article B") }
+                }
+            },
+        )
+
+        composeTestRule.onNodeWithText("Saved").performClick()
+        composeTestRule.onNodeWithText(SavedArticlesStrings.OPEN_COLLECTIONS).performClick()
+        composeTestRule.onNodeWithText("Open collection").performClick()
+        composeTestRule.onNodeWithText("Open Article B").performClick()
+        composeTestRule.onNodeWithText("Manage collections").performClick()
+        composeTestRule.onNodeWithText("Open collection").performClick()
+        restorationTester.emulateSavedInstanceStateRestore()
+        composeTestRule.onNodeWithText("Details Collection Y").assertIsDisplayed()
+
+        composeTestRule.onNodeWithText("Collection details back").performClick()
+        composeTestRule.onNodeWithText("Collections").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Collections back").performClick()
+        composeTestRule.onNodeWithText("Details Article B").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Article details back").performClick()
+        composeTestRule.onNodeWithText("Details Collection X").assertIsDisplayed()
     }
 
     @Test

@@ -54,8 +54,8 @@ import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingScreen
  *              navigation bar (Headlines / Brief / Saved) is shown.
  *
  * The shell owns both navigation levels. The Navigation 3 back stack contains
- * the three top-level routes plus the migrated Search and Article Details
- * child entries. It survives host recreation and defaults to
+ * the three top-level routes plus the migrated Search, Collections, Collection
+ * Details, and Article Details child entries. It survives host recreation and defaults to
  * [SignalBriefRoute.Headlines], while a child Back action returns to the
  * preceding entry. Remaining child flows are temporarily state-based.
  *
@@ -66,16 +66,15 @@ import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingScreen
  *
  * Navigation priority while the main app is visible:
  * 1. Topic Monitoring -> Topic Matches -> Article Details (when selected).
- * 2. Collections -> Collection Details -> Article Details (when selected).
- * 3. legacy selected Article -> legacy Article Details.
- * 4. [isSettingsVisible] -> Settings.
- * 5. Navigation 3 route -> Headlines, Daily Brief, Saved, Search, or Details.
+ * 2. [isSettingsVisible] -> Settings.
+ * 3. Navigation 3 route -> Headlines, Daily Brief, Saved, Search, Collections,
+ *    Collection Details, or Article Details.
  *
  * Toolbar back and any host-integrated system back both funnel through the
- * same state clear for legacy child navigation. The legacy selected article,
- * collection, and monitored topic survive recreation
- * through [SelectedArticleSaver], [SelectedCollectionSaver], and
- * [SelectedMonitoredTopicSaver].
+ * same state clear for legacy child navigation. The legacy selected article and
+ * monitored topic, plus Navigation 3 rendering-payload sidecars, survive
+ * recreation through their KMP-safe Savers. Sidecars are pruned to routes that
+ * remain in the Navigation 3 back stack.
  *
  * The shell also installs the shared Coil image-loader singleton once for the
  * app composition root. Both "Skip" and "Start reading" funnel through an
@@ -214,20 +213,42 @@ private fun SignalBriefMainContent(
     var legacySelectedArticle by rememberSaveable(stateSaver = SelectedArticleSaver) {
         mutableStateOf<Article?>(null)
     }
-    var navigationArticleSnapshot by rememberSaveable(stateSaver = SelectedArticleSaver) {
-        mutableStateOf<Article?>(null)
+    var navigationArticleSnapshots by rememberSaveable(stateSaver = NavigationArticleSnapshotsSaver) {
+        mutableStateOf<Map<String, Article>>(emptyMap())
+    }
+    var navigationCollectionSnapshots by rememberSaveable(stateSaver = NavigationCollectionSnapshotsSaver) {
+        mutableStateOf<Map<String, Collection>>(emptyMap())
     }
     var isTopicMonitoringVisible by rememberSaveable { mutableStateOf(false) }
-    var isCollectionsVisible by rememberSaveable { mutableStateOf(false) }
     var isSettingsVisible by rememberSaveable { mutableStateOf(false) }
-    var selectedCollection by rememberSaveable(stateSaver = SelectedCollectionSaver) {
-        mutableStateOf<Collection?>(null)
-    }
     var selectedMonitoredTopic by rememberSaveable(stateSaver = SelectedMonitoredTopicSaver) {
         mutableStateOf<MonitoredTopic?>(null)
     }
     var searchQuery by rememberSaveable {
         mutableStateOf("")
+    }
+    val activeArticleUrls =
+        navigationBackStack
+            .filterIsInstance<SignalBriefRoute.ArticleDetails>()
+            .map { it.articleUrl }
+            .toSet()
+    val activeCollectionIds =
+        navigationBackStack
+            .filterIsInstance<SignalBriefRoute.CollectionDetails>()
+            .map { it.collectionId }
+            .toSet()
+
+    LaunchedEffect(activeArticleUrls) {
+        val prunedSnapshots = navigationArticleSnapshots.filterKeys(activeArticleUrls::contains)
+        if (prunedSnapshots != navigationArticleSnapshots) {
+            navigationArticleSnapshots = prunedSnapshots
+        }
+    }
+    LaunchedEffect(activeCollectionIds) {
+        val prunedSnapshots = navigationCollectionSnapshots.filterKeys(activeCollectionIds::contains)
+        if (prunedSnapshots != navigationCollectionSnapshots) {
+            navigationCollectionSnapshots = prunedSnapshots
+        }
     }
 
     if (isTopicMonitoringVisible) {
@@ -248,8 +269,7 @@ private fun SignalBriefMainContent(
                         legacySelectedArticle = null
                         selectedMonitoredTopic = null
                         isTopicMonitoringVisible = false
-                        selectedCollection = null
-                        isCollectionsVisible = true
+                        navigationBackStack.add(SignalBriefRoute.Collections)
                     },
                 )
             }
@@ -262,45 +282,6 @@ private fun SignalBriefMainContent(
                 )
             }
         }
-    } else if (isCollectionsVisible) {
-        when {
-            selectedCollection == null -> {
-                collectionsContent(
-                    { isCollectionsVisible = false },
-                    { selectedCollection = it },
-                )
-            }
-
-            legacySelectedArticle != null -> {
-                ArticleDetailsDestination(
-                    articleDetailsContent,
-                    requireNotNull(legacySelectedArticle),
-                    onBack = { legacySelectedArticle = null },
-                    onCollectionsClick = {
-                        selectedCollection = null
-                        isCollectionsVisible = true
-                    },
-                )
-            }
-
-            else -> {
-                collectionDetailsContent(
-                    requireNotNull(selectedCollection),
-                    { legacySelectedArticle = it },
-                    { selectedCollection = null },
-                )
-            }
-        }
-    } else if (legacySelectedArticle != null) {
-        ArticleDetailsDestination(
-            articleDetailsContent,
-            requireNotNull(legacySelectedArticle),
-            onBack = { legacySelectedArticle = null },
-            onCollectionsClick = {
-                selectedCollection = null
-                isCollectionsVisible = true
-            },
-        )
     } else if (isSettingsVisible) {
         settingsContent(
             { isSettingsVisible = false },
@@ -314,21 +295,25 @@ private fun SignalBriefMainContent(
             savedContent = savedContent,
             searchContent = searchContent,
             articleDetailsContent = articleDetailsContent,
-            navigationArticleSnapshot = navigationArticleSnapshot,
+            collectionsContent = collectionsContent,
+            collectionDetailsContent = collectionDetailsContent,
+            navigationArticleSnapshots = navigationArticleSnapshots,
+            navigationCollectionSnapshots = navigationCollectionSnapshots,
             onArticleClick = { article ->
-                navigationArticleSnapshot = article
+                navigationArticleSnapshots = navigationArticleSnapshots + (article.url to article)
                 navigationBackStack.add(SignalBriefRoute.ArticleDetails(article.url))
+            },
+            onCollectionClick = { collection ->
+                navigationCollectionSnapshots = navigationCollectionSnapshots + (collection.id to collection)
+                navigationBackStack.add(SignalBriefRoute.CollectionDetails(collection.id))
             },
             onSearchClick = { navigationBackStack.add(SignalBriefRoute.Search) },
             onSettingsClick = { isSettingsVisible = true },
-            onCollectionsClick = { isCollectionsVisible = true },
+            onCollectionsClick = { navigationBackStack.add(SignalBriefRoute.Collections) },
             searchQuery = searchQuery,
             onSearchQueryChange = { searchQuery = it },
             onOpenTopicMonitoring = { isTopicMonitoringVisible = true },
-            onDetailsCollectionsClick = {
-                selectedCollection = null
-                isCollectionsVisible = true
-            },
+            onDetailsCollectionsClick = { navigationBackStack.add(SignalBriefRoute.Collections) },
         )
     }
 }
@@ -343,8 +328,12 @@ private fun SignalBriefDestinations(
     savedContent: SavedContent,
     searchContent: SearchContent,
     articleDetailsContent: ArticleDetailsContent,
-    navigationArticleSnapshot: Article?,
+    collectionsContent: CollectionsContent,
+    collectionDetailsContent: CollectionDetailsContent,
+    navigationArticleSnapshots: Map<String, Article>,
+    navigationCollectionSnapshots: Map<String, Collection>,
     onArticleClick: (Article) -> Unit,
+    onCollectionClick: (Collection) -> Unit,
     onSearchClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onCollectionsClick: () -> Unit,
@@ -400,8 +389,8 @@ private fun SignalBriefDestinations(
                     )
                 }
                 entry<SignalBriefRoute.ArticleDetails> { route ->
-                    val article = navigationArticleSnapshot
-                    if (article?.url == route.articleUrl) {
+                    val article = navigationArticleSnapshots[route.articleUrl]
+                    if (article != null) {
                         ArticleDetailsDestination(
                             articleDetailsContent,
                             article,
@@ -410,6 +399,26 @@ private fun SignalBriefDestinations(
                         )
                     } else {
                         LaunchedEffect(route.articleUrl) {
+                            navigationBackStack.removeLastOrNull()
+                        }
+                    }
+                }
+                entry<SignalBriefRoute.Collections> {
+                    collectionsContent(
+                        { navigationBackStack.removeLastOrNull() },
+                        onCollectionClick,
+                    )
+                }
+                entry<SignalBriefRoute.CollectionDetails> { route ->
+                    val collection = navigationCollectionSnapshots[route.collectionId]
+                    if (collection != null) {
+                        collectionDetailsContent(
+                            collection,
+                            onArticleClick,
+                            { navigationBackStack.removeLastOrNull() },
+                        )
+                    } else {
+                        LaunchedEffect(route.collectionId) {
                             navigationBackStack.removeLastOrNull()
                         }
                     }
