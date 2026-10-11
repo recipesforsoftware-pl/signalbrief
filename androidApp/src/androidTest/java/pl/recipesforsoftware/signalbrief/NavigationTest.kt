@@ -257,6 +257,68 @@ class NavigationTest {
     }
 
     @Test
+    fun topicArticleCollectionsStackSurvivesStateRestoration() {
+        val restorationTester = StateRestorationTester(composeTestRule)
+        setContent(
+            restorationTester = restorationTester,
+            articleDetailsContent = { article, onBack, onCollectionsClick ->
+                Text("Topic details ${article.title}")
+                TextButton(onClick = onBack) { Text("Article details back") }
+                TextButton(onClick = onCollectionsClick) { Text("Manage collections") }
+            },
+            collectionsContent = { onBack, _ ->
+                Text("Collections")
+                TextButton(onClick = onBack) { Text("Collections back") }
+            },
+            topicMatchesContent = { topic, onArticleClick, onBack ->
+                TopicMatchesScreen(
+                    uiState = TopicMatchesUiState.Content(topic, fakeArticles, emptySet()),
+                    onArticleClick = onArticleClick,
+                    onBookmarkClick = {},
+                    onBack = onBack,
+                )
+            },
+        )
+
+        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SEARCH).performClick()
+        composeTestRule.onNode(hasSetTextAction()).performTextInput("Topic query")
+        composeTestRule.onNodeWithText(SearchStrings.MONITORED_TOPICS).performClick()
+        composeTestRule.onNodeWithText("Kotlin").performClick()
+        composeTestRule.onNodeWithText("Test Article").performClick()
+        composeTestRule.onNodeWithText("Manage collections").performClick()
+        restorationTester.emulateSavedInstanceStateRestore()
+
+        composeTestRule.onNodeWithText("Collections").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Collections back").performClick()
+        composeTestRule.onNodeWithText("Topic details Test Article").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Article details back").performClick()
+        composeTestRule.onNodeWithText("Test Article").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(TopicMatchesStrings.BACK).performClick()
+        composeTestRule.onNodeWithText(TopicMonitoringStrings.TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(TopicMonitoringStrings.BACK).performClick()
+        composeTestRule.onNodeWithText(SearchStrings.TOP_BAR_TITLE).assertIsDisplayed()
+        composeTestRule.onNode(hasSetTextAction()).assertTextEquals("Topic query")
+    }
+
+    @Test
+    fun bottomNavIsHiddenOnTopicRoutes() {
+        setContent()
+
+        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SEARCH).performClick()
+        composeTestRule.onNodeWithText(SearchStrings.MONITORED_TOPICS).performClick()
+
+        composeTestRule.onNodeWithText(TopicMonitoringStrings.TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText("Headlines").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Saved").assertDoesNotExist()
+
+        composeTestRule.onNodeWithText("Kotlin").performClick()
+
+        composeTestRule.onNodeWithText(TopicMatchesStrings.NO_MATCHES_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText("Headlines").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Saved").assertDoesNotExist()
+    }
+
+    @Test
     fun headlinesIsDefaultDestination() {
         setContent()
 
@@ -954,6 +1016,19 @@ class NavigationTest {
 
         composeTestRule.onNodeWithText(TopHeadlinesStrings.TOP_BAR_TITLE).assertIsDisplayed()
         composeTestRule.onNodeWithText("Headlines").assertIsDisplayed()
+    }
+
+    @Test
+    fun settingsSurvivesStateRestoration() {
+        val restorationTester = StateRestorationTester(composeTestRule)
+        setContent(restorationTester = restorationTester)
+
+        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SETTINGS).performClick()
+        restorationTester.emulateSavedInstanceStateRestore()
+
+        composeTestRule.onNodeWithText(SettingsStrings.TOP_BAR_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(SettingsStrings.BACK).performClick()
+        composeTestRule.onNodeWithText(TopHeadlinesStrings.TOP_BAR_TITLE).assertIsDisplayed()
     }
 
     @Test

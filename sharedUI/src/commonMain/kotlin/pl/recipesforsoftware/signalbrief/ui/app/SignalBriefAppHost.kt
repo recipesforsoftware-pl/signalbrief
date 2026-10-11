@@ -51,7 +51,7 @@ fun SignalBriefAppHost(
         onboardingCompleted = true,
         onCompleteOnboarding = {},
         topHeadlinesContent = { bottomBar, onArticleClick, onSearchClick, onSettingsClick ->
-            Headlines(
+            TopHeadlinesRoute(
                 newsRepository,
                 savedArticlesRepository,
                 bottomBar,
@@ -61,36 +61,36 @@ fun SignalBriefAppHost(
             )
         },
         savedContent = { bottomBar, onArticleClick, onCollectionsClick ->
-            Saved(savedArticlesRepository, bottomBar, onArticleClick, onCollectionsClick)
+            SavedArticlesRoute(savedArticlesRepository, bottomBar, onArticleClick, onCollectionsClick)
         },
         dailyBriefContent = { bottomBar, onArticleClick ->
-            Brief(newsRepository, savedArticlesRepository, bottomBar, onArticleClick)
+            DailyBriefRoute(newsRepository, savedArticlesRepository, bottomBar, onArticleClick)
         },
         searchContent = { initial, queryChanged, articleClick, monitoring, back ->
-            Search(newsRepository, savedArticlesRepository, initial, queryChanged, articleClick, monitoring, back)
+            SearchRoute(newsRepository, savedArticlesRepository, initial, queryChanged, articleClick, monitoring, back)
         },
         articleDetailsContent = { article, back, collections ->
-            Details(article, savedArticlesRepository, collectionsRepository, back, collections)
+            ArticleDetailsRoute(article, savedArticlesRepository, collectionsRepository, back, collections)
         },
-        collectionsContent = { back, open -> Collections(collectionsRepository, back, open) },
+        collectionsContent = { back, open -> CollectionsRoute(collectionsRepository, back, open) },
         collectionDetailsContent = { collection, articleClick, back ->
-            CollectionDetails(collection, collectionsRepository, articleClick, back)
+            CollectionDetailsRoute(collection, collectionsRepository, articleClick, back)
         },
         topicMonitoringContent = { openMatches, back ->
-            TopicMonitoring(topicMonitoringRepository, newsRepository, openMatches, back)
+            TopicMonitoringRoute(topicMonitoringRepository, newsRepository, openMatches, back)
         },
         topicMatchesContent = { topic, articleClick, back ->
-            TopicMatches(newsRepository, savedArticlesRepository, topic, articleClick, back)
+            TopicMatchesRoute(newsRepository, savedArticlesRepository, topic, articleClick, back)
         },
         settingsContent = { back ->
-            Settings(newsRepository, back)
+            SettingsRoute(newsRepository, back)
         },
         savedArticleCount = savedArticles.size,
     )
 }
 
 @Composable
-private fun Headlines(
+private fun TopHeadlinesRoute(
     newsRepository: NewsRepository,
     savedArticlesRepository: SavedArticlesRepository,
     bottom: @Composable () -> Unit,
@@ -114,7 +114,7 @@ private fun Headlines(
     }
 }
 
-@Composable private fun Saved(
+@Composable private fun SavedArticlesRoute(
     savedArticlesRepository: SavedArticlesRepository,
     bottom: @Composable () -> Unit,
     click: (Article) -> Unit,
@@ -128,7 +128,7 @@ private fun Headlines(
 }
 
 @Composable
-private fun Collections(
+private fun CollectionsRoute(
     collectionsRepository: CollectionsRepository,
     back: () -> Unit,
     open: (pl.recipesforsoftware.signalbrief.domain.model.Collection) -> Unit,
@@ -154,7 +154,7 @@ private fun Collections(
 }
 
 @Composable
-private fun CollectionDetails(
+private fun CollectionDetailsRoute(
     collection: pl.recipesforsoftware.signalbrief.domain.model.Collection,
     repository: CollectionsRepository,
     articleClick: (Article) -> Unit,
@@ -169,7 +169,7 @@ private fun CollectionDetails(
     }
 }
 
-@Composable private fun Brief(
+@Composable private fun DailyBriefRoute(
     newsRepository: NewsRepository,
     savedArticlesRepository: SavedArticlesRepository,
     bottom: @Composable () -> Unit,
@@ -183,7 +183,7 @@ private fun CollectionDetails(
 }
 
 @Composable
-private fun Search(
+private fun SearchRoute(
     newsRepository: NewsRepository,
     savedArticlesRepository: SavedArticlesRepository,
     initial: String,
@@ -204,7 +204,7 @@ private fun Search(
 }
 
 @Composable
-private fun TopicMonitoring(
+private fun TopicMonitoringRoute(
     topicMonitoringRepository: TopicMonitoringRepository,
     newsRepository: NewsRepository,
     openMatches: (MonitoredTopic) -> Unit,
@@ -232,7 +232,7 @@ private fun TopicMonitoring(
 }
 
 @Composable
-private fun TopicMatches(
+private fun TopicMatchesRoute(
     newsRepository: NewsRepository,
     savedArticlesRepository: SavedArticlesRepository,
     topic: MonitoredTopic,
@@ -250,7 +250,7 @@ private fun TopicMatches(
 }
 
 @Composable
-private fun Settings(
+private fun SettingsRoute(
     newsRepository: NewsRepository,
     back: () -> Unit,
 ) {
@@ -261,7 +261,7 @@ private fun Settings(
     }
 }
 
-@Composable private fun Details(
+@Composable private fun ArticleDetailsRoute(
     article: Article,
     savedArticlesRepository: SavedArticlesRepository,
     collectionsRepository: CollectionsRepository,
