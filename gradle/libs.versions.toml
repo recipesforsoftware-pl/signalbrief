@@ -2,6 +2,7 @@
 agp = "9.3.1"
 kotlin = "2.3.21"
 composeMultiplatform = "1.11.1"
+navigation3 = "1.1.2"
 ksp = "2.3.10"
 room = "2.8.0"
 sqliteBundled = "2.6.0"
@@ -73,6 +74,7 @@ coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref 
 coil-network-ktor3 = { group = "io.coil-kt.coil3", name = "coil-network-ktor3", version.ref = "coil" }
 
 # Compose Multiplatform (sharedUI)
+navigation3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "navigation3" }
 compose-material-icons-core = { group = "org.jetbrains.compose.material", name = "material-icons-core", version = "1.7.3" }
 compose-multiplatform-resources = { group = "org.jetbrains.compose.components", name = "components-resources", version.ref = "composeMultiplatform" }
 
