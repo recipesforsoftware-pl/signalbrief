@@ -20,16 +20,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.navigation3.runtime.NavBackStack
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.navigation3.ui.NavDisplay
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.Collection
 import pl.recipesforsoftware.signalbrief.domain.model.MonitoredTopic
 import pl.recipesforsoftware.signalbrief.ui.images.installSignalBriefImageLoader
+import pl.recipesforsoftware.signalbrief.ui.navigation.SignalBriefRoute
+import pl.recipesforsoftware.signalbrief.ui.navigation.navigateToTopLevelRoute
+import pl.recipesforsoftware.signalbrief.ui.navigation.signalBriefNavigationSavedStateConfiguration
+import pl.recipesforsoftware.signalbrief.ui.navigation.signalBriefStartRoute
 import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingCompletion
 import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingScreen
 
@@ -45,12 +53,12 @@ import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingScreen
  *              navigation bar (Headlines / Brief / Saved) is shown.
  *
  * The shell owns both navigation levels. Top-level navigation is exactly the
- * three [AppDestination] entries, kept in `rememberSaveable` with an explicit
- * [Saver]; it survives host recreation and defaults to
- * [AppDestination.Headlines]. Child navigation is a single nullable selected
- * article: when set, Article Details replaces the destination content and the
+ * three Navigation 3 routes, kept in a `NavBackStack`; it survives host
+ * recreation and defaults to [SignalBriefRoute.Headlines]. Child navigation is
+ * still state-based and has no child back stack yet. A selected article makes
+ * Article Details replace the destination content and the
  * bottom bar disappears (details is a child screen, not a third tab), while
- * [currentDestination] keeps holding the originating destination so Back
+ * the top-level back stack keeps holding the originating destination so Back
  * returns to it exactly. Search is a child screen of Headlines and is tracked
  * by [isSearchVisible]; it also survives recreation through `rememberSaveable`.
  *
@@ -65,10 +73,11 @@ import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingScreen
  * 3. [selectedArticle] -> Article Details.
  * 4. [isSearchVisible] -> Search.
  * 5. [isSettingsVisible] -> Settings.
- * 6. [currentDestination] -> Headlines, Daily Brief, or Saved.
+ * 6. top-level Navigation 3 route -> Headlines, Daily Brief, or Saved.
  *
  * Toolbar back and any host-integrated system back both funnel through the
- * same state clear, so there is one shared transition path and no back stack.
+ * same state clear for child navigation, so there is one shared child
+ * transition path and no child back stack.
  * The selected article, collection, and monitored topic survive recreation
  * through [SelectedArticleSaver], [SelectedCollectionSaver], and
  * [SelectedMonitoredTopicSaver].
@@ -202,9 +211,11 @@ private fun SignalBriefMainContent(
     settingsContent: SettingsContent,
     savedArticleCount: Int,
 ) {
-    var currentDestination by rememberSaveable(stateSaver = AppDestinationSaver) {
-        mutableStateOf(AppDestination.Headlines)
-    }
+    val topLevelBackStack =
+        rememberNavBackStack(
+            signalBriefNavigationSavedStateConfiguration,
+            signalBriefStartRoute,
+        )
     var selectedArticle by rememberSaveable(stateSaver = SelectedArticleSaver) {
         mutableStateOf<Article?>(null)
     }
@@ -307,8 +318,7 @@ private fun SignalBriefMainContent(
         )
     } else {
         SignalBriefDestinations(
-            currentDestination = currentDestination,
-            onDestinationChanged = { currentDestination = it },
+            topLevelBackStack = topLevelBackStack,
             savedArticleCount = savedArticleCount,
             topHeadlinesContent = topHeadlinesContent,
             dailyBriefContent = dailyBriefContent,
@@ -323,8 +333,7 @@ private fun SignalBriefMainContent(
 
 @Composable
 private fun SignalBriefDestinations(
-    currentDestination: AppDestination,
-    onDestinationChanged: (AppDestination) -> Unit,
+    topLevelBackStack: NavBackStack<NavKey>,
     savedArticleCount: Int,
     topHeadlinesContent: TopHeadlinesContent,
     dailyBriefContent: DailyBriefContent,
@@ -334,37 +343,61 @@ private fun SignalBriefDestinations(
     onSettingsClick: () -> Unit,
     onCollectionsClick: () -> Unit,
 ) {
-    val bottomBar: @Composable () -> Unit = {
+    NavDisplay(
+        backStack = topLevelBackStack,
+        entryProvider =
+            entryProvider {
+                entry<SignalBriefRoute.Headlines> {
+                    topHeadlinesContent(
+                        topLevelBottomBar(
+                            currentDestination = SignalBriefRoute.Headlines,
+                            topLevelBackStack = topLevelBackStack,
+                            savedArticleCount = savedArticleCount,
+                        ),
+                        onArticleClick,
+                        onSearchClick,
+                        onSettingsClick,
+                    )
+                }
+                entry<SignalBriefRoute.DailyBrief> {
+                    dailyBriefContent(
+                        topLevelBottomBar(
+                            currentDestination = SignalBriefRoute.DailyBrief,
+                            topLevelBackStack = topLevelBackStack,
+                            savedArticleCount = savedArticleCount,
+                        ),
+                        onArticleClick,
+                    )
+                }
+                entry<SignalBriefRoute.Saved> {
+                    savedContent(
+                        topLevelBottomBar(
+                            currentDestination = SignalBriefRoute.Saved,
+                            topLevelBackStack = topLevelBackStack,
+                            savedArticleCount = savedArticleCount,
+                        ),
+                        onArticleClick,
+                        onCollectionsClick,
+                    )
+                }
+            },
+    )
+}
+
+private fun topLevelBottomBar(
+    currentDestination: SignalBriefRoute,
+    topLevelBackStack: NavBackStack<NavKey>,
+    savedArticleCount: Int,
+): @Composable () -> Unit =
+    {
         SignalBriefBottomBar(
             currentDestination = currentDestination,
-            onNavigate = onDestinationChanged,
+            onNavigate = { destination ->
+                topLevelBackStack.navigateToTopLevelRoute(destination)
+            },
             savedArticleCount = savedArticleCount,
         )
     }
-
-    when (currentDestination) {
-        AppDestination.Headlines -> {
-            topHeadlinesContent(
-                bottomBar,
-                onArticleClick,
-                onSearchClick,
-                onSettingsClick,
-            )
-        }
-
-        AppDestination.DailyBrief -> {
-            dailyBriefContent(bottomBar, onArticleClick)
-        }
-
-        AppDestination.Saved -> {
-            savedContent(
-                bottomBar,
-                onArticleClick,
-                onCollectionsClick,
-            )
-        }
-    }
-}
 
 @Composable
 private fun ArticleDetailsDestination(
@@ -378,14 +411,14 @@ private fun ArticleDetailsDestination(
 
 @Composable
 private fun SignalBriefBottomBar(
-    currentDestination: AppDestination,
-    onNavigate: (AppDestination) -> Unit,
+    currentDestination: SignalBriefRoute,
+    onNavigate: (SignalBriefRoute) -> Unit,
     savedArticleCount: Int,
 ) {
     NavigationBar {
         NavigationBarItem(
-            selected = currentDestination == AppDestination.Headlines,
-            onClick = { onNavigate(AppDestination.Headlines) },
+            selected = currentDestination == SignalBriefRoute.Headlines,
+            onClick = { onNavigate(SignalBriefRoute.Headlines) },
             icon = {
                 Icon(
                     imageVector = NavigationIcons.Headlines,
@@ -401,8 +434,8 @@ private fun SignalBriefBottomBar(
                 ),
         )
         NavigationBarItem(
-            selected = currentDestination == AppDestination.DailyBrief,
-            onClick = { onNavigate(AppDestination.DailyBrief) },
+            selected = currentDestination == SignalBriefRoute.DailyBrief,
+            onClick = { onNavigate(SignalBriefRoute.DailyBrief) },
             icon = {
                 Icon(
                     imageVector = NavigationIcons.Brief,
@@ -423,13 +456,13 @@ private fun SignalBriefBottomBar(
 
 @Composable
 private fun RowScope.SavedNavigationBarItem(
-    currentDestination: AppDestination,
-    onNavigate: (AppDestination) -> Unit,
+    currentDestination: SignalBriefRoute,
+    onNavigate: (SignalBriefRoute) -> Unit,
     savedArticleCount: Int,
 ) {
     NavigationBarItem(
-        selected = currentDestination == AppDestination.Saved,
-        onClick = { onNavigate(AppDestination.Saved) },
+        selected = currentDestination == SignalBriefRoute.Saved,
+        onClick = { onNavigate(SignalBriefRoute.Saved) },
         icon = {
             BadgedBox(
                 badge = {
@@ -477,16 +510,3 @@ private fun InitializingContent() {
         )
     }
 }
-
-/**
- * Compose [Saver] that persists the selected [AppDestination] as its enum name.
- *
- * The enum is not JVM-serializable and must not assume Android-only save/restore
- * semantics; saving the stable name and restoring by lookup keeps the strategy
- * compatible with Compose Multiplatform.
- */
-internal val AppDestinationSaver: Saver<AppDestination, String> =
-    Saver(
-        save = { destination -> destination.name },
-        restore = { name -> AppDestination.entries.find { it.name == name } },
-    )
