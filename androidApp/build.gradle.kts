@@ -144,6 +144,7 @@ dependencies {
     implementation(libs.compose.material.icons.extended)
     implementation(libs.compose.runtime)
     implementation(libs.compose.foundation)
+    implementation(libs.navigation3.ui)
     debugImplementation(libs.compose.ui.tooling)
 
     // Activity & Lifecycle

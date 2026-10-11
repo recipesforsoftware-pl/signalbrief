@@ -12,6 +12,8 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.navigation3.runtime.EntryProviderScope
+import androidx.navigation3.runtime.NavKey
 import org.junit.Rule
 import org.junit.Test
 import pl.recipesforsoftware.signalbrief.domain.model.Article
@@ -19,10 +21,14 @@ import pl.recipesforsoftware.signalbrief.domain.model.Collection
 import pl.recipesforsoftware.signalbrief.domain.model.FeedSource
 import pl.recipesforsoftware.signalbrief.domain.model.MonitoredTopic
 import pl.recipesforsoftware.signalbrief.domain.model.Source
+import pl.recipesforsoftware.signalbrief.ui.app.InvalidDestination
 import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefApp
+import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefNavHost
+import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefNavigationContext
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefScreen
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefStrings
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefUiState
+import pl.recipesforsoftware.signalbrief.ui.navigation.SignalBriefRoute
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesScreen
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesStrings
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesUiState
@@ -74,19 +80,19 @@ class NavigationTest {
         headlineArticles: List<Article> = fakeArticles,
         savedArticles: List<Article> = emptyList(),
         searchUiState: SearchUiState = SearchUiState.Idle,
-        articleDetailsContent: @Composable (article: Article, onBack: () -> Unit, onCollectionsClick: () -> Unit) -> Unit =
+        articleDetailsRoute: @Composable (article: Article, onBack: () -> Unit, onCollectionsClick: () -> Unit) -> Unit =
             { article, onBack, _ -> TestDetailsContent(article, onBack) },
-        collectionsContent: @Composable (onBack: () -> Unit, onCollectionClick: (Collection) -> Unit) -> Unit =
+        collectionsRoute: @Composable (onBack: () -> Unit, onCollectionClick: (Collection) -> Unit) -> Unit =
             { onBack, _ ->
                 TextButton(onClick = onBack) { Text("Collections back") }
                 Text("Collections")
             },
-        collectionDetailsContent: @Composable (collection: Collection, onArticleClick: (Article) -> Unit, onBack: () -> Unit) -> Unit =
+        collectionDetailsRoute: @Composable (collection: Collection, onArticleClick: (Article) -> Unit, onBack: () -> Unit) -> Unit =
             { collection, _, onBack ->
                 TextButton(onClick = onBack) { Text("Collection details back") }
                 Text("Collection details ${collection.id}: ${collection.name}")
             },
-        topicMonitoringContent: @Composable (onOpenTopicMatches: (MonitoredTopic) -> Unit, onBack: () -> Unit) -> Unit =
+        topicMonitoringRoute: @Composable (onOpenTopicMatches: (MonitoredTopic) -> Unit, onBack: () -> Unit) -> Unit =
             { openMatches, back ->
                 TopicMonitoringScreen(
                     uiState = TopicMonitoringUiState(topics = listOf(MonitoredTopic("1", "Kotlin"))),
@@ -103,7 +109,7 @@ class NavigationTest {
                     onBack = back,
                 )
             },
-        topicMatchesContent: @Composable (topic: MonitoredTopic, onArticleClick: (Article) -> Unit, onBack: () -> Unit) -> Unit =
+        topicMatchesRoute: @Composable (topic: MonitoredTopic, onArticleClick: (Article) -> Unit, onBack: () -> Unit) -> Unit =
             { topic, onArticleClick, onBack ->
                 TopicMatchesScreen(
                     uiState =
@@ -119,10 +125,10 @@ class NavigationTest {
     ) {
         val content: @Composable () -> Unit = {
             SignalBriefAndroidTheme(isDarkMode = isDarkMode, dynamicColor = false) {
-                SignalBriefApp(
+                TestSignalBriefApp(
                     onboardingCompleted = true,
                     onCompleteOnboarding = {},
-                    topHeadlinesContent = { bottomBar, onArticleClick, onSearchClick, onSettingsClick ->
+                    headlinesRoute = { bottomBar, onArticleClick, onSearchClick, onSettingsClick ->
                         TopHeadlinesScreen(
                             uiState =
                                 TopHeadlinesUiState.Success(
@@ -137,7 +143,7 @@ class NavigationTest {
                             bottomBar = bottomBar,
                         )
                     },
-                    savedContent = { bottomBar, onArticleClick, onCollectionsClick ->
+                    savedRoute = { bottomBar, onArticleClick, onCollectionsClick ->
                         SavedArticlesScreen(
                             uiState =
                                 if (savedArticles.isEmpty()) {
@@ -151,7 +157,7 @@ class NavigationTest {
                             bottomBar = bottomBar,
                         )
                     },
-                    dailyBriefContent = { bottomBar, onArticleClick ->
+                    dailyBriefRoute = { bottomBar, onArticleClick ->
                         DailyBriefScreen(
                             uiState = DailyBriefUiState.Content(headlineArticles, emptySet()),
                             onArticleClick = onArticleClick,
@@ -159,7 +165,7 @@ class NavigationTest {
                             bottomBar = bottomBar,
                         )
                     },
-                    searchContent = { initialQuery, onQueryChange, onArticleClick, monitoring, onBack ->
+                    searchRoute = { initialQuery, onQueryChange, onArticleClick, monitoring, onBack ->
                         SearchScreen(
                             query = initialQuery,
                             onQueryChange = onQueryChange,
@@ -170,12 +176,12 @@ class NavigationTest {
                             onBack = onBack,
                         )
                     },
-                    articleDetailsContent = articleDetailsContent,
-                    collectionsContent = collectionsContent,
-                    collectionDetailsContent = collectionDetailsContent,
-                    topicMonitoringContent = topicMonitoringContent,
-                    topicMatchesContent = topicMatchesContent,
-                    settingsContent = { onBack ->
+                    articleDetailsRoute = articleDetailsRoute,
+                    collectionsRoute = collectionsRoute,
+                    collectionDetailsRoute = collectionDetailsRoute,
+                    topicMonitoringRoute = topicMonitoringRoute,
+                    topicMatchesRoute = topicMatchesRoute,
+                    settingsRoute = { onBack ->
                         SettingsScreen(
                             uiState = SettingsUiState(downloadedHeadlineCount = 0),
                             onBack = onBack,
@@ -227,7 +233,7 @@ class NavigationTest {
     @Test
     fun topicMatchesArticleDetailsBackReturnsToTopicMatches() {
         setContent(
-            topicMatchesContent = { topic, onArticleClick, onBack ->
+            topicMatchesRoute = { topic, onArticleClick, onBack ->
                 TopicMatchesScreen(
                     uiState =
                         TopicMatchesUiState.Content(
@@ -261,16 +267,16 @@ class NavigationTest {
         val restorationTester = StateRestorationTester(composeTestRule)
         setContent(
             restorationTester = restorationTester,
-            articleDetailsContent = { article, onBack, onCollectionsClick ->
+            articleDetailsRoute = { article, onBack, onCollectionsClick ->
                 Text("Topic details ${article.title}")
                 TextButton(onClick = onBack) { Text("Article details back") }
                 TextButton(onClick = onCollectionsClick) { Text("Manage collections") }
             },
-            collectionsContent = { onBack, _ ->
+            collectionsRoute = { onBack, _ ->
                 Text("Collections")
                 TextButton(onClick = onBack) { Text("Collections back") }
             },
-            topicMatchesContent = { topic, onArticleClick, onBack ->
+            topicMatchesRoute = { topic, onArticleClick, onBack ->
                 TopicMatchesScreen(
                     uiState = TopicMatchesUiState.Content(topic, fakeArticles, emptySet()),
                     onArticleClick = onArticleClick,
@@ -380,10 +386,10 @@ class NavigationTest {
         val restorationTester = StateRestorationTester(composeTestRule)
         restorationTester.setContent {
             SignalBriefAndroidTheme(isDarkMode = false, dynamicColor = false) {
-                SignalBriefApp(
+                TestSignalBriefApp(
                     onboardingCompleted = true,
                     onCompleteOnboarding = {},
-                    topHeadlinesContent = { bottomBar, onArticleClick, onSearchClick, onSettingsClick ->
+                    headlinesRoute = { bottomBar, onArticleClick, onSearchClick, onSettingsClick ->
                         TopHeadlinesScreen(
                             uiState =
                                 TopHeadlinesUiState.Success(
@@ -398,7 +404,7 @@ class NavigationTest {
                             bottomBar = bottomBar,
                         )
                     },
-                    savedContent = { bottomBar, onArticleClick, _ ->
+                    savedRoute = { bottomBar, onArticleClick, _ ->
                         SavedArticlesScreen(
                             uiState = SavedArticlesUiState.Empty,
                             onArticleClick = onArticleClick,
@@ -406,7 +412,7 @@ class NavigationTest {
                             bottomBar = bottomBar,
                         )
                     },
-                    dailyBriefContent = { bottomBar, onArticleClick ->
+                    dailyBriefRoute = { bottomBar, onArticleClick ->
                         DailyBriefScreen(
                             uiState = DailyBriefUiState.Content(fakeArticles, emptySet()),
                             onArticleClick = onArticleClick,
@@ -414,7 +420,7 @@ class NavigationTest {
                             bottomBar = bottomBar,
                         )
                     },
-                    searchContent = { initialQuery, onQueryChange, onArticleClick, _, onBack ->
+                    searchRoute = { initialQuery, onQueryChange, onArticleClick, _, onBack ->
                         SearchScreen(
                             query = initialQuery,
                             onQueryChange = onQueryChange,
@@ -425,7 +431,7 @@ class NavigationTest {
                             onBack = onBack,
                         )
                     },
-                    articleDetailsContent = { _, _, _ -> },
+                    articleDetailsRoute = { _, _, _ -> },
                 )
             }
         }
@@ -452,10 +458,10 @@ class NavigationTest {
         val restorationTester = StateRestorationTester(composeTestRule)
         restorationTester.setContent {
             SignalBriefAndroidTheme(isDarkMode = false, dynamicColor = false) {
-                SignalBriefApp(
+                TestSignalBriefApp(
                     onboardingCompleted = true,
                     onCompleteOnboarding = {},
-                    topHeadlinesContent = { bottomBar, onArticleClick, onSearchClick, onSettingsClick ->
+                    headlinesRoute = { bottomBar, onArticleClick, onSearchClick, onSettingsClick ->
                         TopHeadlinesScreen(
                             uiState = TopHeadlinesUiState.Success(fakeArticles, FeedSource.NETWORK),
                             onRefresh = {},
@@ -466,7 +472,7 @@ class NavigationTest {
                             bottomBar = bottomBar,
                         )
                     },
-                    savedContent = { bottomBar, onArticleClick, _ ->
+                    savedRoute = { bottomBar, onArticleClick, _ ->
                         SavedArticlesScreen(
                             uiState = SavedArticlesUiState.Empty,
                             onArticleClick = onArticleClick,
@@ -474,7 +480,7 @@ class NavigationTest {
                             bottomBar = bottomBar,
                         )
                     },
-                    dailyBriefContent = { bottomBar, onArticleClick ->
+                    dailyBriefRoute = { bottomBar, onArticleClick ->
                         DailyBriefScreen(
                             uiState = DailyBriefUiState.Content(fakeArticles, emptySet()),
                             onArticleClick = onArticleClick,
@@ -482,7 +488,7 @@ class NavigationTest {
                             bottomBar = bottomBar,
                         )
                     },
-                    searchContent = { initialQuery, onQueryChange, onArticleClick, _, onBack ->
+                    searchRoute = { initialQuery, onQueryChange, onArticleClick, _, onBack ->
                         SearchScreen(
                             query = initialQuery,
                             onQueryChange = onQueryChange,
@@ -493,7 +499,7 @@ class NavigationTest {
                             onBack = onBack,
                         )
                     },
-                    articleDetailsContent = { _, _, _ -> },
+                    articleDetailsRoute = { _, _, _ -> },
                 )
             }
         }
@@ -558,7 +564,7 @@ class NavigationTest {
         val restorationTester = StateRestorationTester(composeTestRule)
         setContent(
             restorationTester = restorationTester,
-            articleDetailsContent = { article, onBack, onCollectionsClick ->
+            articleDetailsRoute = { article, onBack, onCollectionsClick ->
                 TextButton(onClick = onBack) { Text("Back") }
                 Text(article.title.orEmpty())
                 TextButton(onClick = onCollectionsClick) { Text("Manage collections") }
@@ -594,7 +600,7 @@ class NavigationTest {
     fun collectionsDetailsBackReturnsToCollections() {
         val collection = Collection("42", "Reading")
         setContent(
-            collectionsContent = { onBack, onCollectionClick ->
+            collectionsRoute = { onBack, onCollectionClick ->
                 TextButton(onClick = onBack) { Text("Collections back") }
                 TextButton(onClick = { onCollectionClick(collection) }) { Text("Open Reading") }
                 Text("Collections")
@@ -616,16 +622,16 @@ class NavigationTest {
     fun collectionDetailsArticleBackRestoresSameCollection() {
         val collection = Collection("42", "Reading")
         setContent(
-            articleDetailsContent = { article, onBack, _ ->
+            articleDetailsRoute = { article, onBack, _ ->
                 TextButton(onClick = onBack) { Text("Article details back") }
                 Text("Article details: ${article.url}")
             },
-            collectionsContent = { onBack, onCollectionClick ->
+            collectionsRoute = { onBack, onCollectionClick ->
                 TextButton(onClick = onBack) { Text("Collections back") }
                 TextButton(onClick = { onCollectionClick(collection) }) { Text("Open Reading") }
                 Text("Collections")
             },
-            collectionDetailsContent = { selected, onArticleClick, onBack ->
+            collectionDetailsRoute = { selected, onArticleClick, onBack ->
                 TextButton(onClick = onBack) { Text("Collection details back") }
                 Text("Collection details ${selected.id}: ${selected.name}")
                 TextButton(onClick = { onArticleClick(fakeArticles.single()) }) { Text("Open member article") }
@@ -648,7 +654,7 @@ class NavigationTest {
     fun collectionsAndCollectionDetailsHideBottomNav() {
         val collection = Collection("42", "Reading")
         setContent(
-            collectionsContent = { _, onCollectionClick ->
+            collectionsRoute = { _, onCollectionClick ->
                 TextButton(onClick = { onCollectionClick(collection) }) { Text("Open Reading") }
                 Text("Collections")
             },
@@ -672,15 +678,15 @@ class NavigationTest {
         val restorationTester = StateRestorationTester(composeTestRule)
         setContent(
             restorationTester = restorationTester,
-            articleDetailsContent = { article, onBack, _ ->
+            articleDetailsRoute = { article, onBack, _ ->
                 TextButton(onClick = onBack) { Text("Article details back") }
                 Text("Article details: ${article.url}")
             },
-            collectionsContent = { _, onCollectionClick ->
+            collectionsRoute = { _, onCollectionClick ->
                 TextButton(onClick = { onCollectionClick(collection) }) { Text("Open Reading") }
                 Text("Collections")
             },
-            collectionDetailsContent = { selected, onArticleClick, _ ->
+            collectionDetailsRoute = { selected, onArticleClick, _ ->
                 Text("Collection details ${selected.id}: ${selected.name}")
                 TextButton(onClick = { onArticleClick(fakeArticles.single()) }) { Text("Open member article") }
             },
@@ -711,17 +717,17 @@ class NavigationTest {
         setContent(
             restorationTester = restorationTester,
             headlineArticles = listOf(articleA),
-            articleDetailsContent = { article, onBack, onCollectionsClick ->
+            articleDetailsRoute = { article, onBack, onCollectionsClick ->
                 Text("Details ${article.title}")
                 TextButton(onClick = onBack) { Text("Article details back") }
                 TextButton(onClick = onCollectionsClick) { Text("Manage collections") }
             },
-            collectionsContent = { onBack, onCollectionClick ->
+            collectionsRoute = { onBack, onCollectionClick ->
                 Text("Collections")
                 TextButton(onClick = onBack) { Text("Collections back") }
                 TextButton(onClick = { onCollectionClick(collectionX) }) { Text("Open Collection X") }
             },
-            collectionDetailsContent = { collection, onArticleClick, onBack ->
+            collectionDetailsRoute = { collection, onArticleClick, onBack ->
                 Text("Details ${collection.name}")
                 TextButton(onClick = onBack) { Text("Collection details back") }
                 TextButton(onClick = { onArticleClick(articleB) }) { Text("Open Article B") }
@@ -752,12 +758,12 @@ class NavigationTest {
         val restorationTester = StateRestorationTester(composeTestRule)
         setContent(
             restorationTester = restorationTester,
-            articleDetailsContent = { article, onBack, onCollectionsClick ->
+            articleDetailsRoute = { article, onBack, onCollectionsClick ->
                 Text("Details ${article.title}")
                 TextButton(onClick = onBack) { Text("Article details back") }
                 TextButton(onClick = onCollectionsClick) { Text("Manage collections") }
             },
-            collectionsContent = { onBack, onCollectionClick ->
+            collectionsRoute = { onBack, onCollectionClick ->
                 Text("Collections")
                 TextButton(onClick = onBack) { Text("Collections back") }
                 TextButton(
@@ -766,7 +772,7 @@ class NavigationTest {
                     },
                 ) { Text("Open collection") }
             },
-            collectionDetailsContent = { collection, onArticleClick, onBack ->
+            collectionDetailsRoute = { collection, onArticleClick, onBack ->
                 Text("Details ${collection.name}")
                 TextButton(onClick = onBack) { Text("Collection details back") }
                 if (collection.id == collectionX.id) {
@@ -900,10 +906,10 @@ class NavigationTest {
 
         restorationTester.setContent {
             SignalBriefAndroidTheme(isDarkMode = false, dynamicColor = false) {
-                SignalBriefApp(
+                TestSignalBriefApp(
                     onboardingCompleted = true,
                     onCompleteOnboarding = {},
-                    topHeadlinesContent = { bottomBar, onArticleClick, onSearchClick, onSettingsClick ->
+                    headlinesRoute = { bottomBar, onArticleClick, onSearchClick, onSettingsClick ->
                         TopHeadlinesScreen(
                             uiState = TopHeadlinesUiState.Success(fakeArticles, FeedSource.NETWORK),
                             onRefresh = {},
@@ -914,7 +920,7 @@ class NavigationTest {
                             bottomBar = bottomBar,
                         )
                     },
-                    savedContent = { bottomBar, onArticleClick, _ ->
+                    savedRoute = { bottomBar, onArticleClick, _ ->
                         SavedArticlesScreen(
                             uiState = SavedArticlesUiState.Empty,
                             onArticleClick = onArticleClick,
@@ -922,7 +928,7 @@ class NavigationTest {
                             bottomBar = bottomBar,
                         )
                     },
-                    dailyBriefContent = { bottomBar, onArticleClick ->
+                    dailyBriefRoute = { bottomBar, onArticleClick ->
                         DailyBriefScreen(
                             uiState = DailyBriefUiState.Content(fakeArticles, emptySet()),
                             onArticleClick = onArticleClick,
@@ -930,7 +936,7 @@ class NavigationTest {
                             bottomBar = bottomBar,
                         )
                     },
-                    searchContent = { initialQuery, onQueryChange, onArticleClick, _, onBack ->
+                    searchRoute = { initialQuery, onQueryChange, onArticleClick, _, onBack ->
                         SearchScreen(
                             query = initialQuery,
                             onQueryChange = onQueryChange,
@@ -946,7 +952,7 @@ class NavigationTest {
                             onBack = onBack,
                         )
                     },
-                    articleDetailsContent = { article, onBack, _ ->
+                    articleDetailsRoute = { article, onBack, _ ->
                         TestDetailsContent(article = article, onBack = onBack)
                     },
                 )
@@ -1049,5 +1055,95 @@ class NavigationTest {
 
         composeTestRule.onNodeWithText("Headlines").assertDoesNotExist()
         composeTestRule.onNodeWithText("Saved").assertDoesNotExist()
+    }
+}
+
+@Composable
+private fun TestSignalBriefApp(
+    onboardingCompleted: Boolean?,
+    onCompleteOnboarding: () -> Unit,
+    headlinesRoute: @Composable (@Composable () -> Unit, (Article) -> Unit, () -> Unit, () -> Unit) -> Unit,
+    savedRoute: @Composable (@Composable () -> Unit, (Article) -> Unit, () -> Unit) -> Unit,
+    searchRoute: @Composable (String, (String) -> Unit, (Article) -> Unit, () -> Unit, () -> Unit) -> Unit,
+    articleDetailsRoute: @Composable (Article, () -> Unit, () -> Unit) -> Unit,
+    dailyBriefRoute: @Composable (@Composable () -> Unit, (Article) -> Unit) -> Unit,
+    collectionsRoute: @Composable (() -> Unit, (Collection) -> Unit) -> Unit = { _, _ -> },
+    collectionDetailsRoute: @Composable (Collection, (Article) -> Unit, () -> Unit) -> Unit = { _, _, _ -> },
+    topicMonitoringRoute: @Composable ((MonitoredTopic) -> Unit, () -> Unit) -> Unit = { _, _ -> },
+    topicMatchesRoute: @Composable (MonitoredTopic, (Article) -> Unit, () -> Unit) -> Unit = { _, _, _ -> },
+    settingsRoute: @Composable (() -> Unit) -> Unit = {},
+    savedArticleCount: Int = 0,
+) {
+    SignalBriefApp(onboardingCompleted, onCompleteOnboarding) {
+        SignalBriefNavHost(savedArticleCount) { navigation ->
+            testSignalBriefEntries(
+                navigation,
+                headlinesRoute,
+                savedRoute,
+                searchRoute,
+                articleDetailsRoute,
+                dailyBriefRoute,
+                collectionsRoute,
+                collectionDetailsRoute,
+                topicMonitoringRoute,
+                topicMatchesRoute,
+                settingsRoute,
+            )
+        }
+    }
+}
+
+private fun EntryProviderScope<NavKey>.testSignalBriefEntries(
+    navigation: SignalBriefNavigationContext,
+    headlines: @Composable (@Composable () -> Unit, (Article) -> Unit, () -> Unit, () -> Unit) -> Unit,
+    saved: @Composable (@Composable () -> Unit, (Article) -> Unit, () -> Unit) -> Unit,
+    search: @Composable (String, (String) -> Unit, (Article) -> Unit, () -> Unit, () -> Unit) -> Unit,
+    details: @Composable (Article, () -> Unit, () -> Unit) -> Unit,
+    brief: @Composable (@Composable () -> Unit, (Article) -> Unit) -> Unit,
+    collections: @Composable (() -> Unit, (Collection) -> Unit) -> Unit,
+    collectionDetails: @Composable (Collection, (Article) -> Unit, () -> Unit) -> Unit,
+    monitoring: @Composable ((MonitoredTopic) -> Unit, () -> Unit) -> Unit,
+    matches: @Composable (MonitoredTopic, (Article) -> Unit, () -> Unit) -> Unit,
+    settings: @Composable (() -> Unit) -> Unit,
+) {
+    entry<SignalBriefRoute.Headlines> {
+        headlines(
+            navigation.bottomBarFor(SignalBriefRoute.Headlines),
+            navigation.openArticle,
+            navigation.openSearch,
+            navigation.openSettings,
+        )
+    }
+    entry<SignalBriefRoute.DailyBrief> { brief(navigation.bottomBarFor(SignalBriefRoute.DailyBrief), navigation.openArticle) }
+    entry<SignalBriefRoute.Saved> {
+        saved(
+            navigation.bottomBarFor(SignalBriefRoute.Saved),
+            navigation.openArticle,
+            navigation.openCollections,
+        )
+    }
+    entry<SignalBriefRoute.Search> {
+        search(
+            navigation.searchQuery(),
+            navigation.onSearchQueryChange,
+            navigation.openArticle,
+            navigation.openTopicMonitoring,
+            navigation.back,
+        )
+    }
+    entry<SignalBriefRoute.Settings> { settings(navigation.back) }
+    entry<SignalBriefRoute.TopicMonitoring> { monitoring(navigation.openTopicMatches, navigation.back) }
+    entry<SignalBriefRoute.TopicMatches> { route ->
+        navigation.topicFor(route.topicId)?.let { matches(it, navigation.openArticle, navigation.back) }
+            ?: InvalidDestination(route.topicId, navigation.back)
+    }
+    entry<SignalBriefRoute.ArticleDetails> { route ->
+        navigation.articleFor(route.articleUrl)?.let { details(it, navigation.back, navigation.openCollections) }
+            ?: InvalidDestination(route.articleUrl, navigation.back)
+    }
+    entry<SignalBriefRoute.Collections> { collections(navigation.back, navigation.openCollection) }
+    entry<SignalBriefRoute.CollectionDetails> { route ->
+        navigation.collectionFor(route.collectionId)?.let { collectionDetails(it, navigation.openArticle, navigation.back) }
+            ?: InvalidDestination(route.collectionId, navigation.back)
     }
 }

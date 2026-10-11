@@ -12,7 +12,7 @@ import kotlinx.serialization.Serializable
  * back stack serializable across Android, iOS, Desktop, and Web.
  */
 @Serializable
-internal sealed interface SignalBriefRoute : NavKey {
+sealed interface SignalBriefRoute : NavKey {
     @Serializable
     @SerialName("headlines")
     data object Headlines : SignalBriefRoute
