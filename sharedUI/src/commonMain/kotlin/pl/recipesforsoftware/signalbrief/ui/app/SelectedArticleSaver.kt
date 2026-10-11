@@ -17,42 +17,55 @@ import pl.recipesforsoftware.signalbrief.domain.model.Source
  */
 internal val SelectedArticleSaver: Saver<Article?, Any> =
     listSaver(
-        save = { article ->
-            if (article == null) {
-                emptyList()
-            } else {
-                listOf(
-                    article.title,
-                    article.description,
-                    article.url,
-                    article.imageUrl,
-                    article.source != null,
-                    article.source?.id,
-                    article.source?.name,
-                )
-            }
-        },
+        save = { article -> article?.toSavedValues().orEmpty() },
         restore = { values ->
-            if (values.isEmpty()) {
-                null
-            } else {
-                val hasSource = values[4] as Boolean
-
-                Article(
-                    title = values[0] as String?,
-                    description = values[1] as String?,
-                    url = values[2] as String,
-                    imageUrl = values[3] as String?,
-                    source =
-                        if (hasSource) {
-                            Source(
-                                id = values[5] as String?,
-                                name = values[6] as String?,
-                            )
-                        } else {
-                            null
-                        },
-                )
-            }
+            values.takeIf { it.size == ARTICLE_SAVED_VALUE_COUNT }?.toArticle()
         },
     )
+
+/** KMP-safe [Saver] for Navigation 3 Article Details rendering payloads. */
+internal val NavigationArticleSnapshotsSaver: Saver<Map<String, Article>, Any> =
+    listSaver(
+        save = { snapshots -> snapshots.values.flatMap(Article::toSavedValues) },
+        restore = { values ->
+            values
+                .takeIf { it.size % ARTICLE_SAVED_VALUE_COUNT == 0 }
+                ?.chunked(ARTICLE_SAVED_VALUE_COUNT)
+                ?.mapNotNull { it.toArticle() }
+                ?.associateBy(Article::url)
+                .orEmpty()
+        },
+    )
+
+private fun Article.toSavedValues(): List<Any?> =
+    listOf(
+        title,
+        description,
+        url,
+        imageUrl,
+        source != null,
+        source?.id,
+        source?.name,
+    )
+
+private fun List<Any?>.toArticle(): Article? =
+    runCatching {
+        val hasSource = this[4] as Boolean
+        Article(
+            title = this[0] as String?,
+            description = this[1] as String?,
+            url = this[2] as String,
+            imageUrl = this[3] as String?,
+            source =
+                if (hasSource) {
+                    Source(
+                        id = this[5] as String?,
+                        name = this[6] as String?,
+                    )
+                } else {
+                    null
+                },
+        )
+    }.getOrNull()
+
+private const val ARTICLE_SAVED_VALUE_COUNT = 7
