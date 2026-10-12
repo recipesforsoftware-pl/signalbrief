@@ -63,6 +63,7 @@ kotlin {
             implementation(libs.compose.multiplatform.resources)
             implementation(libs.coil.compose)
             implementation(libs.compose.lifecycle.viewmodel.compose)
+            implementation(libs.koin.compose.viewmodel)
         }
         androidMain.dependencies {
             implementation(libs.coil.network.ktor3)

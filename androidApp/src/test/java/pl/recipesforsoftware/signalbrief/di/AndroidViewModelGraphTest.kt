@@ -38,6 +38,7 @@ import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsViewMod
 import pl.recipesforsoftware.signalbrief.ui.collectiondetails.CollectionDetailsViewModel
 import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsViewModel
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefViewModel
+import pl.recipesforsoftware.signalbrief.ui.di.signalBriefViewModelModule
 import pl.recipesforsoftware.signalbrief.ui.main.MainViewModel
 import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingPreference
 import pl.recipesforsoftware.signalbrief.ui.onboarding.OnboardingViewModel
@@ -82,6 +83,7 @@ class AndroidViewModelGraphTest {
         application =
             koinApplication {
                 modules(
+                    signalBriefViewModelModule,
                     androidViewModelModule,
                     module {
                         single { saved }

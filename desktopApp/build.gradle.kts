@@ -28,6 +28,7 @@ dependencies {
     implementation(libs.compose.multiplatform.resources)
     implementation(libs.ktor.client.core)
     implementation(libs.koin.core)
+    implementation(libs.koin.compose)
     implementation(libs.room.runtime)
 
     testImplementation(libs.kotlin.test)

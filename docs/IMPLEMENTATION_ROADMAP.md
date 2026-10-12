@@ -8,7 +8,7 @@ SignalBrief evolved incrementally from a verified Android-only news reader into 
 
 The Kotlin Multiplatform foundation is now established. Android and iOS share the mobile domain/data/presentation path where appropriate, while the Web/Wasm host reuses the portable domain and presentation/UI boundaries behind browser-specific repositories and Cloudflare Pages Functions.
 
-Public product slices through Settings and Offline Management are delivered. The next planned slice is Story Clusters, followed later by the Authentication Boundary and Pro Entitlement Boundary. Commercial backend, billing, cross-device synchronization, analytics, and production release infrastructure remain outside the current public portfolio scope.
+Public product slices through Settings and Offline Management are delivered. The next planned slice is Story Clusters, followed later by the Authentication Boundary and Pro Entitlement Boundary. Commercial backend, billing, cross-device synchronization, analytics, and production release infrastructure remain outside the current public repository scope.
 
 The migration must remain incremental. Every pull request must keep the repository buildable, reviewable, testable, and free of production credentials.
 
@@ -17,8 +17,8 @@ The migration must remain incremental. Every pull request must keep the reposito
 - Desktop -> isolated Koin 4.2.2 with explicit `DesktopComposition` resource ownership: completed in PR #70.
 - iOS -> isolated Koin 4.2.2 with explicit `IosComposition` resource ownership and the existing Swift/Compose boundary: completed in PR #71.
 - Android -> process-level Koin 4.2.2 started by `SignalBriefApplication`: completed in PR #72.
-- Web/Wasm -> evaluated and intentionally retained manual Compose-root constructor composition; it is not a pending migration.
-- Shared business/domain code remains framework-free and uses constructor injection; it has no Koin service locator, annotations, or compiler plugin.
+- Web/Wasm -> Compose-owned Koin 4.2.2 graph with browser repository singletons and shared ViewModels.
+- Shared business/domain code remains framework-free and uses constructor injection; Koin is limited to UI/platform composition.
 
 ## 2. Verified current state
 
@@ -36,8 +36,8 @@ The migration must remain incremental. Every pull request must keep the reposito
   - instrumented tests are not yet executed in CI;
   - `test`, `lintDebug`, and `assembleDebug` pass.
 - `android-baseline-v1` tag preserved before the migration work.
-- Koin 4.2.2 is the current composition technology at Android, iOS, and Desktop boundaries (PRs #70–#72).
-- `commonMain` remains independent of any DI framework.
+- Koin 4.2.2 is the current composition technology at Android, iOS, Desktop, and Web/Wasm boundaries.
+- Shared domain/business code remains independent of DI frameworks; common UI owns the shared Koin ViewModel module.
 - iOS dependencies are assembled through isolated Koin inside an explicit, Swift-facing composition boundary.
 
 ### Completed quality-gates phase
@@ -245,11 +245,11 @@ The current production decision is:
 Android app graph -> process-level Koin 4.2.2 in SignalBriefApplication
 Desktop app graph -> isolated Koin 4.2.2 + DesktopComposition resource ownership
 iOS app graph -> isolated Koin 4.2.2 + IosComposition resource ownership
-Web/Wasm app graph -> manual constructor composition by design
+Web/Wasm app graph -> Compose-owned Koin 4.2.2 application
 shared domain/business code -> constructor injection, no DI framework or service locator
 ```
 
-This supersedes the historical Hilt-versus-Koin comparison. The platforms deliberately do not share an identical container lifecycle: Android is process-global, Desktop and iOS are isolated and explicitly disposed, and Web has no container.
+This supersedes the historical Hilt-versus-Koin comparison. The platforms deliberately do not share an identical container lifecycle: Android is process-global, Desktop and iOS are isolated and explicitly disposed, and Web owns its application at the Compose root.
 
 ### Platform boundaries
 
