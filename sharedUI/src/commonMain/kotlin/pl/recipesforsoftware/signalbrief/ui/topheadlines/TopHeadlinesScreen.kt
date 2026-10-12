@@ -34,8 +34,24 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.FeedSource
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.Res
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_empty_subtitle
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_empty_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_error_invalid_data
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_error_network
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_error_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_error_unknown
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_loading
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_refresh
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_retry
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_search
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_settings
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_subtitle
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_title
 import pl.recipesforsoftware.signalbrief.ui.designsystem.components.Sigby
 import pl.recipesforsoftware.signalbrief.ui.designsystem.components.SigbyVariant
 import pl.recipesforsoftware.signalbrief.ui.designsystem.tokens.SignalBriefSpacing
@@ -130,12 +146,12 @@ private fun TopHeadlinesTopBar(
         title = {
             Column {
                 Text(
-                    text = TopHeadlinesStrings.TOP_BAR_TITLE,
+                    text = stringResource(Res.string.top_headlines_title),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = TopHeadlinesStrings.TOP_BAR_SUBTITLE,
+                    text = stringResource(Res.string.top_headlines_subtitle),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -145,19 +161,19 @@ private fun TopHeadlinesTopBar(
             IconButton(onClick = onSearchClick) {
                 Icon(
                     imageVector = Icons.Filled.Search,
-                    contentDescription = TopHeadlinesStrings.SEARCH,
+                    contentDescription = stringResource(Res.string.top_headlines_search),
                 )
             }
             IconButton(onClick = onRefresh) {
                 Icon(
                     imageVector = Icons.Filled.Refresh,
-                    contentDescription = TopHeadlinesStrings.REFRESH,
+                    contentDescription = stringResource(Res.string.top_headlines_refresh),
                 )
             }
             IconButton(onClick = onSettingsClick) {
                 Icon(
                     imageVector = Icons.Filled.Settings,
-                    contentDescription = TopHeadlinesStrings.SETTINGS,
+                    contentDescription = stringResource(Res.string.top_headlines_settings),
                 )
             }
             topBarActions()
@@ -167,6 +183,7 @@ private fun TopHeadlinesTopBar(
 
 @Composable
 private fun LoadingContent() {
+    val loadingDescription = stringResource(Res.string.top_headlines_loading)
     Column(
         modifier =
             Modifier
@@ -174,7 +191,7 @@ private fun LoadingContent() {
                 .widthIn(max = SignalBriefSpacing.maxContentWidth)
                 .verticalScroll(rememberScrollState())
                 .clearAndSetSemantics {
-                    contentDescription = TopHeadlinesStrings.LOADING
+                    contentDescription = loadingDescription
                 },
         verticalArrangement = Arrangement.spacedBy(SignalBriefSpacing.m),
     ) {
@@ -244,14 +261,14 @@ private fun EmptyContent(onRetry: () -> Unit) {
     ) {
         SigbyStateArtwork()
         Text(
-            text = TopHeadlinesStrings.EMPTY_TITLE,
+            text = stringResource(Res.string.top_headlines_empty_title),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
         )
         Text(
-            text = TopHeadlinesStrings.EMPTY_SUBTITLE,
+            text = stringResource(Res.string.top_headlines_empty_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -263,7 +280,7 @@ private fun EmptyContent(onRetry: () -> Unit) {
                 modifier = Modifier.size(18.dp),
             )
             Spacer(modifier = Modifier.size(8.dp))
-            Text(TopHeadlinesStrings.RETRY)
+            Text(stringResource(Res.string.top_headlines_retry))
         }
     }
 }
@@ -280,14 +297,14 @@ private fun ErrorContent(
     ) {
         SigbyStateArtwork()
         Text(
-            text = TopHeadlinesStrings.ERROR_TITLE,
+            text = stringResource(Res.string.top_headlines_error_title),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
         )
         Text(
-            text = TopHeadlinesStrings.errorBody(error),
+            text = stringResource(error.messageResource()),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -299,10 +316,17 @@ private fun ErrorContent(
                 modifier = Modifier.size(18.dp),
             )
             Spacer(modifier = Modifier.size(8.dp))
-            Text(TopHeadlinesStrings.RETRY)
+            Text(stringResource(Res.string.top_headlines_retry))
         }
     }
 }
+
+private fun TopHeadlinesError.messageResource(): StringResource =
+    when (this) {
+        TopHeadlinesError.Network -> Res.string.top_headlines_error_network
+        TopHeadlinesError.InvalidData -> Res.string.top_headlines_error_invalid_data
+        TopHeadlinesError.Unknown -> Res.string.top_headlines_error_unknown
+    }
 
 /**
  * Decorative Sigby mascot used in the emotional product states (empty and

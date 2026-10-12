@@ -6,14 +6,31 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import kotlinx.coroutines.runBlocking
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getString
 import org.junit.Rule
 import org.junit.Test
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.Source
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.Res
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.search_back
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.search_headlines
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.search_idle_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.search_no_local_articles_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.search_no_results_subtitle
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.search_no_results_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.search_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_bookmark_remove
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_bookmark_save
 import pl.recipesforsoftware.signalbrief.ui.search.SearchScreen
-import pl.recipesforsoftware.signalbrief.ui.search.SearchStrings
 import pl.recipesforsoftware.signalbrief.ui.search.SearchUiState
 import pl.recipesforsoftware.signalbrief.ui.theme.SignalBriefAndroidTheme
+
+private fun resourceString(
+    resource: StringResource,
+    vararg args: Any,
+): String = runBlocking { getString(resource, *args) }
 
 class SearchScreenTest {
     @get:Rule
@@ -64,13 +81,13 @@ class SearchScreenTest {
     @Test
     fun topBar_displaysTitle() {
         setContent()
-        composeTestRule.onNodeWithText(SearchStrings.TOP_BAR_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.search_title)).assertIsDisplayed()
     }
 
     @Test
     fun backButton_isDisplayed() {
         setContent()
-        composeTestRule.onNodeWithContentDescription(SearchStrings.BACK).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.search_back)).assertIsDisplayed()
     }
 
     @Test
@@ -78,7 +95,7 @@ class SearchScreenTest {
         var backClicked = false
         setContent(onBack = { backClicked = true })
 
-        composeTestRule.onNodeWithContentDescription(SearchStrings.BACK).performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.search_back)).performClick()
 
         assert(backClicked) { "onBack should have been called" }
     }
@@ -86,7 +103,7 @@ class SearchScreenTest {
     @Test
     fun searchField_isDisplayed() {
         setContent()
-        composeTestRule.onNodeWithText(SearchStrings.SEARCH_HEADLINES).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.search_headlines)).assertIsDisplayed()
     }
 
     @Test
@@ -94,7 +111,7 @@ class SearchScreenTest {
         var receivedQuery: String? = null
         setContent(onQueryChange = { receivedQuery = it })
 
-        composeTestRule.onNodeWithText(SearchStrings.SEARCH_HEADLINES).performTextInput("kotlin")
+        composeTestRule.onNodeWithText(resourceString(Res.string.search_headlines)).performTextInput("kotlin")
 
         assertEquals("kotlin", receivedQuery)
     }
@@ -102,19 +119,22 @@ class SearchScreenTest {
     @Test
     fun idleState_showsIdleTitle() {
         setContent(uiState = SearchUiState.Idle)
-        composeTestRule.onNodeWithText(SearchStrings.IDLE_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.search_idle_title)).assertIsDisplayed()
     }
 
     @Test
     fun noLocalArticlesState_showsTitle() {
         setContent(uiState = SearchUiState.NoLocalArticles)
-        composeTestRule.onNodeWithText(SearchStrings.NO_LOCAL_ARTICLES_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.search_no_local_articles_title)).assertIsDisplayed()
     }
 
     @Test
     fun noResultsState_showsTitle() {
         setContent(uiState = SearchUiState.NoResults("swift"))
-        composeTestRule.onNodeWithText(SearchStrings.NO_RESULTS_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.search_no_results_title)).assertIsDisplayed()
+        composeTestRule
+            .onNodeWithText(resourceString(Res.string.search_no_results_subtitle, "swift"))
+            .assertIsDisplayed()
     }
 
     @Test
@@ -152,7 +172,7 @@ class SearchScreenTest {
             onBookmarkClick = { bookmarkedArticle = it },
         )
 
-        composeTestRule.onNodeWithContentDescription("Save article").performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_bookmark_save)).performClick()
 
         assert(bookmarkedArticle == fakeArticles[0]) {
             "onBookmarkClick should receive the article"
@@ -168,7 +188,7 @@ class SearchScreenTest {
             onBookmarkClick = {},
         )
 
-        composeTestRule.onNodeWithContentDescription("Save article").performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_bookmark_save)).performClick()
 
         assert(clickedArticle == null) {
             "Bookmark click must not trigger article open"
@@ -187,13 +207,13 @@ class SearchScreenTest {
             onBookmarkClick = {},
         )
 
-        composeTestRule.onNodeWithContentDescription("Remove from saved").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_bookmark_remove)).assertIsDisplayed()
     }
 
     @Test
     fun darkModeFalse_rendersWithoutError() {
         setContent()
-        composeTestRule.onNodeWithText(SearchStrings.TOP_BAR_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.search_title)).assertIsDisplayed()
     }
 
     @Test
@@ -211,7 +231,7 @@ class SearchScreenTest {
                 )
             }
         }
-        composeTestRule.onNodeWithText(SearchStrings.TOP_BAR_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.search_title)).assertIsDisplayed()
     }
 
     private fun assertEquals(

@@ -29,8 +29,16 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.stringResource
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.MonitoredTopic
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.Res
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_matches_back
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_matches_loading
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_matches_no_local_articles_subtitle
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_matches_no_local_articles_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_matches_no_matches_subtitle
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_matches_no_matches_title
 import pl.recipesforsoftware.signalbrief.ui.designsystem.components.Sigby
 import pl.recipesforsoftware.signalbrief.ui.designsystem.components.SigbyVariant
 import pl.recipesforsoftware.signalbrief.ui.designsystem.tokens.SignalBriefSpacing
@@ -68,8 +76,8 @@ fun TopicMatchesScreen(
             is TopicMatchesUiState.NoLocalArticles -> {
                 MessageContent(contentPadding) {
                     Message(
-                        title = TopicMatchesStrings.NO_LOCAL_ARTICLES_TITLE,
-                        subtitle = TopicMatchesStrings.NO_LOCAL_ARTICLES_SUBTITLE,
+                        title = stringResource(Res.string.topic_matches_no_local_articles_title),
+                        subtitle = stringResource(Res.string.topic_matches_no_local_articles_subtitle),
                     )
                 }
             }
@@ -77,8 +85,8 @@ fun TopicMatchesScreen(
             is TopicMatchesUiState.NoMatches -> {
                 MessageContent(contentPadding) {
                     Message(
-                        title = TopicMatchesStrings.NO_MATCHES_TITLE,
-                        subtitle = TopicMatchesStrings.NO_MATCHES_SUBTITLE,
+                        title = stringResource(Res.string.topic_matches_no_matches_title),
+                        subtitle = stringResource(Res.string.topic_matches_no_matches_subtitle),
                     )
                 }
             }
@@ -122,7 +130,7 @@ private fun TopicMatchesTopBar(
             IconButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = TopicMatchesStrings.BACK,
+                    contentDescription = stringResource(Res.string.topic_matches_back),
                 )
             }
         },
@@ -131,13 +139,14 @@ private fun TopicMatchesTopBar(
 
 @Composable
 private fun LoadingContent(contentPadding: PaddingValues) {
+    val loadingDescription = stringResource(Res.string.topic_matches_loading)
     Box(
         modifier =
             Modifier
                 .fillMaxSize()
                 .padding(contentPadding)
                 .clearAndSetSemantics {
-                    contentDescription = "Loading topic matches..."
+                    contentDescription = loadingDescription
                 },
     )
 }

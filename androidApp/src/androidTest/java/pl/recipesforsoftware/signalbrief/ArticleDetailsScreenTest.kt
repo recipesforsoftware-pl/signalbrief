@@ -5,18 +5,28 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import kotlinx.coroutines.runBlocking
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getString
 import org.junit.Rule
 import org.junit.Test
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.Source
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.Res
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.article_collection_assignment_empty_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.article_collection_assignment_error_unknown
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.article_collection_assignment_manage_collections
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.article_details_back
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.article_details_read_full_article
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_bookmark_remove
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_bookmark_save
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleCollectionAssignmentError
-import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleCollectionAssignmentStrings
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleCollectionAssignmentUiState
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsScreen
-import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsStrings
 import pl.recipesforsoftware.signalbrief.ui.articledetails.ArticleDetailsUiState
 import pl.recipesforsoftware.signalbrief.ui.theme.SignalBriefAndroidTheme
-import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesStrings
+
+private fun resourceString(resource: StringResource): String = runBlocking { getString(resource) }
 
 class ArticleDetailsScreenTest {
     @get:Rule
@@ -98,14 +108,14 @@ class ArticleDetailsScreenTest {
     fun unsavedArticle_showsSaveSemantics() {
         setContent(uiState = ArticleDetailsUiState(article, isSaved = false))
 
-        composeTestRule.onNodeWithText(TopHeadlinesStrings.BOOKMARK_SAVE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.top_headlines_bookmark_save)).assertIsDisplayed()
     }
 
     @Test
     fun savedArticle_showsRemoveSemantics() {
         setContent(uiState = ArticleDetailsUiState(article, isSaved = true))
 
-        composeTestRule.onNodeWithText(TopHeadlinesStrings.BOOKMARK_REMOVE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.top_headlines_bookmark_remove)).assertIsDisplayed()
     }
 
     @Test
@@ -113,7 +123,7 @@ class ArticleDetailsScreenTest {
         var bookmarkClicked = false
         setContent(onBookmarkClick = { bookmarkClicked = true })
 
-        composeTestRule.onNodeWithText(TopHeadlinesStrings.BOOKMARK_SAVE).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.top_headlines_bookmark_save)).performClick()
 
         assert(bookmarkClicked) { "onBookmarkClick should have been called" }
     }
@@ -126,7 +136,7 @@ class ArticleDetailsScreenTest {
             onOpenFullArticle = { externalOpened = true },
         )
 
-        composeTestRule.onNodeWithText(TopHeadlinesStrings.BOOKMARK_SAVE).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.top_headlines_bookmark_save)).performClick()
 
         assert(!externalOpened) { "Bookmark click must not open the article externally" }
     }
@@ -136,7 +146,7 @@ class ArticleDetailsScreenTest {
         var externalOpened = false
         setContent(onOpenFullArticle = { externalOpened = true })
 
-        composeTestRule.onNodeWithText(ArticleDetailsStrings.READ_FULL_ARTICLE).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.article_details_read_full_article)).performClick()
 
         assert(externalOpened) { "Read full article should open the article externally" }
     }
@@ -146,7 +156,7 @@ class ArticleDetailsScreenTest {
         var backClicked = false
         setContent(onBack = { backClicked = true })
 
-        composeTestRule.onNodeWithContentDescription(ArticleDetailsStrings.BACK).performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.article_details_back)).performClick()
 
         assert(backClicked) { "onBack should have been called" }
     }
@@ -156,7 +166,7 @@ class ArticleDetailsScreenTest {
         setContent()
 
         composeTestRule.onNodeWithText("Test Article Title").assertIsDisplayed()
-        composeTestRule.onNodeWithText(ArticleDetailsStrings.READ_FULL_ARTICLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.article_details_read_full_article)).assertIsDisplayed()
     }
 
     @Test
@@ -182,8 +192,8 @@ class ArticleDetailsScreenTest {
             }
         }
 
-        composeTestRule.onNodeWithText(ArticleCollectionAssignmentStrings.EMPTY_TITLE).assertIsDisplayed()
-        composeTestRule.onNodeWithText(ArticleCollectionAssignmentStrings.MANAGE_COLLECTIONS).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.article_collection_assignment_empty_title)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.article_collection_assignment_manage_collections)).performClick()
 
         assert(manageCollectionsClicked)
     }
@@ -208,7 +218,7 @@ class ArticleDetailsScreenTest {
         }
 
         composeTestRule
-            .onNodeWithText(ArticleCollectionAssignmentStrings.error(ArticleCollectionAssignmentError.Unknown))
+            .onNodeWithText(resourceString(Res.string.article_collection_assignment_error_unknown))
             .assertIsDisplayed()
     }
 }

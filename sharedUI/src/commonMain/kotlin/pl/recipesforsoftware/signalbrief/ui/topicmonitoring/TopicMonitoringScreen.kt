@@ -43,7 +43,33 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.stringResource
 import pl.recipesforsoftware.signalbrief.domain.model.MonitoredTopic
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.Res
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_back
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_cancel
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_confirm_create
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_create
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_delete
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_delete_message
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_delete_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_empty_description
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_empty_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_error_duplicate_query
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_error_invalid_query
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_error_not_found
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_error_unknown
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_match_summary
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_new_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_no_downloaded_headlines
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_options
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_query_label
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_rename
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_rename_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_save
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_title
 import pl.recipesforsoftware.signalbrief.ui.designsystem.tokens.SignalBriefSpacing
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -64,25 +90,26 @@ fun TopicMonitoringScreen(
     modifier: Modifier = Modifier,
 ) {
     val snackbar = remember { SnackbarHostState() }
+    val errorMessage = uiState.error?.let { stringResource(it.messageResource()) }
     LaunchedEffect(uiState.error, uiState.editor) {
         if (uiState.editor == null) {
-            uiState.error?.let {
-                snackbar.showSnackbar(TopicMonitoringStrings.error(it))
+            errorMessage?.let {
+                snackbar.showSnackbar(it)
                 onDismissError()
             }
         }
     }
     Scaffold(modifier = modifier, topBar = {
         TopAppBar(title = {
-            Text(TopicMonitoringStrings.TITLE, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(Res.string.topic_monitoring_title), fontWeight = FontWeight.SemiBold)
         }, navigationIcon = {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, TopicMonitoringStrings.BACK)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(Res.string.topic_monitoring_back))
             }
         })
     }, floatingActionButton = {
         FloatingActionButton(onClick = onOpenCreateEditor) {
-            Icon(Icons.Filled.Add, TopicMonitoringStrings.CREATE_TOPIC)
+            Icon(Icons.Filled.Add, stringResource(Res.string.topic_monitoring_create))
         }
     }, snackbarHost = { SnackbarHost(snackbar) }) { padding ->
         TopicMonitoringContent(
@@ -123,17 +150,17 @@ fun TopicMonitoringScreen(
     verticalArrangement = Arrangement.spacedBy(SignalBriefSpacing.m, Alignment.CenterVertically),
 ) {
     Text(
-        TopicMonitoringStrings.EMPTY_TITLE,
+        stringResource(Res.string.topic_monitoring_empty_title),
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.SemiBold,
         textAlign = TextAlign.Center,
     )
     Text(
-        TopicMonitoringStrings.EMPTY_DESCRIPTION,
+        stringResource(Res.string.topic_monitoring_empty_description),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
     )
-    TextButton(onClick = create) { Text(TopicMonitoringStrings.CREATE_TOPIC) }
+    TextButton(onClick = create) { Text(stringResource(Res.string.topic_monitoring_create)) }
 }
 
 @Composable private fun TopicMonitoringContent(
@@ -188,8 +215,8 @@ private fun LazyListScope.topicRows(
     var expanded by remember { mutableStateOf(false) }
     val summary =
         when {
-            hasLocalArticles -> TopicMonitoringStrings.matchSummary(matchCount)
-            else -> TopicMonitoringStrings.NO_DOWNLOADED_HEADLINES
+            hasLocalArticles -> pluralStringResource(Res.plurals.topic_monitoring_match_summary, matchCount, matchCount)
+            else -> stringResource(Res.string.topic_monitoring_no_downloaded_headlines)
         }
     Row(
         Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = SignalBriefSpacing.pageHorizontal),
@@ -216,18 +243,21 @@ private fun LazyListScope.topicRows(
         IconButton(onClick = {
             expanded =
                 true
-        }) { Icon(Icons.Filled.MoreVert, TopicMonitoringStrings.OPTIONS) }
+        }) { Icon(Icons.Filled.MoreVert, stringResource(Res.string.topic_monitoring_options)) }
         DropdownMenu(expanded, { expanded = false }) {
-            DropdownMenuItem({ Text(TopicMonitoringStrings.RENAME) }, {
+            DropdownMenuItem({ Text(stringResource(Res.string.topic_monitoring_rename)) }, {
                 expanded =
                     false
                 ; rename(topic)
             })
-            ; DropdownMenuItem({ Text(TopicMonitoringStrings.DELETE, color = MaterialTheme.colorScheme.error) }, {
-                expanded =
-                    false
-                ; delete(topic)
-            })
+            ; DropdownMenuItem(
+                { Text(stringResource(Res.string.topic_monitoring_delete), color = MaterialTheme.colorScheme.error) },
+                {
+                    expanded =
+                        false
+                    ; delete(topic)
+                },
+            )
         }
     }
 }
@@ -241,27 +271,49 @@ private fun LazyListScope.topicRows(
     dismiss: () -> Unit,
 ) {
     val create = editor is TopicEditor.Create
-    AlertDialog(onDismissRequest = {
-        if (!submitting) dismiss()
-    }, title = {
-        Text(if (create) TopicMonitoringStrings.NEW_TOPIC else TopicMonitoringStrings.RENAME_TOPIC)
-    }, text = {
-        Column {
-            OutlinedTextField(editor.query, change, label = {
-                Text(TopicMonitoringStrings.TOPIC_QUERY)
-            }, singleLine = true, enabled = !submitting)
-            error?.let {
-                Text(
-                    TopicMonitoringStrings.error(it),
-                    color = MaterialTheme.colorScheme.error,
+    val title =
+        if (create) {
+            stringResource(Res.string.topic_monitoring_new_title)
+        } else {
+            stringResource(Res.string.topic_monitoring_rename_title)
+        }
+    val confirmLabel =
+        if (create) {
+            stringResource(Res.string.topic_monitoring_confirm_create)
+        } else {
+            stringResource(Res.string.topic_monitoring_save)
+        }
+    AlertDialog(
+        onDismissRequest = {
+            if (!submitting) dismiss()
+        },
+        title = { Text(title) },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = editor.query,
+                    onValueChange = change,
+                    label = { Text(stringResource(Res.string.topic_monitoring_query_label)) },
+                    singleLine = true,
+                    enabled = !submitting,
                 )
+                error?.let {
+                    Text(
+                        stringResource(it.messageResource()),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
-        }
-    }, confirmButton = {
-        TextButton(confirm, enabled = !submitting) {
-            Text(if (create) TopicMonitoringStrings.CREATE else TopicMonitoringStrings.SAVE)
-        }
-    }, dismissButton = { TextButton(dismiss, enabled = !submitting) { Text(TopicMonitoringStrings.CANCEL) } })
+        },
+        confirmButton = {
+            TextButton(confirm, enabled = !submitting) { Text(confirmLabel) }
+        },
+        dismissButton = {
+            TextButton(dismiss, enabled = !submitting) {
+                Text(stringResource(Res.string.topic_monitoring_cancel))
+            }
+        },
+    )
 }
 
 @Composable private fun DeleteTopicDialog(
@@ -272,11 +324,23 @@ private fun LazyListScope.topicRows(
 ) = AlertDialog(onDismissRequest = {
     if (!submitting) dismiss()
 }, title = {
-    Text(TopicMonitoringStrings.DELETE_TITLE)
+    Text(stringResource(Res.string.topic_monitoring_delete_title))
 }, text = {
-    Text("${TopicMonitoringStrings.DELETE_MESSAGE} ${topic.query}.")
+    Text(stringResource(Res.string.topic_monitoring_delete_message, topic.query))
 }, confirmButton = {
     TextButton(confirm, enabled = !submitting) {
-        Text(TopicMonitoringStrings.DELETE, color = MaterialTheme.colorScheme.error)
+        Text(stringResource(Res.string.topic_monitoring_delete), color = MaterialTheme.colorScheme.error)
     }
-}, dismissButton = { TextButton(dismiss, enabled = !submitting) { Text(TopicMonitoringStrings.CANCEL) } })
+}, dismissButton = {
+    TextButton(dismiss, enabled = !submitting) {
+        Text(stringResource(Res.string.topic_monitoring_cancel))
+    }
+})
+
+private fun TopicMonitoringUiError.messageResource(): StringResource =
+    when (this) {
+        TopicMonitoringUiError.InvalidQuery -> Res.string.topic_monitoring_error_invalid_query
+        TopicMonitoringUiError.DuplicateQuery -> Res.string.topic_monitoring_error_duplicate_query
+        TopicMonitoringUiError.NotFound -> Res.string.topic_monitoring_error_not_found
+        TopicMonitoringUiError.Unknown -> Res.string.topic_monitoring_error_unknown
+    }

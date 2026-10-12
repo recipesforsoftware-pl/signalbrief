@@ -36,7 +36,20 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.stringResource
 import pl.recipesforsoftware.signalbrief.domain.model.Article
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.Res
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.search_back
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.search_headlines
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.search_idle_subtitle
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.search_idle_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.search_loading
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.search_monitored_topics
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.search_no_local_articles_subtitle
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.search_no_local_articles_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.search_no_results_subtitle
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.search_no_results_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.search_title
 import pl.recipesforsoftware.signalbrief.ui.designsystem.components.Sigby
 import pl.recipesforsoftware.signalbrief.ui.designsystem.components.SigbyVariant
 import pl.recipesforsoftware.signalbrief.ui.designsystem.tokens.SignalBriefSpacing
@@ -129,7 +142,7 @@ private fun SearchTopBar(
     TopAppBar(
         title = {
             Text(
-                text = SearchStrings.TOP_BAR_TITLE,
+                text = stringResource(Res.string.search_title),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -138,13 +151,13 @@ private fun SearchTopBar(
             IconButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = SearchStrings.BACK,
+                    contentDescription = stringResource(Res.string.search_back),
                 )
             }
         },
         actions = {
             TextButton(onClick = onOpenTopicMonitoring) {
-                Text(SearchStrings.MONITORED_TOPICS)
+                Text(stringResource(Res.string.search_monitored_topics))
             }
         },
     )
@@ -162,7 +175,7 @@ private fun SearchField(
         value = query,
         onValueChange = onQueryChange,
         modifier = modifier.focusRequester(focusRequester),
-        placeholder = { Text(SearchStrings.SEARCH_HEADLINES) },
+        placeholder = { Text(stringResource(Res.string.search_headlines)) },
         leadingIcon = {
             Icon(
                 imageVector = Icons.Default.Search,
@@ -218,12 +231,13 @@ private fun ResultsContent(
 
 @Composable
 private fun LoadingContent() {
+    val loadingDescription = stringResource(Res.string.search_loading)
     Box(
         modifier =
             Modifier
                 .fillMaxSize()
                 .clearAndSetSemantics {
-                    contentDescription = "Loading search..."
+                    contentDescription = loadingDescription
                 },
     )
 }
@@ -231,24 +245,24 @@ private fun LoadingContent() {
 @Composable
 private fun IdleContent() {
     MessageContent(
-        title = SearchStrings.IDLE_TITLE,
-        subtitle = SearchStrings.IDLE_SUBTITLE,
+        title = stringResource(Res.string.search_idle_title),
+        subtitle = stringResource(Res.string.search_idle_subtitle),
     )
 }
 
 @Composable
 private fun NoResultsContent(query: String) {
     MessageContent(
-        title = SearchStrings.NO_RESULTS_TITLE,
-        subtitle = "${SearchStrings.NO_RESULTS_SUBTITLE}\n\"$query\"",
+        title = stringResource(Res.string.search_no_results_title),
+        subtitle = stringResource(Res.string.search_no_results_subtitle, query),
     )
 }
 
 @Composable
 private fun NoLocalArticlesContent() {
     MessageContent(
-        title = SearchStrings.NO_LOCAL_ARTICLES_TITLE,
-        subtitle = SearchStrings.NO_LOCAL_ARTICLES_SUBTITLE,
+        title = stringResource(Res.string.search_no_local_articles_title),
+        subtitle = stringResource(Res.string.search_no_local_articles_subtitle),
     )
 }
 

@@ -1,18 +1,26 @@
 package pl.recipesforsoftware.signalbrief
-
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import kotlinx.coroutines.runBlocking
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getString
 import org.junit.Rule
 import org.junit.Test
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.Source
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.Res
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.saved_empty_subtitle
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.saved_empty_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.saved_remove
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.saved_title
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesScreen
-import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesStrings
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesUiState
 import pl.recipesforsoftware.signalbrief.ui.theme.SignalBriefAndroidTheme
+
+private fun resourceString(resource: StringResource): String = runBlocking { getString(resource) }
 
 class SavedArticlesScreenTest {
     @get:Rule
@@ -56,20 +64,20 @@ class SavedArticlesScreenTest {
     @Test
     fun topBar_displaysTitle() {
         setContent()
-        composeTestRule.onNodeWithText("Saved").assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.saved_title)).assertIsDisplayed()
     }
 
     @Test
     fun emptyState_showsEmptyTitle() {
         setContent(uiState = SavedArticlesUiState.Empty)
-        composeTestRule.onNodeWithText("No saved articles yet").assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.saved_empty_title)).assertIsDisplayed()
     }
 
     @Test
     fun emptyState_showsEmptySubtitle() {
         setContent(uiState = SavedArticlesUiState.Empty)
         composeTestRule
-            .onNodeWithText("Save stories from Top Headlines to keep them here.")
+            .onNodeWithText(resourceString(Res.string.saved_empty_subtitle))
             .assertIsDisplayed()
     }
 
@@ -83,7 +91,7 @@ class SavedArticlesScreenTest {
     @Test
     fun removeAction_showsRemoveSemantics() {
         setContent()
-        composeTestRule.onNodeWithContentDescription("Remove from saved").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.saved_remove)).assertIsDisplayed()
     }
 
     @Test
@@ -91,7 +99,7 @@ class SavedArticlesScreenTest {
         var removedArticle: Article? = null
         setContent(onRemoveClick = { removedArticle = it })
 
-        composeTestRule.onNodeWithContentDescription("Remove from saved").performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.saved_remove)).performClick()
 
         assert(removedArticle == fakeArticles[0]) {
             "onRemoveClick should receive the article"
@@ -105,7 +113,7 @@ class SavedArticlesScreenTest {
             onArticleClick = { clickedArticle = it },
             onRemoveClick = {},
         )
-        composeTestRule.onNodeWithContentDescription("Remove from saved").performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.saved_remove)).performClick()
 
         assert(clickedArticle == null) {
             "Remove click must not trigger article open"
@@ -137,12 +145,12 @@ class SavedArticlesScreenTest {
     @Test
     fun darkModeFalse_rendersWithoutError() {
         setContent(isDarkMode = false)
-        composeTestRule.onNodeWithText("Saved").assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.saved_title)).assertIsDisplayed()
     }
 
     @Test
     fun darkModeTrue_rendersWithoutError() {
         setContent(isDarkMode = true)
-        composeTestRule.onNodeWithText("Saved").assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.saved_title)).assertIsDisplayed()
     }
 }

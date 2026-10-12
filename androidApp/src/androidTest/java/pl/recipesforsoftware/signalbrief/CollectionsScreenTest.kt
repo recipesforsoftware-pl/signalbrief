@@ -5,14 +5,32 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import kotlinx.coroutines.runBlocking
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getString
 import org.junit.Rule
 import org.junit.Test
 import pl.recipesforsoftware.signalbrief.domain.model.Collection
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.Res
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_create
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_delete
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_delete_message
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_delete_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_empty_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_name_label
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_new_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_options
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_rename
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_rename_title
 import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsEditor
 import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsScreen
-import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsStrings
 import pl.recipesforsoftware.signalbrief.ui.collections.CollectionsUiState
 import pl.recipesforsoftware.signalbrief.ui.theme.SignalBriefAndroidTheme
+
+private fun resourceString(
+    resource: StringResource,
+    vararg args: Any,
+): String = runBlocking { getString(resource, *args) }
 
 class CollectionsScreenTest {
     @get:Rule val composeTestRule = createComposeRule()
@@ -47,8 +65,8 @@ class CollectionsScreenTest {
     @Test
     fun emptyState_displaysCreateAffordance() {
         setContent(CollectionsUiState())
-        composeTestRule.onNodeWithText(CollectionsStrings.EMPTY_TITLE).assertIsDisplayed()
-        composeTestRule.onNodeWithText(CollectionsStrings.CREATE_COLLECTION).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.collections_empty_title)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.collections_create)).assertIsDisplayed()
     }
 
     @Test
@@ -79,8 +97,8 @@ class CollectionsScreenTest {
             onRename = { renamed = it == collection },
         )
 
-        composeTestRule.onNodeWithContentDescription(CollectionsStrings.OPTIONS).performClick()
-        composeTestRule.onNodeWithText(CollectionsStrings.RENAME).performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.collections_options)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.collections_rename)).performClick()
 
         check(renamed)
         check(!opened)
@@ -97,8 +115,8 @@ class CollectionsScreenTest {
             onDelete = { deleted = it == collection },
         )
 
-        composeTestRule.onNodeWithContentDescription(CollectionsStrings.OPTIONS).performClick()
-        composeTestRule.onNodeWithText(CollectionsStrings.DELETE).performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.collections_options)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.collections_delete)).performClick()
 
         check(deleted)
         check(!opened)
@@ -108,28 +126,32 @@ class CollectionsScreenTest {
     fun createAffordance_invokesCallback() {
         var opened = false
         setContent(CollectionsUiState()) { opened = true }
-        composeTestRule.onNodeWithText(CollectionsStrings.CREATE_COLLECTION).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.collections_create)).performClick()
         check(opened)
     }
 
     @Test
     fun createEditor_isDisplayed() {
         setContent(CollectionsUiState(editor = CollectionsEditor.Create()))
-        composeTestRule.onNodeWithText(CollectionsStrings.NEW_COLLECTION).assertIsDisplayed()
-        composeTestRule.onNodeWithText(CollectionsStrings.COLLECTION_NAME).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.collections_new_title)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.collections_name_label)).assertIsDisplayed()
     }
 
     @Test
     fun renameEditor_displaysPrefilledCollectionName() {
         setContent(CollectionsUiState(editor = CollectionsEditor.Rename(Collection("1", "Reading"))))
-        composeTestRule.onNodeWithText(CollectionsStrings.RENAME_COLLECTION).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.collections_rename_title)).assertIsDisplayed()
         composeTestRule.onNodeWithText("Reading").assertIsDisplayed()
     }
 
     @Test
     fun deleteConfirmation_isDisplayed() {
-        setContent(CollectionsUiState(collectionPendingDeletion = Collection("1", "Read later")))
-        composeTestRule.onNodeWithText(CollectionsStrings.DELETE_TITLE).assertIsDisplayed()
-        composeTestRule.onNodeWithText(CollectionsStrings.DELETE).assertIsDisplayed()
+        val collection = Collection("1", "Read later")
+        setContent(CollectionsUiState(collectionPendingDeletion = collection))
+        composeTestRule.onNodeWithText(resourceString(Res.string.collections_delete_title)).assertIsDisplayed()
+        composeTestRule
+            .onNodeWithText(resourceString(Res.string.collections_delete_message, collection.name))
+            .assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.collections_delete)).assertIsDisplayed()
     }
 }

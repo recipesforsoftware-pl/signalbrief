@@ -7,13 +7,36 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import kotlinx.coroutines.runBlocking
+import org.jetbrains.compose.resources.PluralStringResource
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getPluralString
+import org.jetbrains.compose.resources.getString
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.Res
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.settings_back
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.settings_cancel
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.settings_clear
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.settings_clear_confirmation_message
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.settings_clear_confirmation_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.settings_clear_downloaded_headlines
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.settings_downloaded_headlines
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.settings_downloaded_headlines_count
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.settings_no_downloaded_headlines
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.settings_offline_section
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.settings_title
 import pl.recipesforsoftware.signalbrief.ui.settings.SettingsScreen
-import pl.recipesforsoftware.signalbrief.ui.settings.SettingsStrings
 import pl.recipesforsoftware.signalbrief.ui.settings.SettingsUiState
 import pl.recipesforsoftware.signalbrief.ui.theme.SignalBriefAndroidTheme
+
+private fun resourceString(resource: StringResource): String = runBlocking { getString(resource) }
+
+private fun pluralString(
+    resource: PluralStringResource,
+    quantity: Int,
+): String = runBlocking { getPluralString(resource, quantity, quantity) }
 
 class SettingsScreenTest {
     @get:Rule
@@ -38,13 +61,13 @@ class SettingsScreenTest {
     @Test
     fun topBar_displaysSettingsTitle() {
         setContent()
-        composeTestRule.onNodeWithText(SettingsStrings.TOP_BAR_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.settings_title)).assertIsDisplayed()
     }
 
     @Test
     fun backButton_isDisplayed() {
         setContent()
-        composeTestRule.onNodeWithContentDescription(SettingsStrings.BACK).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.settings_back)).assertIsDisplayed()
     }
 
     @Test
@@ -52,7 +75,7 @@ class SettingsScreenTest {
         var backClicked = false
         setContent(onBack = { backClicked = true })
 
-        composeTestRule.onNodeWithContentDescription(SettingsStrings.BACK).performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.settings_back)).performClick()
 
         assertTrue("onBack should have been called", backClicked)
     }
@@ -60,52 +83,56 @@ class SettingsScreenTest {
     @Test
     fun offlineSection_isDisplayed() {
         setContent()
-        composeTestRule.onNodeWithText(SettingsStrings.OFFLINE_SECTION).assertIsDisplayed()
-        composeTestRule.onNodeWithText(SettingsStrings.DOWNLOADED_HEADLINES).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.settings_offline_section)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.settings_downloaded_headlines)).assertIsDisplayed()
     }
 
     @Test
     fun positiveCount_showsHeadlinesAvailableOffline() {
         setContent(uiState = SettingsUiState(downloadedHeadlineCount = 37))
-        composeTestRule.onNodeWithText("37 headlines available offline").assertIsDisplayed()
+        composeTestRule
+            .onNodeWithText(pluralString(Res.plurals.settings_downloaded_headlines_count, 37))
+            .assertIsDisplayed()
     }
 
     @Test
     fun singleCount_usesSingularCopy() {
         setContent(uiState = SettingsUiState(downloadedHeadlineCount = 1))
-        composeTestRule.onNodeWithText("1 headline available offline").assertIsDisplayed()
+        composeTestRule
+            .onNodeWithText(pluralString(Res.plurals.settings_downloaded_headlines_count, 1))
+            .assertIsDisplayed()
     }
 
     @Test
     fun emptyCache_showsNoDownloadedHeadlines() {
         setContent(uiState = SettingsUiState(downloadedHeadlineCount = 0))
-        composeTestRule.onNodeWithText(SettingsStrings.NO_DOWNLOADED_HEADLINES).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.settings_no_downloaded_headlines)).assertIsDisplayed()
     }
 
     @Test
     fun clearAction_isDisplayedInOfflineSection() {
         setContent(uiState = SettingsUiState(downloadedHeadlineCount = 1))
-        composeTestRule.onNodeWithText(SettingsStrings.CLEAR_DOWNLOADED_HEADLINES).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.settings_clear_downloaded_headlines)).assertIsDisplayed()
     }
 
     @Test
     fun clearAction_disabledForZeroCount() {
         setContent(uiState = SettingsUiState(downloadedHeadlineCount = 0))
-        composeTestRule.onNodeWithText(SettingsStrings.CLEAR_DOWNLOADED_HEADLINES).assertIsNotEnabled()
+        composeTestRule.onNodeWithText(resourceString(Res.string.settings_clear_downloaded_headlines)).assertIsNotEnabled()
     }
 
     @Test
     fun clearAction_enabledForPositiveCount() {
         setContent(uiState = SettingsUiState(downloadedHeadlineCount = 1))
-        composeTestRule.onNodeWithText(SettingsStrings.CLEAR_DOWNLOADED_HEADLINES).assertIsEnabled()
+        composeTestRule.onNodeWithText(resourceString(Res.string.settings_clear_downloaded_headlines)).assertIsEnabled()
     }
 
     @Test
     fun clearActionClick_opensConfirmationDialog() {
         setContent(uiState = SettingsUiState(downloadedHeadlineCount = 1))
-        composeTestRule.onNodeWithText(SettingsStrings.CLEAR_DOWNLOADED_HEADLINES).performClick()
-        composeTestRule.onNodeWithText(SettingsStrings.CLEAR_CONFIRMATION_TITLE).assertIsDisplayed()
-        composeTestRule.onNodeWithText(SettingsStrings.CLEAR_CONFIRMATION_MESSAGE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.settings_clear_downloaded_headlines)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.settings_clear_confirmation_title)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.settings_clear_confirmation_message)).assertIsDisplayed()
     }
 
     @Test
@@ -116,8 +143,8 @@ class SettingsScreenTest {
             onClearDownloadedHeadlines = { clearClicked = true },
         )
 
-        composeTestRule.onNodeWithText(SettingsStrings.CLEAR_DOWNLOADED_HEADLINES).performClick()
-        composeTestRule.onNodeWithText(SettingsStrings.CANCEL).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.settings_clear_downloaded_headlines)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.settings_cancel)).performClick()
 
         assertTrue("clear callback should not fire on cancel", !clearClicked)
     }
@@ -130,8 +157,8 @@ class SettingsScreenTest {
             onClearDownloadedHeadlines = { clearClicked = true },
         )
 
-        composeTestRule.onNodeWithText(SettingsStrings.CLEAR_DOWNLOADED_HEADLINES).performClick()
-        composeTestRule.onNodeWithText(SettingsStrings.CLEAR).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.settings_clear_downloaded_headlines)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.settings_clear)).performClick()
 
         assertTrue("clear callback should fire on confirm", clearClicked)
     }

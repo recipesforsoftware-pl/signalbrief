@@ -24,9 +24,13 @@ import androidx.compose.ui.semantics.text
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.stringResource
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.Res
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_cache_notice_accessibility
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_cache_notice_body
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_cache_notice_title
 import pl.recipesforsoftware.signalbrief.ui.designsystem.tokens.SignalBriefShapes
 import pl.recipesforsoftware.signalbrief.ui.designsystem.tokens.SignalBriefSpacing
-import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesStrings
 
 /**
  * Compact notice shown above the feed when articles were served from the
@@ -38,6 +42,9 @@ import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesStrings
  */
 @Composable
 fun CacheNoticeBanner(modifier: Modifier = Modifier) {
+    val title = stringResource(Res.string.top_headlines_cache_notice_title)
+    val body = stringResource(Res.string.top_headlines_cache_notice_body)
+    val accessibilityText = stringResource(Res.string.top_headlines_cache_notice_accessibility)
     Row(
         modifier =
             modifier
@@ -49,9 +56,7 @@ fun CacheNoticeBanner(modifier: Modifier = Modifier) {
                 .clearAndSetSemantics {
                     liveRegion = LiveRegionMode.Polite
                     text =
-                        AnnotatedString(
-                            "${TopHeadlinesStrings.CACHE_NOTICE_TITLE}. ${TopHeadlinesStrings.CACHE_NOTICE_BODY}",
-                        )
+                        AnnotatedString(accessibilityText)
                 },
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -64,13 +69,13 @@ fun CacheNoticeBanner(modifier: Modifier = Modifier) {
         )
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                text = TopHeadlinesStrings.CACHE_NOTICE_TITLE,
+                text = title,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSecondaryContainer,
             )
             Text(
-                text = TopHeadlinesStrings.CACHE_NOTICE_BODY,
+                text = body,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSecondaryContainer,
             )

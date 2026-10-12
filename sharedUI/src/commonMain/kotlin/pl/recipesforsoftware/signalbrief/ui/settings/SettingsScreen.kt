@@ -27,6 +27,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.stringResource
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.Res
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.settings_back
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.settings_cancel
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.settings_clear
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.settings_clear_confirmation_message
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.settings_clear_confirmation_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.settings_clear_downloaded_headlines
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.settings_downloaded_headlines
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.settings_downloaded_headlines_count
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.settings_no_downloaded_headlines
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.settings_offline_section
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.settings_title
 import pl.recipesforsoftware.signalbrief.ui.designsystem.tokens.SignalBriefSpacing
 
 /**
@@ -54,7 +68,7 @@ fun SettingsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = SettingsStrings.TOP_BAR_TITLE,
+                        text = stringResource(Res.string.settings_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -63,7 +77,7 @@ fun SettingsScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = SettingsStrings.BACK,
+                            contentDescription = stringResource(Res.string.settings_back),
                         )
                     }
                 },
@@ -127,7 +141,7 @@ private fun SettingsContent(
 @Composable
 private fun OfflineSectionTitle(modifier: Modifier = Modifier) {
     Text(
-        text = SettingsStrings.OFFLINE_SECTION,
+        text = stringResource(Res.string.settings_offline_section),
         style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.SemiBold,
         color = MaterialTheme.colorScheme.primary,
@@ -160,7 +174,7 @@ private fun ClearDownloadedHeadlinesButton(
                 .padding(horizontal = SignalBriefSpacing.pageHorizontal),
     ) {
         Text(
-            text = SettingsStrings.CLEAR_DOWNLOADED_HEADLINES,
+            text = stringResource(Res.string.settings_clear_downloaded_headlines),
         )
     }
 }
@@ -172,19 +186,19 @@ private fun ClearDownloadedHeadlinesConfirmationDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(SettingsStrings.CLEAR_CONFIRMATION_TITLE) },
-        text = { Text(SettingsStrings.CLEAR_CONFIRMATION_MESSAGE) },
+        title = { Text(stringResource(Res.string.settings_clear_confirmation_title)) },
+        text = { Text(stringResource(Res.string.settings_clear_confirmation_message)) },
         confirmButton = {
             TextButton(onClick = onConfirm) {
                 Text(
-                    text = SettingsStrings.CLEAR,
+                    text = stringResource(Res.string.settings_clear),
                     color = MaterialTheme.colorScheme.error,
                 )
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(SettingsStrings.CANCEL)
+                Text(stringResource(Res.string.settings_cancel))
             }
         },
     )
@@ -197,7 +211,7 @@ private fun SettingsOfflineRow(
 ) {
     Column(modifier = modifier) {
         Text(
-            text = SettingsStrings.DOWNLOADED_HEADLINES,
+            text = stringResource(Res.string.settings_downloaded_headlines),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurface,
         )
@@ -209,9 +223,10 @@ private fun SettingsOfflineRow(
     }
 }
 
+@Composable
 private fun offlineCountCopy(count: Int): String =
     if (count == 0) {
-        SettingsStrings.NO_DOWNLOADED_HEADLINES
+        stringResource(Res.string.settings_no_downloaded_headlines)
     } else {
-        SettingsStrings.downloadedHeadlinesCount(count)
+        pluralStringResource(Res.plurals.settings_downloaded_headlines_count, count, count)
     }

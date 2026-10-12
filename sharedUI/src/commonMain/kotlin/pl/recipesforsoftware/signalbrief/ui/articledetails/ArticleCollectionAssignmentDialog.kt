@@ -25,7 +25,19 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
 import pl.recipesforsoftware.signalbrief.domain.model.Collection
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.Res
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.article_collection_assignment_close
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.article_collection_assignment_empty_description
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.article_collection_assignment_empty_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.article_collection_assignment_error_not_found
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.article_collection_assignment_error_unknown
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.article_collection_assignment_manage_collections
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.article_collection_assignment_not_selected
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.article_collection_assignment_selected
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.article_collection_assignment_title
 import pl.recipesforsoftware.signalbrief.ui.designsystem.tokens.SignalBriefSpacing
 
 /** Stateless shared dialog for selecting the collections that contain an article. */
@@ -38,7 +50,7 @@ fun ArticleCollectionAssignmentDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(ArticleCollectionAssignmentStrings.TITLE) },
+        title = { Text(stringResource(Res.string.article_collection_assignment_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(SignalBriefSpacing.s)) {
                 when {
@@ -48,17 +60,23 @@ fun ArticleCollectionAssignmentDialog(
                 }
                 uiState.error?.let { error ->
                     Text(
-                        text = ArticleCollectionAssignmentStrings.error(error),
+                        text = stringResource(error.messageResource()),
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text(ArticleCollectionAssignmentStrings.CLOSE) }
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.article_collection_assignment_close)) }
         },
     )
 }
+
+private fun ArticleCollectionAssignmentError.messageResource(): StringResource =
+    when (this) {
+        ArticleCollectionAssignmentError.NotFound -> Res.string.article_collection_assignment_error_not_found
+        ArticleCollectionAssignmentError.Unknown -> Res.string.article_collection_assignment_error_unknown
+    }
 
 @Composable
 private fun LoadingContent() {
@@ -78,16 +96,16 @@ private fun EmptyContent(onManageCollections: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(SignalBriefSpacing.s),
     ) {
         Text(
-            ArticleCollectionAssignmentStrings.EMPTY_TITLE,
+            stringResource(Res.string.article_collection_assignment_empty_title),
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center,
         )
         Text(
-            ArticleCollectionAssignmentStrings.EMPTY_DESCRIPTION,
+            stringResource(Res.string.article_collection_assignment_empty_description),
             textAlign = TextAlign.Center,
         )
         TextButton(onClick = onManageCollections) {
-            Text(ArticleCollectionAssignmentStrings.MANAGE_COLLECTIONS)
+            Text(stringResource(Res.string.article_collection_assignment_manage_collections))
         }
     }
 }
@@ -101,6 +119,14 @@ private fun CollectionList(
         items(uiState.collections, key = Collection::id) { collection ->
             val checked = collection.id in uiState.selectedCollectionIds
             val isMutating = collection.id in uiState.mutatingCollectionIds
+            val selectionStateDescription =
+                stringResource(
+                    if (checked) {
+                        Res.string.article_collection_assignment_selected
+                    } else {
+                        Res.string.article_collection_assignment_not_selected
+                    },
+                )
             ListItem(
                 headlineContent = { Text(collection.name) },
                 trailingContent = {
@@ -109,7 +135,7 @@ private fun CollectionList(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .semantics { stateDescription = if (checked) "Selected" else "Not selected" }
+                        .semantics { stateDescription = selectionStateDescription }
                         .toggleable(
                             value = checked,
                             enabled = !isMutating,

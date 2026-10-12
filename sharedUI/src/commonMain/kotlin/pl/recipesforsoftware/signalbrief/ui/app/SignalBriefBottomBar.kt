@@ -10,6 +10,12 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.resources.stringResource
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.Res
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.bottom_nav_brief
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.bottom_nav_daily_brief
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.bottom_nav_headlines
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.bottom_nav_saved
 import pl.recipesforsoftware.signalbrief.ui.navigation.SignalBriefRoute
 
 @Composable
@@ -28,7 +34,7 @@ internal fun SignalBriefBottomBar(
                     contentDescription = null,
                 )
             },
-            label = { Text("Headlines") },
+            label = { Text(stringResource(Res.string.bottom_nav_headlines)) },
             colors = bottomBarColors(),
         )
         NavigationBarItem(
@@ -37,10 +43,10 @@ internal fun SignalBriefBottomBar(
             icon = {
                 Icon(
                     imageVector = NavigationIcons.Brief,
-                    contentDescription = "Daily Brief",
+                    contentDescription = stringResource(Res.string.bottom_nav_daily_brief),
                 )
             },
-            label = { Text("Brief") },
+            label = { Text(stringResource(Res.string.bottom_nav_brief)) },
             colors = bottomBarColors(),
         )
         SavedNavigationBarItem(currentDestination, onNavigate, savedArticleCount)
@@ -72,7 +78,7 @@ private fun RowScope.SavedNavigationBarItem(
                 )
             }
         },
-        label = { Text("Saved") },
+        label = { Text(stringResource(Res.string.bottom_nav_saved)) },
         colors = bottomBarColors(),
     )
 }

@@ -5,15 +5,25 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import kotlinx.coroutines.runBlocking
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getString
 import org.junit.Rule
 import org.junit.Test
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.MonitoredTopic
 import pl.recipesforsoftware.signalbrief.domain.model.Source
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.Res
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_bookmark_save
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_matches_no_local_articles_subtitle
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_matches_no_local_articles_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_matches_no_matches_subtitle
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_matches_no_matches_title
 import pl.recipesforsoftware.signalbrief.ui.theme.SignalBriefAndroidTheme
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMatchesScreen
-import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMatchesStrings
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMatchesUiState
+
+private fun resourceString(resource: StringResource): String = runBlocking { getString(resource) }
 
 class TopicMatchesScreenTest {
     @get:Rule
@@ -43,8 +53,8 @@ class TopicMatchesScreenTest {
         }
 
         rule.onNodeWithText("Kotlin").assertIsDisplayed()
-        rule.onNodeWithText(TopicMatchesStrings.NO_LOCAL_ARTICLES_TITLE).assertIsDisplayed()
-        rule.onNodeWithText(TopicMatchesStrings.NO_LOCAL_ARTICLES_SUBTITLE).assertIsDisplayed()
+        rule.onNodeWithText(resourceString(Res.string.topic_matches_no_local_articles_title)).assertIsDisplayed()
+        rule.onNodeWithText(resourceString(Res.string.topic_matches_no_local_articles_subtitle)).assertIsDisplayed()
     }
 
     @Test
@@ -61,8 +71,8 @@ class TopicMatchesScreenTest {
         }
 
         rule.onNodeWithText("Kotlin").assertIsDisplayed()
-        rule.onNodeWithText(TopicMatchesStrings.NO_MATCHES_TITLE).assertIsDisplayed()
-        rule.onNodeWithText(TopicMatchesStrings.NO_MATCHES_SUBTITLE).assertIsDisplayed()
+        rule.onNodeWithText(resourceString(Res.string.topic_matches_no_matches_title)).assertIsDisplayed()
+        rule.onNodeWithText(resourceString(Res.string.topic_matches_no_matches_subtitle)).assertIsDisplayed()
     }
 
     @Test
@@ -145,7 +155,7 @@ class TopicMatchesScreenTest {
             }
         }
 
-        rule.onNodeWithContentDescription("Save article").performClick()
+        rule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_bookmark_save)).performClick()
         check(bookmarked == article)
     }
 }

@@ -44,7 +44,29 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
 import pl.recipesforsoftware.signalbrief.domain.model.Collection
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.Res
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_back
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_cancel
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_confirm_create
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_create
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_delete
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_delete_message
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_delete_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_empty_description
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_empty_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_error_invalid_name
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_error_not_found
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_error_unknown
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_name_label
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_new_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_options
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_rename
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_rename_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_save
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collections_title
 import pl.recipesforsoftware.signalbrief.ui.designsystem.components.Sigby
 import pl.recipesforsoftware.signalbrief.ui.designsystem.components.SigbyVariant
 import pl.recipesforsoftware.signalbrief.ui.designsystem.tokens.SignalBriefSpacing
@@ -70,9 +92,10 @@ fun CollectionsScreen(
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+    val errorMessage = uiState.error?.let { stringResource(it.messageResource()) }
     LaunchedEffect(uiState.error) {
-        uiState.error?.let {
-            snackbarHostState.showSnackbar(CollectionsStrings.error(it))
+        errorMessage?.let {
+            snackbarHostState.showSnackbar(it)
             onDismissError()
         }
     }
@@ -80,17 +103,20 @@ fun CollectionsScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(CollectionsStrings.TITLE, fontWeight = FontWeight.SemiBold) },
+                title = { Text(stringResource(Res.string.collections_title), fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = CollectionsStrings.BACK)
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(Res.string.collections_back),
+                        )
                     }
                 },
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = onOpenCreateEditor) {
-                Icon(Icons.Filled.Add, contentDescription = CollectionsStrings.CREATE_COLLECTION)
+                Icon(Icons.Filled.Add, contentDescription = stringResource(Res.string.collections_create))
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -162,18 +188,18 @@ private fun CollectionRow(
     ) {
         Text(collection.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
         IconButton(onClick = { menuExpanded = true }) {
-            Icon(Icons.Filled.MoreVert, contentDescription = CollectionsStrings.OPTIONS)
+            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(Res.string.collections_options))
         }
         DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
             DropdownMenuItem(
-                text = { Text(CollectionsStrings.RENAME) },
+                text = { Text(stringResource(Res.string.collections_rename)) },
                 onClick = {
                     menuExpanded = false
                     onRename()
                 },
             )
             DropdownMenuItem(
-                text = { Text(CollectionsStrings.DELETE, color = MaterialTheme.colorScheme.error) },
+                text = { Text(stringResource(Res.string.collections_delete), color = MaterialTheme.colorScheme.error) },
                 onClick = {
                     menuExpanded = false
                     onDelete()
@@ -192,17 +218,17 @@ private fun EmptyContent(onCreate: () -> Unit) {
     ) {
         Sigby(SigbyVariant.Compact, Modifier.size(SigbyStateSize), null)
         Text(
-            CollectionsStrings.EMPTY_TITLE,
+            stringResource(Res.string.collections_empty_title),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center,
         )
         Text(
-            CollectionsStrings.EMPTY_DESCRIPTION,
+            stringResource(Res.string.collections_empty_description),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
-        TextButton(onClick = onCreate) { Text(CollectionsStrings.CREATE_COLLECTION) }
+        TextButton(onClick = onCreate) { Text(stringResource(Res.string.collections_create)) }
     }
 }
 
@@ -215,25 +241,39 @@ private fun CollectionEditorDialog(
     onDismiss: () -> Unit,
 ) {
     val isCreate = editor is CollectionsEditor.Create
+    val title =
+        if (isCreate) {
+            stringResource(Res.string.collections_new_title)
+        } else {
+            stringResource(Res.string.collections_rename_title)
+        }
     AlertDialog(
         onDismissRequest = { if (!isSubmitting) onDismiss() },
-        title = { Text(if (isCreate) CollectionsStrings.NEW_COLLECTION else CollectionsStrings.RENAME_COLLECTION) },
+        title = { Text(title) },
         text = {
             OutlinedTextField(
                 value = editor.name,
                 onValueChange = onNameChange,
-                label = { Text(CollectionsStrings.COLLECTION_NAME) },
+                label = { Text(stringResource(Res.string.collections_name_label)) },
                 singleLine = true,
                 enabled = !isSubmitting,
             )
         },
         confirmButton = {
             TextButton(onClick = onConfirm, enabled = !isSubmitting) {
-                Text(if (isCreate) CollectionsStrings.CREATE else CollectionsStrings.SAVE)
+                Text(
+                    if (isCreate) {
+                        stringResource(Res.string.collections_confirm_create)
+                    } else {
+                        stringResource(Res.string.collections_save)
+                    },
+                )
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !isSubmitting) { Text(CollectionsStrings.CANCEL) }
+            TextButton(onClick = onDismiss, enabled = !isSubmitting) {
+                Text(stringResource(Res.string.collections_cancel))
+            }
         },
     )
 }
@@ -247,15 +287,24 @@ private fun DeleteConfirmationDialog(
 ) {
     AlertDialog(
         onDismissRequest = { if (!isSubmitting) onDismiss() },
-        title = { Text(CollectionsStrings.DELETE_TITLE) },
-        text = { Text("${CollectionsStrings.DELETE_MESSAGE} ${collection.name}") },
+        title = { Text(stringResource(Res.string.collections_delete_title)) },
+        text = { Text(stringResource(Res.string.collections_delete_message, collection.name)) },
         confirmButton = {
             TextButton(onClick = onConfirm, enabled = !isSubmitting) {
-                Text(CollectionsStrings.DELETE, color = MaterialTheme.colorScheme.error)
+                Text(stringResource(Res.string.collections_delete), color = MaterialTheme.colorScheme.error)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !isSubmitting) { Text(CollectionsStrings.CANCEL) }
+            TextButton(onClick = onDismiss, enabled = !isSubmitting) {
+                Text(stringResource(Res.string.collections_cancel))
+            }
         },
     )
 }
+
+private fun CollectionsError.messageResource(): StringResource =
+    when (this) {
+        CollectionsError.InvalidName -> Res.string.collections_error_invalid_name
+        CollectionsError.NotFound -> Res.string.collections_error_not_found
+        CollectionsError.Unknown -> Res.string.collections_error_unknown
+    }

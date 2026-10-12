@@ -22,7 +22,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.stringResource
 import pl.recipesforsoftware.signalbrief.domain.model.Article
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.Res
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.daily_brief_empty_subtitle
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.daily_brief_empty_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.daily_brief_intro
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.daily_brief_title
 import pl.recipesforsoftware.signalbrief.ui.designsystem.components.Sigby
 import pl.recipesforsoftware.signalbrief.ui.designsystem.components.SigbyVariant
 import pl.recipesforsoftware.signalbrief.ui.designsystem.tokens.SignalBriefSpacing
@@ -41,7 +47,7 @@ fun DailyBriefScreen(
         TopAppBar(
             title = {
                 Text(
-                    text = DailyBriefStrings.TOP_BAR_TITLE,
+                    text = stringResource(Res.string.daily_brief_title),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -70,7 +76,7 @@ fun DailyBriefScreen(
     ) {
         item {
             Text(
-                DailyBriefStrings.INTRO,
+                stringResource(Res.string.daily_brief_intro),
                 modifier =
                     Modifier.padding(
                         horizontal = SignalBriefSpacing.pageHorizontal,
@@ -105,13 +111,13 @@ fun DailyBriefScreen(
             contentDescription = null,
         )
         Text(
-            DailyBriefStrings.EMPTY_TITLE,
+            stringResource(Res.string.daily_brief_empty_title),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center,
         )
         Text(
-            DailyBriefStrings.EMPTY_SUBTITLE,
+            stringResource(Res.string.daily_brief_empty_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,

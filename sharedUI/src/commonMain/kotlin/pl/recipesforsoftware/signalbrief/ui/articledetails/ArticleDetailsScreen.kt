@@ -28,10 +28,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.stringResource
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.Res
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.article_collection_assignment_add_to_collections
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.article_details_back
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.article_details_read_full_article
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_bookmark_remove
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_bookmark_save
 import pl.recipesforsoftware.signalbrief.ui.designsystem.components.SignalBriefPrimaryButton
 import pl.recipesforsoftware.signalbrief.ui.designsystem.tokens.SignalBriefShapes
 import pl.recipesforsoftware.signalbrief.ui.designsystem.tokens.SignalBriefSpacing
-import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesStrings
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.components.ArticleHeader
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.components.BookmarkIcons
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.components.SignalBriefArticleThumbnail
@@ -75,7 +81,7 @@ fun ArticleDetailsScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = ArticleDetailsStrings.BACK,
+                            contentDescription = stringResource(Res.string.article_details_back),
                         )
                     }
                 },
@@ -181,14 +187,14 @@ private fun CollectionAssignmentAction(onClick: () -> Unit) {
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
     ) {
-        Text(ArticleCollectionAssignmentStrings.ADD_TO_COLLECTIONS)
+        Text(stringResource(Res.string.article_collection_assignment_add_to_collections))
     }
 }
 
 @Composable
 private fun ReadFullArticleAction(onClick: () -> Unit) {
     SignalBriefPrimaryButton(
-        text = ArticleDetailsStrings.READ_FULL_ARTICLE,
+        text = stringResource(Res.string.article_details_read_full_article),
         onClick = onClick,
     )
 }
@@ -219,9 +225,9 @@ private fun BookmarkAction(
         Text(
             text =
                 if (isSaved) {
-                    TopHeadlinesStrings.BOOKMARK_REMOVE
+                    stringResource(Res.string.top_headlines_bookmark_remove)
                 } else {
-                    TopHeadlinesStrings.BOOKMARK_SAVE
+                    stringResource(Res.string.top_headlines_bookmark_save)
                 },
         )
     }

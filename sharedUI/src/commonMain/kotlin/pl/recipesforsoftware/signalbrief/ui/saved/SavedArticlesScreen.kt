@@ -26,7 +26,14 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.stringResource
 import pl.recipesforsoftware.signalbrief.domain.model.Article
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.Res
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.saved_empty_subtitle
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.saved_empty_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.saved_loading
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.saved_open_collections
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.saved_title
 import pl.recipesforsoftware.signalbrief.ui.designsystem.components.Sigby
 import pl.recipesforsoftware.signalbrief.ui.designsystem.components.SigbyVariant
 import pl.recipesforsoftware.signalbrief.ui.designsystem.tokens.SignalBriefSpacing
@@ -62,13 +69,13 @@ fun SavedArticlesScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = SavedArticlesStrings.TOP_BAR_TITLE,
+                        text = stringResource(Res.string.saved_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold,
                     )
                 },
                 actions = {
-                    TextButton(onClick = onCollectionsClick) { Text(SavedArticlesStrings.OPEN_COLLECTIONS) }
+                    TextButton(onClick = onCollectionsClick) { Text(stringResource(Res.string.saved_open_collections)) }
                 },
             )
         },
@@ -101,12 +108,13 @@ fun SavedArticlesScreen(
 
 @Composable
 private fun LoadingContent() {
+    val loadingDescription = stringResource(Res.string.saved_loading)
     Box(
         modifier =
             Modifier
                 .fillMaxSize()
                 .clearAndSetSemantics {
-                    contentDescription = "Loading saved articles..."
+                    contentDescription = loadingDescription
                 },
     )
 }
@@ -160,14 +168,14 @@ private fun EmptyContent() {
             modifier = Modifier.size(SigbyStateSize),
         )
         Text(
-            text = SavedArticlesStrings.EMPTY_TITLE,
+            text = stringResource(Res.string.saved_empty_title),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
         )
         Text(
-            text = SavedArticlesStrings.EMPTY_SUBTITLE,
+            text = stringResource(Res.string.saved_empty_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
