@@ -10,6 +10,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import org.jetbrains.compose.resources.stringResource
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.Res
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.onboarding_back
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.onboarding_continue
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.onboarding_page_1_body
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.onboarding_page_1_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.onboarding_page_2_body
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.onboarding_page_2_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.onboarding_skip
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.onboarding_start_reading
 import pl.recipesforsoftware.signalbrief.ui.designsystem.components.SigbyVariant
 
 /**
@@ -56,11 +66,11 @@ fun OnboardingScreen(
                     OnboardingPage(
                         pageIndex = 0,
                         sigbyVariant = SigbyVariant.Full,
-                        title = OnboardingStrings.PAGE_1_TITLE,
-                        body = OnboardingStrings.PAGE_1_BODY,
-                        primaryActionLabel = OnboardingStrings.CONTINUE,
+                        title = stringResource(Res.string.onboarding_page_1_title),
+                        body = stringResource(Res.string.onboarding_page_1_body),
+                        primaryActionLabel = stringResource(Res.string.onboarding_continue),
                         onPrimaryAction = onContinue,
-                        secondaryActionLabel = OnboardingStrings.SKIP,
+                        secondaryActionLabel = stringResource(Res.string.onboarding_skip),
                         onSecondaryAction = onSkip,
                     )
                 }
@@ -69,11 +79,11 @@ fun OnboardingScreen(
                     OnboardingPage(
                         pageIndex = 1,
                         sigbyVariant = SigbyVariant.Compact,
-                        title = OnboardingStrings.PAGE_2_TITLE,
-                        body = OnboardingStrings.PAGE_2_BODY,
-                        primaryActionLabel = OnboardingStrings.START_READING,
+                        title = stringResource(Res.string.onboarding_page_2_title),
+                        body = stringResource(Res.string.onboarding_page_2_body),
+                        primaryActionLabel = stringResource(Res.string.onboarding_start_reading),
                         onPrimaryAction = onComplete,
-                        secondaryActionLabel = OnboardingStrings.BACK,
+                        secondaryActionLabel = stringResource(Res.string.onboarding_back),
                         onSecondaryAction = onBack,
                     )
                 }

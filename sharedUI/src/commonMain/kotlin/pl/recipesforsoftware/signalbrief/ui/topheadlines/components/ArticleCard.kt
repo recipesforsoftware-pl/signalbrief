@@ -28,9 +28,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.stringResource
 import pl.recipesforsoftware.signalbrief.domain.model.Article
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.Res
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_bookmark_remove
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_bookmark_save
 import pl.recipesforsoftware.signalbrief.ui.designsystem.tokens.SignalBriefShapes
-import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesStrings
 
 /**
  * Feed card shared between Android and iOS.
@@ -164,9 +167,9 @@ private fun BookmarkAction(
                 },
             contentDescription =
                 if (isSaved) {
-                    TopHeadlinesStrings.BOOKMARK_REMOVE
+                    stringResource(Res.string.top_headlines_bookmark_remove)
                 } else {
-                    TopHeadlinesStrings.BOOKMARK_SAVE
+                    stringResource(Res.string.top_headlines_bookmark_save)
                 },
             tint =
                 if (isSaved) {

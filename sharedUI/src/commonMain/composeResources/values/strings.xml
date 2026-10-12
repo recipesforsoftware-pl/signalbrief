@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="article_collection_assignment_add_to_collections">Add to collections</string>
+    <string name="article_collection_assignment_title">Add to collections</string>
+    <string name="article_collection_assignment_close">Close</string>
+    <string name="article_collection_assignment_manage_collections">Manage collections</string>
+    <string name="article_collection_assignment_empty_title">No collections yet</string>
+    <string name="article_collection_assignment_empty_description">Create a collection first to organize this article.</string>
+    <string name="article_collection_assignment_error_not_found">This collection is no longer available.</string>
+    <string name="article_collection_assignment_error_unknown">Couldn\'t update collections. Please try again.</string>
+    <string name="article_collection_assignment_selected">Selected</string>
+    <string name="article_collection_assignment_not_selected">Not selected</string>
+
+    <string name="article_details_back">Back</string>
+    <string name="article_details_read_full_article">Read full article</string>
+
+    <string name="collection_details_back">Back</string>
+    <string name="collection_details_empty_title">No articles yet</string>
+    <string name="collection_details_empty_description">Add articles to this collection from Article Details.</string>
+
+    <string name="collections_title">Collections</string>
+    <string name="collections_back">Back</string>
+    <string name="collections_create">Create collection</string>
+    <string name="collections_new_title">New collection</string>
+    <string name="collections_rename_title">Rename collection</string>
+    <string name="collections_name_label">Collection name</string>
+    <string name="collections_rename">Rename</string>
+    <string name="collections_delete">Delete</string>
+    <string name="collections_cancel">Cancel</string>
+    <string name="collections_confirm_create">Create</string>
+    <string name="collections_save">Save</string>
+    <string name="collections_options">Collection options</string>
+    <string name="collections_empty_title">No collections yet</string>
+    <string name="collections_empty_description">Create collections to organize your reading.</string>
+    <string name="collections_delete_title">Delete collection?</string>
+    <string name="collections_delete_message">This will permanently remove the collection. %1$s</string>
+    <string name="collections_error_invalid_name">Enter a collection name.</string>
+    <string name="collections_error_not_found">This collection is no longer available.</string>
+    <string name="collections_error_unknown">Something went wrong. Please try again.</string>
+
+    <string name="daily_brief_title">Daily Brief</string>
+    <string name="daily_brief_intro">A focused selection from your downloaded headlines.</string>
+    <string name="daily_brief_empty_title">No brief available yet</string>
+    <string name="daily_brief_empty_subtitle">Visit Headlines to download stories for your brief.</string>
+
+    <string name="onboarding_page_1_title">A clearer view of the day</string>
+    <string name="onboarding_page_1_body">Read the latest headlines in a focused experience shared across Android and iOS.</string>
+    <string name="onboarding_page_2_title">Headlines that stay available</string>
+    <string name="onboarding_page_2_body">SignalBrief keeps the latest successful update ready when the network is unavailable.</string>
+    <string name="onboarding_continue">Continue</string>
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_start_reading">Start reading</string>
+    <string name="onboarding_back">Back</string>
+    <string name="onboarding_page_1_accessibility_label">Onboarding page one</string>
+    <string name="onboarding_page_2_accessibility_label">Onboarding page two</string>
+
+    <string name="saved_title">Saved</string>
+    <string name="saved_remove">Remove from saved</string>
+    <string name="saved_empty_title">No saved articles yet</string>
+    <string name="saved_empty_subtitle">Save stories from Top Headlines to keep them here.</string>
+    <string name="saved_open_collections">Collections</string>
+    <string name="saved_loading">Loading saved articles...</string>
+
+    <string name="search_monitored_topics">Monitored topics</string>
+    <string name="search_title">Search</string>
+    <string name="search_back">Back</string>
+    <string name="search_headlines">Search downloaded headlines</string>
+    <string name="search_idle_title">Search downloaded headlines</string>
+    <string name="search_idle_subtitle">Type a word from a headline, description, or source.</string>
+    <string name="search_no_results_title">No matching articles</string>
+    <string name="search_no_results_subtitle">Try a different word or check your spelling.\n&quot;%1$s&quot;</string>
+    <string name="search_no_local_articles_title">No downloaded headlines yet</string>
+    <string name="search_no_local_articles_subtitle">Visit Top Headlines to download the latest news.</string>
+    <string name="search_loading">Loading search...</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="settings_back">Back</string>
+    <string name="settings_offline_section">Offline</string>
+    <string name="settings_downloaded_headlines">Downloaded headlines</string>
+    <string name="settings_no_downloaded_headlines">No downloaded headlines</string>
+    <string name="settings_clear_downloaded_headlines">Clear downloaded headlines</string>
+    <string name="settings_clear_confirmation_title">Clear downloaded headlines?</string>
+    <string name="settings_clear_confirmation_message">This removes the downloaded headlines from this device. They become available again only after a refresh.</string>
+    <string name="settings_cancel">Cancel</string>
+    <string name="settings_clear">Clear</string>
+    <plurals name="settings_downloaded_headlines_count">
+        <item quantity="one">%1$d headline available offline</item>
+        <item quantity="other">%1$d headlines available offline</item>
+    </plurals>
+
+    <string name="top_headlines_title">Top Headlines</string>
+    <string name="top_headlines_subtitle">Latest news from around the world</string>
+    <string name="top_headlines_search">Search</string>
+    <string name="top_headlines_refresh">Refresh</string>
+    <string name="top_headlines_settings">Settings</string>
+    <string name="top_headlines_retry">Try Again</string>
+    <string name="top_headlines_loading">Loading headlines...</string>
+    <string name="top_headlines_cache_notice_title">Showing saved headlines</string>
+    <string name="top_headlines_cache_notice_body">The latest online update is unavailable. You are reading the most recent saved copy.</string>
+    <string name="top_headlines_cache_notice_accessibility">Showing saved headlines. The latest online update is unavailable. You are reading the most recent saved copy.</string>
+    <string name="top_headlines_empty_title">No headlines available</string>
+    <string name="top_headlines_empty_subtitle">Check back later or use the refresh button to try again.</string>
+    <string name="top_headlines_bookmark_save">Save article</string>
+    <string name="top_headlines_bookmark_remove">Remove from saved</string>
+    <string name="top_headlines_error_title">Something went wrong</string>
+    <string name="top_headlines_error_network">Network error. Please check your connection and try again.</string>
+    <string name="top_headlines_error_invalid_data">Invalid data received from the server.</string>
+    <string name="top_headlines_error_unknown">An unexpected error occurred.</string>
+
+    <string name="topic_matches_back">Back</string>
+    <string name="topic_matches_no_local_articles_title">No downloaded headlines</string>
+    <string name="topic_matches_no_local_articles_subtitle">Visit Top Headlines to download the latest news.</string>
+    <string name="topic_matches_no_matches_title">No matching articles</string>
+    <string name="topic_matches_no_matches_subtitle">This topic has no matches in the downloaded headlines.</string>
+    <string name="topic_matches_loading">Loading topic matches...</string>
+
+    <string name="topic_monitoring_title">Monitored topics</string>
+    <string name="topic_monitoring_back">Back</string>
+    <string name="topic_monitoring_create">Create monitored topic</string>
+    <string name="topic_monitoring_new_title">New monitored topic</string>
+    <string name="topic_monitoring_rename_title">Rename monitored topic</string>
+    <string name="topic_monitoring_query_label">Topic</string>
+    <string name="topic_monitoring_options">Topic options</string>
+    <string name="topic_monitoring_rename">Rename</string>
+    <string name="topic_monitoring_delete">Delete</string>
+    <string name="topic_monitoring_cancel">Cancel</string>
+    <string name="topic_monitoring_confirm_create">Create</string>
+    <string name="topic_monitoring_save">Save</string>
+    <string name="topic_monitoring_empty_title">No monitored topics</string>
+    <string name="topic_monitoring_empty_description">Add a topic to keep track of stories you care about.</string>
+    <string name="topic_monitoring_delete_title">Delete monitored topic?</string>
+    <string name="topic_monitoring_delete_message">This will permanently remove %1$s.</string>
+    <string name="topic_monitoring_no_downloaded_headlines">No downloaded headlines</string>
+    <string name="topic_monitoring_error_invalid_query">Enter a topic to monitor.</string>
+    <string name="topic_monitoring_error_duplicate_query">This topic is already being monitored.</string>
+    <string name="topic_monitoring_error_not_found">This topic is no longer available.</string>
+    <string name="topic_monitoring_error_unknown">Something went wrong. Try again.</string>
+    <plurals name="topic_monitoring_match_summary">
+        <item quantity="one">%1$d match</item>
+        <item quantity="other">%1$d matches</item>
+    </plurals>
+
+    <string name="bottom_nav_headlines">Headlines</string>
+    <string name="bottom_nav_daily_brief">Daily Brief</string>
+    <string name="bottom_nav_brief">Brief</string>
+    <string name="bottom_nav_saved">Saved</string>
+</resources>

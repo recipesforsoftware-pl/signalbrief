@@ -7,15 +7,25 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import kotlinx.coroutines.runBlocking
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getString
 import org.junit.Rule
 import org.junit.Test
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.Source
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.Res
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.daily_brief_empty_subtitle
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.daily_brief_empty_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.daily_brief_intro
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.daily_brief_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_bookmark_remove
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_bookmark_save
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefScreen
-import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefStrings
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefUiState
 import pl.recipesforsoftware.signalbrief.ui.theme.SignalBriefAndroidTheme
-import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesStrings
+
+private fun resourceString(resource: StringResource): String = runBlocking { getString(resource) }
 
 class DailyBriefScreenTest {
     @get:Rule
@@ -52,16 +62,16 @@ class DailyBriefScreenTest {
     fun content_displaysTitleAndIntro() {
         setContent()
 
-        composeTestRule.onNodeWithText(DailyBriefStrings.TOP_BAR_TITLE).assertIsDisplayed()
-        composeTestRule.onNodeWithText(DailyBriefStrings.INTRO).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.daily_brief_title)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.daily_brief_intro)).assertIsDisplayed()
     }
 
     @Test
     fun empty_displaysTitleAndSubtitle() {
         setContent(uiState = DailyBriefUiState.Empty)
 
-        composeTestRule.onNodeWithText(DailyBriefStrings.EMPTY_TITLE).assertIsDisplayed()
-        composeTestRule.onNodeWithText(DailyBriefStrings.EMPTY_SUBTITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.daily_brief_empty_title)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.daily_brief_empty_subtitle)).assertIsDisplayed()
     }
 
     @Test
@@ -86,7 +96,7 @@ class DailyBriefScreenTest {
         var bookmarkedArticle: Article? = null
         setContent(onBookmarkClick = { bookmarkedArticle = it })
 
-        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.BOOKMARK_SAVE).performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_bookmark_save)).performClick()
 
         assert(bookmarkedArticle == article) { "onBookmarkClick should receive the article" }
     }
@@ -96,7 +106,7 @@ class DailyBriefScreenTest {
         var clickedArticle: Article? = null
         setContent(onArticleClick = { clickedArticle = it })
 
-        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.BOOKMARK_SAVE).performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_bookmark_save)).performClick()
 
         assert(clickedArticle == null) { "Bookmark click must not trigger article open" }
     }
@@ -105,14 +115,14 @@ class DailyBriefScreenTest {
     fun savedArticle_exposesRemoveSemantics() {
         setContent(uiState = DailyBriefUiState.Content(listOf(article), setOf(article.url)))
 
-        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.BOOKMARK_REMOVE).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_bookmark_remove)).assertIsDisplayed()
     }
 
     @Test
     fun unsavedArticle_exposesSaveSemantics() {
         setContent()
 
-        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.BOOKMARK_SAVE).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_bookmark_save)).assertIsDisplayed()
     }
 
     @Test

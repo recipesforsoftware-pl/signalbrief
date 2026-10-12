@@ -5,18 +5,34 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import kotlinx.coroutines.runBlocking
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getString
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import pl.recipesforsoftware.signalbrief.domain.model.Article
 import pl.recipesforsoftware.signalbrief.domain.model.FeedSource
 import pl.recipesforsoftware.signalbrief.domain.model.Source
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.Res
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_bookmark_remove
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_bookmark_save
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_cache_notice_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_empty_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_error_network
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_loading
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_refresh
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_retry
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_settings
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_subtitle
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_title
 import pl.recipesforsoftware.signalbrief.ui.theme.SignalBriefAndroidTheme
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.DarkModeMenu
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesError
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesScreen
-import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesStrings
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesUiState
+
+private fun resourceString(resource: StringResource): String = runBlocking { getString(resource) }
 
 class TopHeadlinesScreenTest {
     @get:Rule
@@ -74,13 +90,13 @@ class TopHeadlinesScreenTest {
     @Test
     fun topBar_displaysTitle() {
         setContent()
-        composeTestRule.onNodeWithText("Top Headlines").assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.top_headlines_title)).assertIsDisplayed()
     }
 
     @Test
     fun topBar_displaysSubtitle() {
         setContent()
-        composeTestRule.onNodeWithText("Latest news from around the world").assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.top_headlines_subtitle)).assertIsDisplayed()
     }
 
     // --- Menu button ---
@@ -132,7 +148,7 @@ class TopHeadlinesScreenTest {
     @Test
     fun refreshButton_isDisplayed() {
         setContent()
-        composeTestRule.onNodeWithContentDescription("Refresh").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_refresh)).assertIsDisplayed()
     }
 
     @Test
@@ -140,7 +156,7 @@ class TopHeadlinesScreenTest {
         var refreshed = false
         setContent(onRefresh = { refreshed = true })
 
-        composeTestRule.onNodeWithContentDescription("Refresh").performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_refresh)).performClick()
 
         assert(refreshed) { "onRefresh should have been called" }
     }
@@ -150,21 +166,21 @@ class TopHeadlinesScreenTest {
     @Test
     fun loadingState_showsLoadingDescription() {
         setContent(uiState = TopHeadlinesUiState.Loading)
-        composeTestRule.onNodeWithContentDescription("Loading headlines...").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_loading)).assertIsDisplayed()
     }
 
     @Test
     fun errorState_showsErrorMessage() {
         setContent(uiState = TopHeadlinesUiState.Error(TopHeadlinesError.Network))
         composeTestRule
-            .onNodeWithText(TopHeadlinesStrings.errorBody(TopHeadlinesError.Network))
+            .onNodeWithText(resourceString(Res.string.top_headlines_error_network))
             .assertIsDisplayed()
     }
 
     @Test
     fun errorState_showsRetryButton() {
         setContent(uiState = TopHeadlinesUiState.Error(TopHeadlinesError.Network))
-        composeTestRule.onNodeWithText("Try Again").assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.top_headlines_retry)).assertIsDisplayed()
     }
 
     @Test
@@ -175,7 +191,7 @@ class TopHeadlinesScreenTest {
             onRefresh = { retried = true },
         )
 
-        composeTestRule.onNodeWithText("Try Again").performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.top_headlines_retry)).performClick()
 
         assert(retried) { "onRefresh should have been called on retry" }
     }
@@ -190,19 +206,19 @@ class TopHeadlinesScreenTest {
     @Test
     fun cachedSuccess_showsCacheNoticeBanner() {
         setContent(uiState = TopHeadlinesUiState.Success(fakeArticles, FeedSource.CACHE))
-        composeTestRule.onNodeWithText("Showing saved headlines").assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.top_headlines_cache_notice_title)).assertIsDisplayed()
     }
 
     @Test
     fun networkSuccess_doesNotShowCacheNoticeBanner() {
         setContent(uiState = TopHeadlinesUiState.Success(fakeArticles, FeedSource.NETWORK))
-        composeTestRule.onNodeWithText("Showing saved headlines").assertDoesNotExist()
+        composeTestRule.onNodeWithText(resourceString(Res.string.top_headlines_cache_notice_title)).assertDoesNotExist()
     }
 
     @Test
     fun emptyState_showsEmptyMessage() {
         setContent(uiState = TopHeadlinesUiState.Empty)
-        composeTestRule.onNodeWithText("No headlines available").assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.top_headlines_empty_title)).assertIsDisplayed()
     }
 
     // --- Article click ---
@@ -242,13 +258,13 @@ class TopHeadlinesScreenTest {
     @Test
     fun darkModeFalse_rendersWithoutError() {
         setContent(isDarkMode = false)
-        composeTestRule.onNodeWithText("Top Headlines").assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.top_headlines_title)).assertIsDisplayed()
     }
 
     @Test
     fun darkModeTrue_rendersWithoutError() {
         setContent(isDarkMode = true)
-        composeTestRule.onNodeWithText("Top Headlines").assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.top_headlines_title)).assertIsDisplayed()
     }
 
     // --- Bookmark action ---
@@ -258,7 +274,7 @@ class TopHeadlinesScreenTest {
         setContent(
             onBookmarkClick = {},
         )
-        composeTestRule.onNodeWithContentDescription("Save article").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_bookmark_save)).assertIsDisplayed()
     }
 
     @Test
@@ -272,7 +288,7 @@ class TopHeadlinesScreenTest {
                 ),
             onBookmarkClick = {},
         )
-        composeTestRule.onNodeWithContentDescription("Remove from saved").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_bookmark_remove)).assertIsDisplayed()
     }
 
     @Test
@@ -281,7 +297,7 @@ class TopHeadlinesScreenTest {
         setContent(
             onBookmarkClick = { bookmarkedArticle = it },
         )
-        composeTestRule.onNodeWithContentDescription("Save article").performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_bookmark_save)).performClick()
 
         assert(bookmarkedArticle == fakeArticles[0]) {
             "onBookmarkClick should receive the article"
@@ -295,7 +311,7 @@ class TopHeadlinesScreenTest {
             onArticleClick = { clickedArticle = it },
             onBookmarkClick = {},
         )
-        composeTestRule.onNodeWithContentDescription("Save article").performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_bookmark_save)).performClick()
 
         assert(clickedArticle == null) {
             "Bookmark click must not trigger article open"
@@ -319,7 +335,7 @@ class TopHeadlinesScreenTest {
     @Test
     fun settingsButton_isDisplayed() {
         setContent()
-        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SETTINGS).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_settings)).assertIsDisplayed()
     }
 
     @Test
@@ -327,7 +343,7 @@ class TopHeadlinesScreenTest {
         var settingsClicked = false
         setContent(onSettingsClick = { settingsClicked = true })
 
-        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SETTINGS).performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_settings)).performClick()
 
         assertTrue("onSettingsClick should have been called", settingsClicked)
     }

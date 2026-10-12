@@ -23,7 +23,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import org.jetbrains.compose.resources.stringResource
 import pl.recipesforsoftware.signalbrief.domain.model.Article
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.Res
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collection_details_back
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collection_details_empty_description
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.collection_details_empty_title
 import pl.recipesforsoftware.signalbrief.ui.designsystem.tokens.SignalBriefSpacing
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.components.ArticleCard
 
@@ -43,7 +48,7 @@ fun CollectionDetailsScreen(
                 title = { Text(uiState.collection.name, fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, CollectionDetailsStrings.BACK)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(Res.string.collection_details_back))
                     }
                 },
             )
@@ -56,12 +61,12 @@ fun CollectionDetailsScreen(
             ) {
                 androidx.compose.foundation.layout.Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        CollectionDetailsStrings.EMPTY_TITLE,
+                        stringResource(Res.string.collection_details_empty_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
-                        CollectionDetailsStrings.EMPTY_DESCRIPTION,
+                        stringResource(Res.string.collection_details_empty_description),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                     )

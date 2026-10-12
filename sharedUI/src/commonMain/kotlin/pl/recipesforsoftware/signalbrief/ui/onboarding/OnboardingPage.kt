@@ -29,6 +29,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.stringResource
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.Res
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.onboarding_page_1_accessibility_label
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.onboarding_page_2_accessibility_label
 import pl.recipesforsoftware.signalbrief.ui.designsystem.components.OnboardingPageIndicator
 import pl.recipesforsoftware.signalbrief.ui.designsystem.components.Sigby
 import pl.recipesforsoftware.signalbrief.ui.designsystem.components.SigbyVariant
@@ -72,9 +76,9 @@ internal fun OnboardingPage(
     modifier: Modifier = Modifier,
     pageAccessibilityLabel: String =
         if (pageIndex == 0) {
-            OnboardingStrings.PAGE_1_ACCESSIBILITY_LABEL
+            stringResource(Res.string.onboarding_page_1_accessibility_label)
         } else {
-            OnboardingStrings.PAGE_2_ACCESSIBILITY_LABEL
+            stringResource(Res.string.onboarding_page_2_accessibility_label)
         },
 ) {
     Column(

@@ -136,6 +136,7 @@ dependencies {
     // Compose BOM
     implementation(platform(libs.compose.bom))
     androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation(libs.compose.multiplatform.resources)
     testImplementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.graphics)

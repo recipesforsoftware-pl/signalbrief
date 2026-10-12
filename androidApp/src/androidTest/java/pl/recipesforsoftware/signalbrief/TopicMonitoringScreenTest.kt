@@ -6,15 +6,41 @@ import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import kotlinx.coroutines.runBlocking
+import org.jetbrains.compose.resources.PluralStringResource
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getPluralString
+import org.jetbrains.compose.resources.getString
 import org.junit.Rule
 import org.junit.Test
 import pl.recipesforsoftware.signalbrief.domain.model.MonitoredTopic
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.Res
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_create
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_delete
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_delete_message
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_delete_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_empty_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_error_duplicate_query
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_error_not_found
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_match_summary
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_no_downloaded_headlines
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_options
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_rename
 import pl.recipesforsoftware.signalbrief.ui.theme.SignalBriefAndroidTheme
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicEditor
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringScreen
-import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringStrings
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringUiError
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringUiState
+
+private fun resourceString(
+    resource: StringResource,
+    vararg args: Any,
+): String = runBlocking { getString(resource, *args) }
+
+private fun pluralString(
+    resource: PluralStringResource,
+    quantity: Int,
+): String = runBlocking { getPluralString(resource, quantity, quantity) }
 
 class TopicMonitoringScreenTest {
     @get:Rule
@@ -36,8 +62,8 @@ class TopicMonitoringScreenTest {
     fun emptyStateAndCreateAffordanceRender() {
         var opened = false
         content(TopicMonitoringUiState(), create = { opened = true })
-        rule.onNodeWithText(TopicMonitoringStrings.EMPTY_TITLE).assertIsDisplayed()
-        rule.onNodeWithText(TopicMonitoringStrings.CREATE_TOPIC).performClick()
+        rule.onNodeWithText(resourceString(Res.string.topic_monitoring_empty_title)).assertIsDisplayed()
+        rule.onNodeWithText(resourceString(Res.string.topic_monitoring_create)).performClick()
         check(opened)
     }
 
@@ -53,12 +79,12 @@ class TopicMonitoringScreenTest {
             { renamed = it },
             { deleted = it },
         )
-        rule.onAllNodesWithContentDescription(TopicMonitoringStrings.OPTIONS)[1].performClick()
-        rule.onNodeWithText(TopicMonitoringStrings.RENAME).performClick()
+        rule.onAllNodesWithContentDescription(resourceString(Res.string.topic_monitoring_options))[1].performClick()
+        rule.onNodeWithText(resourceString(Res.string.topic_monitoring_rename)).performClick()
         check(renamed == second)
         check(deleted == null)
-        rule.onAllNodesWithContentDescription(TopicMonitoringStrings.OPTIONS)[0].performClick()
-        rule.onNodeWithText(TopicMonitoringStrings.DELETE).performClick()
+        rule.onAllNodesWithContentDescription(resourceString(Res.string.topic_monitoring_options))[0].performClick()
+        rule.onNodeWithText(resourceString(Res.string.topic_monitoring_delete)).performClick()
         check(deleted == first)
     }
 
@@ -91,7 +117,7 @@ class TopicMonitoringScreenTest {
             { opened = it },
         )
 
-        rule.onNodeWithContentDescription(TopicMonitoringStrings.OPTIONS).performClick()
+        rule.onNodeWithContentDescription(resourceString(Res.string.topic_monitoring_options)).performClick()
         check(opened == null)
     }
 
@@ -105,7 +131,7 @@ class TopicMonitoringScreenTest {
             ),
         )
 
-        rule.onNodeWithText(TopicMonitoringStrings.matchSummary(1)).assertIsDisplayed()
+        rule.onNodeWithText(pluralString(Res.plurals.topic_monitoring_match_summary, 1)).assertIsDisplayed()
     }
 
     @Test
@@ -118,7 +144,7 @@ class TopicMonitoringScreenTest {
             ),
         )
 
-        rule.onNodeWithText(TopicMonitoringStrings.matchSummary(3)).assertIsDisplayed()
+        rule.onNodeWithText(pluralString(Res.plurals.topic_monitoring_match_summary, 3)).assertIsDisplayed()
     }
 
     @Test
@@ -129,7 +155,7 @@ class TopicMonitoringScreenTest {
             ),
         )
 
-        rule.onNodeWithText(TopicMonitoringStrings.NO_DOWNLOADED_HEADLINES).assertIsDisplayed()
+        rule.onNodeWithText(resourceString(Res.string.topic_monitoring_no_downloaded_headlines)).assertIsDisplayed()
     }
 
     @Test
@@ -169,7 +195,7 @@ class TopicMonitoringScreenTest {
             { opened = it },
         )
 
-        rule.onNodeWithContentDescription(TopicMonitoringStrings.OPTIONS).performClick()
+        rule.onNodeWithContentDescription(resourceString(Res.string.topic_monitoring_options)).performClick()
         check(opened == null)
     }
 
@@ -183,7 +209,7 @@ class TopicMonitoringScreenTest {
         )
 
         rule
-            .onNodeWithText("This topic is already being monitored.")
+            .onNodeWithText(resourceString(Res.string.topic_monitoring_error_duplicate_query))
             .assertIsDisplayed()
     }
 
@@ -197,8 +223,10 @@ class TopicMonitoringScreenTest {
             ),
         )
 
-        rule.onNodeWithText(TopicMonitoringStrings.DELETE_TITLE).assertIsDisplayed()
-        rule.onNodeWithText("This will permanently remove Compose.").assertIsDisplayed()
+        rule.onNodeWithText(resourceString(Res.string.topic_monitoring_delete_title)).assertIsDisplayed()
+        rule
+            .onNodeWithText(resourceString(Res.string.topic_monitoring_delete_message, topic.query))
+            .assertIsDisplayed()
     }
 
     @Test
@@ -210,7 +238,7 @@ class TopicMonitoringScreenTest {
         )
 
         rule
-            .onNodeWithText("This topic is no longer available.")
+            .onNodeWithText(resourceString(Res.string.topic_monitoring_error_not_found))
             .assertIsDisplayed()
     }
 }

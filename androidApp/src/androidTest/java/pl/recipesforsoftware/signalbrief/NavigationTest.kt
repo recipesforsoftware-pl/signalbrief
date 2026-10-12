@@ -14,6 +14,9 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import kotlinx.coroutines.runBlocking
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getString
 import org.junit.Rule
 import org.junit.Test
 import pl.recipesforsoftware.signalbrief.domain.model.Article
@@ -21,33 +24,52 @@ import pl.recipesforsoftware.signalbrief.domain.model.Collection
 import pl.recipesforsoftware.signalbrief.domain.model.FeedSource
 import pl.recipesforsoftware.signalbrief.domain.model.MonitoredTopic
 import pl.recipesforsoftware.signalbrief.domain.model.Source
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.Res
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.bottom_nav_brief
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.bottom_nav_headlines
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.bottom_nav_saved
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.daily_brief_intro
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.saved_empty_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.saved_open_collections
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.saved_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.search_back
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.search_monitored_topics
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.search_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.settings_back
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.settings_downloaded_headlines
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.settings_offline_section
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.settings_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_bookmark_remove
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_bookmark_save
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_search
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_settings
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.top_headlines_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_matches_back
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_matches_no_matches_title
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_back
+import pl.recipesforsoftware.signalbrief.sharedui.generated.resources.topic_monitoring_title
 import pl.recipesforsoftware.signalbrief.ui.app.InvalidDestination
 import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefApp
 import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefNavHost
 import pl.recipesforsoftware.signalbrief.ui.app.SignalBriefNavigationContext
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefScreen
-import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefStrings
 import pl.recipesforsoftware.signalbrief.ui.dailybrief.DailyBriefUiState
 import pl.recipesforsoftware.signalbrief.ui.navigation.SignalBriefRoute
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesScreen
-import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesStrings
 import pl.recipesforsoftware.signalbrief.ui.saved.SavedArticlesUiState
 import pl.recipesforsoftware.signalbrief.ui.search.SearchScreen
-import pl.recipesforsoftware.signalbrief.ui.search.SearchStrings
 import pl.recipesforsoftware.signalbrief.ui.search.SearchUiState
 import pl.recipesforsoftware.signalbrief.ui.settings.SettingsScreen
-import pl.recipesforsoftware.signalbrief.ui.settings.SettingsStrings
 import pl.recipesforsoftware.signalbrief.ui.settings.SettingsUiState
 import pl.recipesforsoftware.signalbrief.ui.theme.SignalBriefAndroidTheme
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesScreen
-import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesStrings
 import pl.recipesforsoftware.signalbrief.ui.topheadlines.TopHeadlinesUiState
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMatchesScreen
-import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMatchesStrings
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMatchesUiState
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringScreen
-import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringStrings
 import pl.recipesforsoftware.signalbrief.ui.topicmonitoring.TopicMonitoringUiState
+
+private fun resourceString(resource: StringResource): String = runBlocking { getString(resource) }
 
 class NavigationTest {
     @get:Rule
@@ -201,12 +223,12 @@ class NavigationTest {
     @Test
     fun searchTopicMonitoringBackPreservesQuery() {
         setContent()
-        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SEARCH).performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_search)).performClick()
         composeTestRule.onNode(hasSetTextAction()).performTextInput("Kotlin")
-        composeTestRule.onNodeWithText(SearchStrings.MONITORED_TOPICS).performClick()
-        composeTestRule.onNodeWithText(TopicMonitoringStrings.TITLE).assertIsDisplayed()
-        composeTestRule.onNodeWithContentDescription(TopicMonitoringStrings.BACK).performClick()
-        composeTestRule.onNodeWithText(SearchStrings.TOP_BAR_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.search_monitored_topics)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.topic_monitoring_title)).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.topic_monitoring_back)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.search_title)).assertIsDisplayed()
         composeTestRule.onNode(hasSetTextAction()).assertTextEquals("Kotlin")
     }
 
@@ -214,19 +236,19 @@ class NavigationTest {
     fun searchTopicMatchesRoundTripPreservesQuery() {
         setContent()
 
-        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SEARCH).performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_search)).performClick()
         composeTestRule.onNode(hasSetTextAction()).performTextInput("Android")
-        composeTestRule.onNodeWithText(SearchStrings.MONITORED_TOPICS).performClick()
-        composeTestRule.onNodeWithText(TopicMonitoringStrings.TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.search_monitored_topics)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.topic_monitoring_title)).assertIsDisplayed()
 
         composeTestRule.onNodeWithText("Kotlin").performClick()
-        composeTestRule.onNodeWithText(TopicMatchesStrings.NO_MATCHES_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.topic_matches_no_matches_title)).assertIsDisplayed()
 
-        composeTestRule.onNodeWithContentDescription(TopicMatchesStrings.BACK).performClick()
-        composeTestRule.onNodeWithText(TopicMonitoringStrings.TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.topic_matches_back)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.topic_monitoring_title)).assertIsDisplayed()
 
-        composeTestRule.onNodeWithContentDescription(TopicMonitoringStrings.BACK).performClick()
-        composeTestRule.onNodeWithText(SearchStrings.TOP_BAR_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.topic_monitoring_back)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.search_title)).assertIsDisplayed()
         composeTestRule.onNode(hasSetTextAction()).assertTextEquals("Android")
     }
 
@@ -248,8 +270,8 @@ class NavigationTest {
             },
         )
 
-        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SEARCH).performClick()
-        composeTestRule.onNodeWithText(SearchStrings.MONITORED_TOPICS).performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_search)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.search_monitored_topics)).performClick()
         composeTestRule.onNodeWithText("Kotlin").performClick()
 
         composeTestRule.onNodeWithText("Test Article").assertIsDisplayed()
@@ -259,7 +281,7 @@ class NavigationTest {
         composeTestRule.onNodeWithText("Back").performClick()
 
         composeTestRule.onNodeWithText("Test Article").assertIsDisplayed()
-        composeTestRule.onNodeWithText(TopicMatchesStrings.NO_MATCHES_TITLE).assertDoesNotExist()
+        composeTestRule.onNodeWithText(resourceString(Res.string.topic_matches_no_matches_title)).assertDoesNotExist()
     }
 
     @Test
@@ -286,9 +308,9 @@ class NavigationTest {
             },
         )
 
-        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SEARCH).performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_search)).performClick()
         composeTestRule.onNode(hasSetTextAction()).performTextInput("Topic query")
-        composeTestRule.onNodeWithText(SearchStrings.MONITORED_TOPICS).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.search_monitored_topics)).performClick()
         composeTestRule.onNodeWithText("Kotlin").performClick()
         composeTestRule.onNodeWithText("Test Article").performClick()
         composeTestRule.onNodeWithText("Manage collections").performClick()
@@ -299,10 +321,10 @@ class NavigationTest {
         composeTestRule.onNodeWithText("Topic details Test Article").assertIsDisplayed()
         composeTestRule.onNodeWithText("Article details back").performClick()
         composeTestRule.onNodeWithText("Test Article").assertIsDisplayed()
-        composeTestRule.onNodeWithContentDescription(TopicMatchesStrings.BACK).performClick()
-        composeTestRule.onNodeWithText(TopicMonitoringStrings.TITLE).assertIsDisplayed()
-        composeTestRule.onNodeWithContentDescription(TopicMonitoringStrings.BACK).performClick()
-        composeTestRule.onNodeWithText(SearchStrings.TOP_BAR_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.topic_matches_back)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.topic_monitoring_title)).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.topic_monitoring_back)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.search_title)).assertIsDisplayed()
         composeTestRule.onNode(hasSetTextAction()).assertTextEquals("Topic query")
     }
 
@@ -310,38 +332,38 @@ class NavigationTest {
     fun bottomNavIsHiddenOnTopicRoutes() {
         setContent()
 
-        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SEARCH).performClick()
-        composeTestRule.onNodeWithText(SearchStrings.MONITORED_TOPICS).performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_search)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.search_monitored_topics)).performClick()
 
-        composeTestRule.onNodeWithText(TopicMonitoringStrings.TITLE).assertIsDisplayed()
-        composeTestRule.onNodeWithText("Headlines").assertDoesNotExist()
-        composeTestRule.onNodeWithText("Saved").assertDoesNotExist()
+        composeTestRule.onNodeWithText(resourceString(Res.string.topic_monitoring_title)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_headlines)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_saved)).assertDoesNotExist()
 
         composeTestRule.onNodeWithText("Kotlin").performClick()
 
-        composeTestRule.onNodeWithText(TopicMatchesStrings.NO_MATCHES_TITLE).assertIsDisplayed()
-        composeTestRule.onNodeWithText("Headlines").assertDoesNotExist()
-        composeTestRule.onNodeWithText("Saved").assertDoesNotExist()
+        composeTestRule.onNodeWithText(resourceString(Res.string.topic_matches_no_matches_title)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_headlines)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_saved)).assertDoesNotExist()
     }
 
     @Test
     fun headlinesIsDefaultDestination() {
         setContent()
 
-        composeTestRule.onNodeWithText(TopHeadlinesStrings.TOP_BAR_TITLE).assertIsDisplayed()
-        composeTestRule.onNodeWithText("Headlines").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Saved").assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.top_headlines_title)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_headlines)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_saved)).assertIsDisplayed()
     }
 
     @Test
     fun tappingSavedShowsSavedDestination() {
         setContent()
 
-        composeTestRule.onNodeWithText("Saved").performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_saved)).performClick()
 
-        composeTestRule.onNodeWithText(SavedArticlesStrings.EMPTY_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.saved_empty_title)).assertIsDisplayed()
         composeTestRule
-            .onNodeWithText(SavedArticlesStrings.EMPTY_TITLE)
+            .onNodeWithText(resourceString(Res.string.saved_empty_title))
             .assertIsDisplayed()
     }
 
@@ -349,20 +371,20 @@ class NavigationTest {
     fun tappingHeadlinesReturnsToHeadlines() {
         setContent()
 
-        composeTestRule.onNodeWithText("Saved").performClick()
-        composeTestRule.onNodeWithText(SavedArticlesStrings.EMPTY_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_saved)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.saved_empty_title)).assertIsDisplayed()
 
-        composeTestRule.onNodeWithText("Headlines").performClick()
-        composeTestRule.onNodeWithText(TopHeadlinesStrings.TOP_BAR_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_headlines)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.top_headlines_title)).assertIsDisplayed()
     }
 
     @Test
     fun exactlyThreeRealTopLevelDestinationsExist() {
         setContent()
 
-        composeTestRule.onNodeWithText("Headlines").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Saved").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Brief").assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_headlines)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_saved)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_brief)).assertIsDisplayed()
 
         composeTestRule.onNodeWithText("Search").assertDoesNotExist()
         composeTestRule.onNodeWithText("Monitor").assertDoesNotExist()
@@ -373,12 +395,12 @@ class NavigationTest {
     fun dailyBriefOpensAndDetailsBackReturnsToBrief() {
         setContent()
 
-        composeTestRule.onNodeWithText("Brief").performClick()
-        composeTestRule.onNodeWithText(DailyBriefStrings.INTRO).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_brief)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.daily_brief_intro)).assertIsDisplayed()
         composeTestRule.onNodeWithText("Test Article").performClick()
         composeTestRule.onNodeWithText("Back").performClick()
 
-        composeTestRule.onNodeWithText(DailyBriefStrings.INTRO).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.daily_brief_intro)).assertIsDisplayed()
     }
 
     @Test
@@ -436,21 +458,21 @@ class NavigationTest {
             }
         }
 
-        composeTestRule.onNodeWithText("Saved").performClick()
-        composeTestRule.onNodeWithText(SavedArticlesStrings.EMPTY_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_saved)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.saved_empty_title)).assertIsDisplayed()
 
         restorationTester.emulateSavedInstanceStateRestore()
 
-        composeTestRule.onNodeWithText(SavedArticlesStrings.EMPTY_TITLE).assertIsDisplayed()
-        composeTestRule.onNodeWithText(SavedArticlesStrings.EMPTY_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.saved_empty_title)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.saved_empty_title)).assertIsDisplayed()
 
-        composeTestRule.onNodeWithText("Headlines").performClick()
-        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SEARCH).performClick()
-        composeTestRule.onNodeWithText(SearchStrings.TOP_BAR_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_headlines)).performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_search)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.search_title)).assertIsDisplayed()
 
         restorationTester.emulateSavedInstanceStateRestore()
 
-        composeTestRule.onNodeWithText(SearchStrings.TOP_BAR_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.search_title)).assertIsDisplayed()
     }
 
     @Test
@@ -504,12 +526,12 @@ class NavigationTest {
             }
         }
 
-        composeTestRule.onNodeWithText("Brief").performClick()
-        composeTestRule.onNodeWithText(DailyBriefStrings.INTRO).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_brief)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.daily_brief_intro)).assertIsDisplayed()
 
         restorationTester.emulateSavedInstanceStateRestore()
 
-        composeTestRule.onNodeWithText(DailyBriefStrings.INTRO).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.daily_brief_intro)).assertIsDisplayed()
     }
 
     @Test
@@ -531,15 +553,15 @@ class NavigationTest {
 
         composeTestRule.onNodeWithText("Back").performClick()
 
-        composeTestRule.onNodeWithText(TopHeadlinesStrings.TOP_BAR_TITLE).assertIsDisplayed()
-        composeTestRule.onNodeWithText("Headlines").assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.top_headlines_title)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_headlines)).assertIsDisplayed()
     }
 
     @Test
     fun savedArticleTapOpensDetails() {
         setContent(savedArticles = fakeArticles)
 
-        composeTestRule.onNodeWithText("Saved").performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_saved)).performClick()
         composeTestRule.onNodeWithText("Test Article").performClick()
 
         composeTestRule.onNodeWithText("Test Article").assertIsDisplayed()
@@ -550,7 +572,7 @@ class NavigationTest {
     fun detailsBackReturnsToSaved() {
         setContent(savedArticles = fakeArticles)
 
-        composeTestRule.onNodeWithText("Saved").performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_saved)).performClick()
         composeTestRule.onNodeWithText("Test Article").performClick()
         composeTestRule.onNodeWithText("Back").assertIsDisplayed()
 
@@ -587,13 +609,13 @@ class NavigationTest {
     fun savedCollectionsBackReturnsToSaved() {
         setContent()
 
-        composeTestRule.onNodeWithText("Saved").performClick()
-        composeTestRule.onNodeWithText(SavedArticlesStrings.OPEN_COLLECTIONS).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_saved)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.saved_open_collections)).performClick()
         composeTestRule.onNodeWithText("Collections").assertIsDisplayed()
 
         composeTestRule.onNodeWithText("Collections back").performClick()
 
-        composeTestRule.onNodeWithText(SavedArticlesStrings.TOP_BAR_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.saved_title)).assertIsDisplayed()
     }
 
     @Test
@@ -607,8 +629,8 @@ class NavigationTest {
             },
         )
 
-        composeTestRule.onNodeWithText("Saved").performClick()
-        composeTestRule.onNodeWithText(SavedArticlesStrings.OPEN_COLLECTIONS).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_saved)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.saved_open_collections)).performClick()
         composeTestRule.onNodeWithText("Open Reading").performClick()
         composeTestRule.onNodeWithText("Collection details 42: Reading").assertIsDisplayed()
 
@@ -638,8 +660,8 @@ class NavigationTest {
             },
         )
 
-        composeTestRule.onNodeWithText("Saved").performClick()
-        composeTestRule.onNodeWithText(SavedArticlesStrings.OPEN_COLLECTIONS).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_saved)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.saved_open_collections)).performClick()
         composeTestRule.onNodeWithText("Open Reading").performClick()
         composeTestRule.onNodeWithText("Open member article").performClick()
         composeTestRule.onNodeWithText("Article details: https://example.com/1").assertIsDisplayed()
@@ -660,16 +682,16 @@ class NavigationTest {
             },
         )
 
-        composeTestRule.onNodeWithText("Saved").performClick()
-        composeTestRule.onNodeWithText(SavedArticlesStrings.OPEN_COLLECTIONS).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_saved)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.saved_open_collections)).performClick()
         composeTestRule.onNodeWithText("Collections").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Headlines").assertDoesNotExist()
-        composeTestRule.onNodeWithText("Saved").assertDoesNotExist()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_headlines)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_saved)).assertDoesNotExist()
 
         composeTestRule.onNodeWithText("Open Reading").performClick()
         composeTestRule.onNodeWithText("Collection details 42: Reading").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Headlines").assertDoesNotExist()
-        composeTestRule.onNodeWithText("Saved").assertDoesNotExist()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_headlines)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_saved)).assertDoesNotExist()
     }
 
     @Test
@@ -692,8 +714,8 @@ class NavigationTest {
             },
         )
 
-        composeTestRule.onNodeWithText("Saved").performClick()
-        composeTestRule.onNodeWithText(SavedArticlesStrings.OPEN_COLLECTIONS).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_saved)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.saved_open_collections)).performClick()
         restorationTester.emulateSavedInstanceStateRestore()
         composeTestRule.onNodeWithText("Collections").assertIsDisplayed()
 
@@ -781,8 +803,8 @@ class NavigationTest {
             },
         )
 
-        composeTestRule.onNodeWithText("Saved").performClick()
-        composeTestRule.onNodeWithText(SavedArticlesStrings.OPEN_COLLECTIONS).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_saved)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.saved_open_collections)).performClick()
         composeTestRule.onNodeWithText("Open collection").performClick()
         composeTestRule.onNodeWithText("Open Article B").performClick()
         composeTestRule.onNodeWithText("Manage collections").performClick()
@@ -804,8 +826,8 @@ class NavigationTest {
 
         composeTestRule.onNodeWithText("Test Article").performClick()
 
-        composeTestRule.onNodeWithText("Headlines").assertDoesNotExist()
-        composeTestRule.onNodeWithText("Saved").assertDoesNotExist()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_headlines)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_saved)).assertDoesNotExist()
     }
 
     @Test
@@ -820,18 +842,18 @@ class NavigationTest {
     fun bookmarkClickOnHeadlinesCardDoesNotOpenDetails() {
         setContent()
 
-        composeTestRule.onNodeWithContentDescription("Save article").performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_bookmark_save)).performClick()
 
         composeTestRule.onNodeWithText("Back").assertDoesNotExist()
-        composeTestRule.onNodeWithText(TopHeadlinesStrings.TOP_BAR_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.top_headlines_title)).assertIsDisplayed()
     }
 
     @Test
     fun bookmarkClickOnSavedCardDoesNotOpenDetails() {
         setContent(savedArticles = fakeArticles)
 
-        composeTestRule.onNodeWithText("Saved").performClick()
-        composeTestRule.onNodeWithContentDescription("Remove from saved").performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_saved)).performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_bookmark_remove)).performClick()
 
         composeTestRule.onNodeWithText("Back").assertDoesNotExist()
         composeTestRule.onNodeWithText("Test Article").assertIsDisplayed()
@@ -841,22 +863,22 @@ class NavigationTest {
     fun headlinesSearchButtonOpensSearch() {
         setContent()
 
-        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SEARCH).performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_search)).performClick()
 
-        composeTestRule.onNodeWithText(SearchStrings.TOP_BAR_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.search_title)).assertIsDisplayed()
     }
 
     @Test
     fun searchBackReturnsToHeadlines() {
         setContent()
 
-        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SEARCH).performClick()
-        composeTestRule.onNodeWithText(SearchStrings.TOP_BAR_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_search)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.search_title)).assertIsDisplayed()
 
-        composeTestRule.onNodeWithContentDescription(SearchStrings.BACK).performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.search_back)).performClick()
 
-        composeTestRule.onNodeWithText(TopHeadlinesStrings.TOP_BAR_TITLE).assertIsDisplayed()
-        composeTestRule.onNodeWithText("Headlines").assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.top_headlines_title)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_headlines)).assertIsDisplayed()
     }
 
     @Test
@@ -871,7 +893,7 @@ class NavigationTest {
                 ),
         )
 
-        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SEARCH).performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_search)).performClick()
         composeTestRule.onNodeWithText(searchArticle.title.orEmpty()).performClick()
 
         composeTestRule.onNodeWithText(searchArticle.title.orEmpty()).assertIsDisplayed()
@@ -890,13 +912,13 @@ class NavigationTest {
                 ),
         )
 
-        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SEARCH).performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_search)).performClick()
         composeTestRule.onNodeWithText(searchArticle.title.orEmpty()).performClick()
         composeTestRule.onNodeWithText("Back").assertIsDisplayed()
 
         composeTestRule.onNodeWithText("Back").performClick()
 
-        composeTestRule.onNodeWithText(SearchStrings.TOP_BAR_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.search_title)).assertIsDisplayed()
     }
 
     @Test
@@ -960,7 +982,7 @@ class NavigationTest {
         }
 
         composeTestRule
-            .onNodeWithContentDescription(TopHeadlinesStrings.SEARCH)
+            .onNodeWithContentDescription(resourceString(Res.string.top_headlines_search))
             .performClick()
 
         composeTestRule
@@ -983,7 +1005,7 @@ class NavigationTest {
             .performClick()
 
         composeTestRule
-            .onNodeWithText(SearchStrings.TOP_BAR_TITLE)
+            .onNodeWithText(resourceString(Res.string.search_title))
             .assertIsDisplayed()
 
         composeTestRule
@@ -995,33 +1017,33 @@ class NavigationTest {
     fun bottomNavIsHiddenOnSearch() {
         setContent()
 
-        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SEARCH).performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_search)).performClick()
 
-        composeTestRule.onNodeWithText("Headlines").assertDoesNotExist()
-        composeTestRule.onNodeWithText("Saved").assertDoesNotExist()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_headlines)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_saved)).assertDoesNotExist()
     }
 
     @Test
     fun searchIsNotAThirdTopLevelDestination() {
         setContent()
 
-        composeTestRule.onNodeWithText("Headlines").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Saved").assertIsDisplayed()
-        composeTestRule.onNodeWithText(SearchStrings.TOP_BAR_TITLE).assertDoesNotExist()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_headlines)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_saved)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.search_title)).assertDoesNotExist()
     }
 
     @Test
     fun headlinesSettingsBackReturnsToHeadlines() {
         setContent()
 
-        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SETTINGS).performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_settings)).performClick()
 
-        composeTestRule.onNodeWithText(SettingsStrings.TOP_BAR_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.settings_title)).assertIsDisplayed()
 
-        composeTestRule.onNodeWithContentDescription(SettingsStrings.BACK).performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.settings_back)).performClick()
 
-        composeTestRule.onNodeWithText(TopHeadlinesStrings.TOP_BAR_TITLE).assertIsDisplayed()
-        composeTestRule.onNodeWithText("Headlines").assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.top_headlines_title)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_headlines)).assertIsDisplayed()
     }
 
     @Test
@@ -1029,32 +1051,32 @@ class NavigationTest {
         val restorationTester = StateRestorationTester(composeTestRule)
         setContent(restorationTester = restorationTester)
 
-        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SETTINGS).performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_settings)).performClick()
         restorationTester.emulateSavedInstanceStateRestore()
 
-        composeTestRule.onNodeWithText(SettingsStrings.TOP_BAR_TITLE).assertIsDisplayed()
-        composeTestRule.onNodeWithContentDescription(SettingsStrings.BACK).performClick()
-        composeTestRule.onNodeWithText(TopHeadlinesStrings.TOP_BAR_TITLE).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.settings_title)).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.settings_back)).performClick()
+        composeTestRule.onNodeWithText(resourceString(Res.string.top_headlines_title)).assertIsDisplayed()
     }
 
     @Test
     fun settingsShowsOfflineSection() {
         setContent()
 
-        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SETTINGS).performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_settings)).performClick()
 
-        composeTestRule.onNodeWithText(SettingsStrings.OFFLINE_SECTION).assertIsDisplayed()
-        composeTestRule.onNodeWithText(SettingsStrings.DOWNLOADED_HEADLINES).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.settings_offline_section)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(resourceString(Res.string.settings_downloaded_headlines)).assertIsDisplayed()
     }
 
     @Test
     fun bottomNavIsHiddenOnSettings() {
         setContent()
 
-        composeTestRule.onNodeWithContentDescription(TopHeadlinesStrings.SETTINGS).performClick()
+        composeTestRule.onNodeWithContentDescription(resourceString(Res.string.top_headlines_settings)).performClick()
 
-        composeTestRule.onNodeWithText("Headlines").assertDoesNotExist()
-        composeTestRule.onNodeWithText("Saved").assertDoesNotExist()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_headlines)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(resourceString(Res.string.bottom_nav_saved)).assertDoesNotExist()
     }
 }
 
